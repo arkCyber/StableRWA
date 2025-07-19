@@ -1,0 +1,29 @@
+[package]
+name = "core-security"
+version = "0.1.0"
+edition = "2021"
+authors = ["arkSong <arksong2018@gmail.com>"]
+description = "Security utilities and authentication for RWA platform"
+
+[dependencies]
+jsonwebtoken = { workspace = true }
+bcrypt = { workspace = true }
+ring = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+regex = "1.10"
+url = "2.5"
+base64 = "0.22"
+hex = "0.4"
+rand = "0.8"
+core-config = { path = "../core-config" }
+
+[dev-dependencies]
+tokio-test = "0.4"

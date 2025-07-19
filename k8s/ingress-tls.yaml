@@ -1,0 +1,30 @@
+# =====================================================================================
+# Kubernetes Ingress and TLS config for RWA Platform Project
+# Exposes the webui frontend at https://rwa.localhost
+# Author: arkSong (arksong2018@gmail.com)
+# =====================================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rwa-platform-ingress
+  namespace: rwa-platform
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  tls:
+    - hosts:
+        - rwa.localhost
+      secretName: rwa-tls-secret  # You must create this TLS secret
+  rules:
+    - host: rwa.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: webui
+                port:
+                  number: 3000 

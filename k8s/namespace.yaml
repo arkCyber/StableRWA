@@ -1,0 +1,47 @@
+# =====================================================================================
+# Kubernetes Namespace for RWA Platform
+# =====================================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rwa-platform
+  labels:
+    name: rwa-platform
+    environment: production
+    app.kubernetes.io/name: rwa-platform
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: kubectl
+  annotations:
+    description: "Real World Asset tokenization platform"
+    contact: "arksong2018@gmail.com"
+---
+# Development namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rwa-platform-dev
+  labels:
+    name: rwa-platform-dev
+    environment: development
+    app.kubernetes.io/name: rwa-platform
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: kubectl
+  annotations:
+    description: "RWA Platform development environment"
+    contact: "arksong2018@gmail.com"
+---
+# Staging namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rwa-platform-staging
+  labels:
+    name: rwa-platform-staging
+    environment: staging
+    app.kubernetes.io/name: rwa-platform
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: kubectl
+  annotations:
+    description: "RWA Platform staging environment"
+    contact: "arksong2018@gmail.com"

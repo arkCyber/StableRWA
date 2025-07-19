@@ -1,0 +1,70 @@
+[workspace]
+resolver = "2"
+members = [
+    # Core Infrastructure
+    "core-utils",
+    "core-blockchain",
+    "core-ai",
+    "core-config",
+    "core-database",
+    "core-security",
+    "core-observability",
+
+    # Business Services
+    "service-asset",
+    "service-gateway",
+
+    # Blockchain Integrations
+    "ethereum-integration",
+    "solana-integration",
+    "polkadot-integration",
+
+    # External Services
+    "ai-service"
+]
+
+[workspace.dependencies]
+# Core dependencies shared across workspace
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+actix-web = "4.0"
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid"] }
+redis = { version = "0.24", features = ["tokio-comp"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+config = "0.14"
+async-trait = "0.1"
+reqwest = { version = "0.11", features = ["json"] }
+
+# Blockchain dependencies
+ethers = "2.0"
+solana-client = "1.16"
+subxt = "0.32"
+
+# Security dependencies
+jsonwebtoken = "9.0"
+bcrypt = "0.15"
+ring = "0.17"
+
+# Observability
+opentelemetry = "0.21"
+opentelemetry-jaeger = "0.20"
+prometheus = "0.13"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["arkSong <arksong2018@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/arkSong/StableRWA"
+homepage = "https://github.com/arkSong/StableRWA"
+documentation = "https://github.com/arkSong/StableRWA/docs"
+description = "StableRWA - Enterprise RWA Tokenization Technology Framework Platform"
+keywords = ["blockchain", "rwa", "tokenization", "web3", "rust", "framework", "enterprise"]
+categories = ["web-programming", "cryptography", "database", "development-tools"]
+readme = "README.md"

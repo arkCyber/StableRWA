@@ -1,0 +1,51 @@
+# .cursorrules for StableRWA Project
+# Owner: arkSong (arksong2018@gmail.com)
+#
+# Project Overview:
+#   - Rust-based StableRWA technology platform
+#   - Modular crates, each independently buildable and runnable
+#   - Microservices architecture for backend
+#   - Frontend: TypeScript, React, TailwindCSS
+#   - Blockchain compatibility: Solana, Polkadot, Ethereum
+#   - AI integration for StableRWA empowerment
+#   - Designed for stability, reliability, efficiency, and security
+#   - Docker-ready deployment
+#
+# Coding Standards:
+#   - All code and comments in English
+#   - Every file must start with a detailed file-level comment
+#   - All functions must have detailed doc comments
+#   - Include test code for all modules and functions
+#   - Add logging with timestamps at all import points and key logic
+#   - Comprehensive error handling required
+#   - Avoid duplicate or redundant definitions (structs, traits, functions)
+#   - Use project-wide definitions and traits; do not redefine
+#   - Do not modify stable code unless necessary
+#   - Do not create new files or functions if existing ones suffice
+#   - Avoid duplicate function definitions
+#   - Check for file existence before creating new files
+#   - All code must be compatible with microservice and modular crate structure
+#   - Frontend must interact with backend via web UI server
+#   - All code must be suitable for Docker deployment
+#
+# Workflow:
+#   - After running 'cargo check', fix all errors
+#   - After running 'cargo test', fix all errors
+#   - Always add or update tests with new code
+#   - Always add or update logging with timestamps
+#   - Always handle errors explicitly
+#
+# Contact: arkSong (arksong2018@gmail.com)
+
+
+本项目构造按照企业级别标准：高效与安全并重，代码质量与可维护性并重。
+
+1. 代码质量：
+   - 代码结构清晰，易于理解
+   - 代码风格统一，易于维护
+   - 代码注释清晰，易于理解
+   - 代码测试覆盖率100%
+   - 代码性能优化
+   - 代码安全优化
+
+   StableRWA - AI-Powered Enterprise RWA Tokenization Technology Framework Platform

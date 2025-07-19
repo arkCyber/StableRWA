@@ -1,0 +1,29 @@
+[package]
+name = "core-utils"
+version = "0.1.0"
+edition = "2021"
+authors = ["arkSong <arksong2018@gmail.com>"]
+description = "Utility functions and testing tools for RWA platform"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+async-trait = { workspace = true }
+reqwest = { workspace = true }
+rand = "0.8"
+fake = "2.9"
+regex = "1.10"
+url = "2.5"
+redis = "0.24"
+sqlx = { workspace = true }
+
+[dev-dependencies]
+tokio-test = "0.4"
+rand = "0.9.1"
+uuid = "1.17.0"

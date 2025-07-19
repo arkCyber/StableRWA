@@ -1,0 +1,278 @@
+# =====================================================================================
+# Docker Compose configuration for RWA Platform
+# Includes all services and dependencies for local development and testing
+# =====================================================================================
+
+version: '3.8'
+
+services:
+  # =====================================================================================
+  # Infrastructure Services
+  # =====================================================================================
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: rwa-postgres
+    environment:
+      POSTGRES_DB: rwa_platform
+      POSTGRES_USER: rwa_user
+      POSTGRES_PASSWORD: rwa_password
+      POSTGRES_MULTIPLE_DATABASES: rwa_dev,rwa_test,rwa_staging
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh
+    networks:
+      - rwa-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rwa_user -d rwa_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: rwa-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - rwa-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes
+
+  # =====================================================================================
+  # Observability Stack
+  # =====================================================================================
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.50
+    container_name: rwa-jaeger
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+    networks:
+      - rwa-network
+
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: rwa-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - rwa-network
+
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: rwa-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - rwa-network
+    depends_on:
+      - prometheus
+
+  # =====================================================================================
+  # Message Queue
+  # =====================================================================================
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: rwa-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: rwa_user
+      RABBITMQ_DEFAULT_PASS: rwa_password
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - rwa-network
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+  # =====================================================================================
+  # Application Services
+  # =====================================================================================
+
+  gateway:
+    build:
+      context: .
+      target: gateway
+    container_name: rwa-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      RWA_ENV: development
+      DATABASE_URL: postgresql://rwa_user:rwa_password@postgres:5432/rwa_dev
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: development_jwt_secret_key_32_chars
+      ENCRYPTION_KEY: development_encryption_key_32_chars
+      API_BASE_URL: http://localhost:8080
+      LOG_LEVEL: debug
+      JAEGER_ENDPOINT: http://jaeger:14268/api/traces
+      PROMETHEUS_ENDPOINT: http://prometheus:9090
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rwa-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  user-service:
+    build:
+      context: .
+      target: user-service
+    container_name: rwa-user-service
+    ports:
+      - "8081:8081"
+    environment:
+      RWA_ENV: development
+      DATABASE_URL: postgresql://rwa_user:rwa_password@postgres:5432/rwa_dev
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: development_jwt_secret_key_32_chars
+      ENCRYPTION_KEY: development_encryption_key_32_chars
+      LOG_LEVEL: debug
+      JAEGER_ENDPOINT: http://jaeger:14268/api/traces
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rwa-network
+
+  asset-service:
+    build:
+      context: .
+      target: asset-service
+    container_name: rwa-asset-service
+    ports:
+      - "8082:8082"
+    environment:
+      RWA_ENV: development
+      DATABASE_URL: postgresql://rwa_user:rwa_password@postgres:5432/rwa_dev
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: development_jwt_secret_key_32_chars
+      ENCRYPTION_KEY: development_encryption_key_32_chars
+      LOG_LEVEL: debug
+      JAEGER_ENDPOINT: http://jaeger:14268/api/traces
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rwa-network
+
+  payment-service:
+    build:
+      context: .
+      target: payment-service
+    container_name: rwa-payment-service
+    ports:
+      - "8083:8083"
+    environment:
+      RWA_ENV: development
+      DATABASE_URL: postgresql://rwa_user:rwa_password@postgres:5432/rwa_dev
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: development_jwt_secret_key_32_chars
+      ENCRYPTION_KEY: development_encryption_key_32_chars
+      STRIPE_SECRET_KEY: sk_test_your_stripe_secret_key
+      LOG_LEVEL: debug
+      JAEGER_ENDPOINT: http://jaeger:14268/api/traces
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rwa-network
+
+  # =====================================================================================
+  # Development Tools
+  # =====================================================================================
+
+  adminer:
+    image: adminer:4.8.1
+    container_name: rwa-adminer
+    ports:
+      - "8090:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    networks:
+      - rwa-network
+    depends_on:
+      - postgres
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: rwa-redis-commander
+    ports:
+      - "8091:8081"
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    networks:
+      - rwa-network
+    depends_on:
+      - redis
+
+# =====================================================================================
+# Networks
+# =====================================================================================
+
+networks:
+  rwa-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# =====================================================================================
+# Volumes
+# =====================================================================================
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  rabbitmq_data:
+    driver: local

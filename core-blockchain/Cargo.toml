@@ -1,0 +1,27 @@
+[package]
+name = "core-blockchain"
+version = "0.1.0"
+edition = "2021"
+authors = ["arkSong <arksong2018@gmail.com>"]
+description = "Production-grade blockchain integration layer for RWA platform"
+
+[dependencies]
+ethers = { version = "2.0", features = ["ws", "rustls"], default-features = false }
+ethers-etherscan = { version = "2.0", default-features = false }
+# solana-client = { version = "1.16", default-features = false }
+subxt = { workspace = true }
+tokio = { version = "1.32", features = ["full"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }
+uuid = { workspace = true }
+reqwest = { workspace = true }
+futures-util = "0.3"
+core-config = { path = "../core-config" }
+
+[dev-dependencies]
+tokio-test = "0.4"

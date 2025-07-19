@@ -1,0 +1,27 @@
+[package]
+name = "service-gateway"
+version = "0.1.0"
+edition = "2021"
+authors = ["arkSong <arksong2018@gmail.com>"]
+description = "API Gateway for RWA platform microservices"
+
+[dependencies]
+actix-web = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+reqwest = { workspace = true }
+jsonwebtoken = { workspace = true }
+async-trait = { workspace = true }
+core-config = { path = "../core-config" }
+core-security = { path = "../core-security" }
+core-observability = { path = "../core-observability" }
+
+[dev-dependencies]
+tokio-test = "0.4"

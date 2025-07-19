@@ -1,0 +1,227 @@
+# =====================================================================================
+# Kubernetes manifest for RWA Platform Project
+# Deploys Rust microservices and Next.js frontend
+# Author: arkSong (arksong2018@gmail.com)
+# =====================================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rwa-platform
+---
+# Asset Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-asset
+  namespace: rwa-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: service-asset
+  template:
+    metadata:
+      labels:
+        app: service-asset
+    spec:
+      containers:
+        - name: service-asset
+          image: service-asset:latest
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-asset
+  namespace: rwa-platform
+spec:
+  selector:
+    app: service-asset
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+---
+# User Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: rwa-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+        - name: user-service
+          image: user-service:latest
+          ports:
+            - containerPort: 8081
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: rwa-platform
+spec:
+  selector:
+    app: user-service
+  ports:
+    - protocol: TCP
+      port: 8081
+      targetPort: 8081
+---
+# Payment Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: rwa-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+    spec:
+      containers:
+        - name: payment-service
+          image: payment-service:latest
+          ports:
+            - containerPort: 8082
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  namespace: rwa-platform
+spec:
+  selector:
+    app: payment-service
+  ports:
+    - protocol: TCP
+      port: 8082
+      targetPort: 8082
+---
+# Auth Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: rwa-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+    spec:
+      containers:
+        - name: auth-service
+          image: auth-service:latest
+          ports:
+            - containerPort: 8083
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: rwa-platform
+spec:
+  selector:
+    app: auth-service
+  ports:
+    - protocol: TCP
+      port: 8083
+      targetPort: 8083
+---
+# Frontend (webui)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webui
+  namespace: rwa-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webui
+  template:
+    metadata:
+      labels:
+        app: webui
+    spec:
+      containers:
+        - name: webui
+          image: webui:latest
+          ports:
+            - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webui
+  namespace: rwa-platform
+spec:
+  selector:
+    app: webui
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+  type: LoadBalancer 
+---
+# AI Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-service
+  namespace: rwa-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-service
+  template:
+    metadata:
+      labels:
+        app: ai-service
+    spec:
+      containers:
+        - name: ai-service
+          image: ai-service:latest
+          ports:
+            - containerPort: 8090
+          env:
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: rwa-api-key
+                  key: OPENAI_API_KEY
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-service
+  namespace: rwa-platform
+spec:
+  selector:
+    app: ai-service
+  ports:
+    - protocol: TCP
+      port: 8090
+      targetPort: 8090 

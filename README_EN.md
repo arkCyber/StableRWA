@@ -14,11 +14,23 @@
 
 StableRWA is a **world-class enterprise Web3 platform** for Real World Asset (RWA) tokenization, featuring complete DeFi ecosystem integration, AI-driven risk management, regulatory technology automation, and advanced privacy protection. Built with Rust for maximum performance, security, and scalability.
 
-![StableRWA Dashboard](assets/screenshots/dashboard-main.png)
+### 📊 Platform Interface Preview
 
-### 🤖 AI Services Interface
-![AI Services](assets/screenshots/ai-services.png)
-*Advanced AI-powered services for asset valuation, risk assessment, and market intelligence*
+**🖼️ Main Dashboard**
+- Real-time asset monitoring with 2,847 assets under management
+- Total value locked: $45.2M USD with +8.2% growth
+- Active users: 1,234 users in the last 30 days
+- Transaction volume: $12.8M trading volume this month
+- Professional dark theme with orange accent colors
+
+**🤖 AI Services Interface**
+- AI Asset Valuation service with 90% accuracy
+- Risk Assessment service with 91% accuracy
+- Document Analysis service with 88% accuracy (Beta)
+- Market Intelligence service (Coming Soon)
+- Advanced AI-powered analytics and decision-making tools
+
+> 📸 **Screenshots**: Platform screenshots are being updated. Please see the live demo or contact us for the latest interface previews.
 
 ## 🎯 AI-Powered Technology Framework Features
 

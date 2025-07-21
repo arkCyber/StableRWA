@@ -21,7 +21,7 @@ StableRWA is a **world-class enterprise Web3 platform** for Real World Asset (RW
 - 🏢 **Enterprise-Grade Features**: Smart contracts, RegTech, AI risk, monitoring, privacy
 - 🚀 **Developer-Friendly**: Unified API gateway with multi-language SDKs
 
-![StableRWA Dashboard](assets/screenshots/dashboard.png)
+![StableRWA Dashboard](assets/screenshots/dashboard-main.png)
 
 ## ✨ Key Features
 
@@ -217,6 +217,19 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - ✅ **Developer-Friendly**: Unified API + Multi-language SDKs + Documentation
 - ✅ **Production-Ready**: >95% test coverage + Security audits + Scalable architecture
 - ✅ **Open Source**: MIT licensed + Community-driven development
+
+## 🤝 Supporting Organizations
+
+StableRWA is proudly supported by leading technology companies:
+
+### 🏢 Corporate Partners
+- **Tongda Ark Future Network Technology Co., Ltd. (Hong Kong)**
+  *同大方舟未来网络科技有限公司（香港）*
+- **ARKMETA CRYPTO NETWORK LIMITED**
+- **Longan Wisdom (Shanghai) Network Technology Co., Ltd.**
+  *龙眼慧（上海）网络科技有限公司*
+
+These organizations provide strategic guidance, technical expertise, and resources to advance the development of enterprise-grade Web3 RWA solutions.
 
 ---
 

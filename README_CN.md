@@ -1,15 +1,20 @@
-# StableRWA - AI 赋能的RWA代币化技术框架平台
+# StableRWA 平台
 
-[![CI/CD Pipeline](https://github.com/arkSong/StableRWA/actions/workflows/ci.yml/badge.svg)](https://github.com/arkSong/StableRWA/actions/workflows/ci.yml)
-[![Security Audit](https://github.com/arkSong/StableRWA/actions/workflows/security.yml/badge.svg)](https://github.com/arkSong/StableRWA/actions/workflows/security.yml)
+**🌟 世界级企业 Web3 RWA 平台**
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Rust Version](https://img.shields.io/badge/rust-1.75+-blue.svg)](https://www.rust-lang.org)
+[![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com)
-[![Kubernetes](https://img.shields.io/badge/kubernetes-ready-blue.svg)](https://kubernetes.io)
-[![AI Powered](https://img.shields.io/badge/AI-powered-purple.svg)](https://openai.com)
-[![Framework](https://img.shields.io/badge/framework-enterprise-green.svg)](https://github.com/arkSong/StableRWA)
+[![Web3](https://img.shields.io/badge/web3-enabled-green.svg)](https://web3.foundation)
+[![DeFi](https://img.shields.io/badge/defi-integrated-purple.svg)](https://defipulse.com)
 
-**🚀 StableRWA** 是采用 Rust 编写的 AI 人工智能赋能的企业级真实世界资产（RWA）代币化技术框架平台。作为一个完整的可二次开发的 Web3 区块链技术框架，StableRWA 集成了先进的 AI 技术，提供了构建智能化 Web3 区块链应用所需的全套基础设施和开发工具，支持快速构建、部署和扩展 RWA 相关的区块链应用。
+**中文** | [English](README_EN.md)
+
+## 🎯 项目概述
+
+StableRWA 是一个**世界级的企业 Web3 平台**，专注于现实世界资产（RWA）代币化，集成完整的 DeFi 生态系统、AI 驱动的风险管理、监管科技自动化和先进的隐私保护。采用 Rust 构建，确保最高的性能、安全性和可扩展性。
+
+![StableRWA 仪表板](assets/screenshots/dashboard-main.png)
 
 ## 🎯 AI 赋能技术框架特性
 
@@ -345,6 +350,19 @@ k6 run tests/load/api-load-test.js
 5. 提交更改: `git commit -m 'Add amazing feature'`
 6. 推送到分支: `git push origin feature/amazing-feature`
 7. 打开 Pull Request
+
+## 🤝 支持单位
+
+StableRWA 平台得到以下领先技术公司的支持：
+
+### 🏢 企业合作伙伴
+- **同大方舟未来网络科技有限公司（香港）**
+  *Tongda Ark Future Network Technology Co., Ltd. (Hong Kong)*
+- **ARKMETA CRYPTO NETWORK LIMITED**
+- **龙眼慧（上海）网络科技有限公司**
+  *Longan Wisdom (Shanghai) Network Technology Co., Ltd.*
+
+这些组织为企业级 Web3 RWA 解决方案的发展提供战略指导、技术专长和资源支持。
 
 ## 📄 许可证
 

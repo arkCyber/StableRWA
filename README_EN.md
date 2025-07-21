@@ -1,15 +1,20 @@
-# StableRWA - AI-Powered Enterprise RWA Tokenization Technology Framework Platform
+# StableRWA Platform
 
-[![CI/CD Pipeline](https://github.com/arkSong/StableRWA/actions/workflows/ci.yml/badge.svg)](https://github.com/arkSong/StableRWA/actions/workflows/ci.yml)
-[![Security Audit](https://github.com/arkSong/StableRWA/actions/workflows/security.yml/badge.svg)](https://github.com/arkSong/StableRWA/actions/workflows/security.yml)
+**🌟 World-Class Enterprise Web3 RWA Platform**
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Rust Version](https://img.shields.io/badge/rust-1.75+-blue.svg)](https://www.rust-lang.org)
+[![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com)
-[![Kubernetes](https://img.shields.io/badge/kubernetes-ready-blue.svg)](https://kubernetes.io)
-[![AI Powered](https://img.shields.io/badge/AI-powered-purple.svg)](https://openai.com)
-[![Framework](https://img.shields.io/badge/framework-enterprise-green.svg)](https://github.com/arkSong/StableRWA)
+[![Web3](https://img.shields.io/badge/web3-enabled-green.svg)](https://web3.foundation)
+[![DeFi](https://img.shields.io/badge/defi-integrated-purple.svg)](https://defipulse.com)
 
-**🚀 StableRWA** is an AI-powered enterprise-grade Real World Asset (RWA) tokenization technology framework platform built with Rust. As a comprehensive and customizable Web3 blockchain technology framework, StableRWA integrates advanced AI technologies, providing a complete set of infrastructure and development tools needed to build intelligent Web3 blockchain applications, supporting rapid construction, deployment, and scaling of RWA-related blockchain applications.
+[中文文档](README_CN.md) | **English**
+
+## 🎯 Overview
+
+StableRWA is a **world-class enterprise Web3 platform** for Real World Asset (RWA) tokenization, featuring complete DeFi ecosystem integration, AI-driven risk management, regulatory technology automation, and advanced privacy protection. Built with Rust for maximum performance, security, and scalability.
+
+![StableRWA Dashboard](assets/screenshots/dashboard-main.png)
 
 ## 🎯 AI-Powered Technology Framework Features
 
@@ -345,6 +350,19 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 5. Commit your changes: `git commit -m 'Add amazing feature'`
 6. Push to the branch: `git push origin feature/amazing-feature`
 7. Open a Pull Request
+
+## 🤝 Supporting Organizations
+
+StableRWA is proudly supported by leading technology companies:
+
+### 🏢 Corporate Partners
+- **Tongda Ark Future Network Technology Co., Ltd. (Hong Kong)**
+  *同大方舟未来网络科技有限公司（香港）*
+- **ARKMETA CRYPTO NETWORK LIMITED**
+- **Longan Wisdom (Shanghai) Network Technology Co., Ltd.**
+  *龙眼慧（上海）网络科技有限公司*
+
+These organizations provide strategic guidance, technical expertise, and resources to advance the development of enterprise-grade Web3 RWA solutions.
 
 ## 📄 License
 

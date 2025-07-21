@@ -16,6 +16,10 @@ StableRWA 是一个**世界级的企业 Web3 平台**，专注于现实世界资
 
 ![StableRWA 仪表板](assets/screenshots/dashboard-main.png)
 
+### 🤖 AI 服务界面
+![AI 服务](assets/screenshots/ai-services.png)
+*先进的 AI 驱动服务，包括资产估值、风险评估和市场智能分析*
+
 ## 🎯 AI 赋能技术框架特性
 
 **🤖 AI 智能化** - 集成 OpenAI GPT 模型，提供智能资产估值、风险评估、市场分析  

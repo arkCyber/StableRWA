@@ -16,6 +16,10 @@ StableRWA is a **world-class enterprise Web3 platform** for Real World Asset (RW
 
 ![StableRWA Dashboard](assets/screenshots/dashboard-main.png)
 
+### 🤖 AI Services Interface
+![AI Services](assets/screenshots/ai-services.png)
+*Advanced AI-powered services for asset valuation, risk assessment, and market intelligence*
+
 ## 🎯 AI-Powered Technology Framework Features
 
 **🤖 AI Intelligence** - Integrated OpenAI GPT models for intelligent asset valuation, risk assessment, and market analysis  

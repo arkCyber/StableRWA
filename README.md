@@ -23,6 +23,10 @@ StableRWA is a **world-class enterprise Web3 platform** for Real World Asset (RW
 
 ![StableRWA Dashboard](assets/screenshots/dashboard-main.png)
 
+### 🤖 AI Services Interface
+![AI Services](assets/screenshots/ai-services.png)
+*Advanced AI-powered services for asset valuation, risk assessment, and market intelligence*
+
 ## ✨ Key Features
 
 ### 🌐 Complete Web3 Ecosystem
@@ -121,6 +125,23 @@ cargo test --all-features
 │  └─────────────┘  └─────────────┘  └─────────────┘             │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+## 📱 Platform Screenshots
+
+### 📊 Main Dashboard
+![StableRWA Dashboard](assets/screenshots/dashboard-main.png)
+*Real-time asset monitoring with 2,847 assets under management, $45.2M USD total value locked*
+
+### 🤖 AI Services
+![AI Services](assets/screenshots/ai-services.png)
+*Advanced AI-powered services including asset valuation (90% accuracy), risk assessment (91% accuracy), and document analysis*
+
+### 💡 Key Platform Features
+- **📈 Real-time Analytics**: Live performance tracking and market data
+- **🤖 AI-Powered Intelligence**: Advanced machine learning for asset valuation and risk assessment
+- **🔐 Enterprise Security**: Multi-signature wallets and regulatory compliance
+- **🌐 Multi-Chain Support**: Seamless integration across blockchain networks
+- **📊 Professional Interface**: Modern, intuitive design for enterprise users
 
 ## 🛠️ Technology Stack
 

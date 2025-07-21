@@ -3,17 +3,55 @@ name = "ai-service"
 version = "0.1.0"
 edition = "2021"
 authors = ["arkSong <arksong2018@gmail.com>"]
-description = "Enterprise-grade AI microservice for StableRWA platform."
-license = "MIT OR Apache-2.0"
+license = "MIT"
+repository = "https://github.com/arkSong/StableRWA"
+homepage = "https://github.com/arkSong/StableRWA"
+documentation = "https://github.com/arkSong/StableRWA/docs"
+description = "AI intelligence service for StableRWA Framework"
+keywords = ["ai", "openai", "rwa", "blockchain", "microservice"]
+categories = ["web-programming", "api-bindings"]
+
+[[bin]]
+name = "ai-service"
+path = "src/main.rs"
 
 [dependencies]
-actix-web = "4"
+# Framework dependencies
+core-ai = { path = "../core-ai" }
+core-utils = { path = "../core-utils" }
+core-security = { path = "../core-security" }
+
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+async-trait = "0.1"
+
+# Web framework
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+
+# Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-log = "0.4"
-chrono = "0.4"
+
+# Error handling
 thiserror = "1.0"
-reqwest = { version = "0.11", features = ["json", "blocking"] }
-dotenv = "0.15"
-env_logger = "0.10"
-tokio = { version = "1.32", features = ["full"] } 
+anyhow = "1.0"
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Utilities
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# AI and ML
+regex = "1.0"
+
+[dev-dependencies]
+tokio-test = "0.4"
+axum-test = "14.0"

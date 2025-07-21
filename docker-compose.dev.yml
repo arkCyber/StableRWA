@@ -1,0 +1,130 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14-alpine
+    container_name: stablerwa-postgres
+    environment:
+      POSTGRES_DB: stablerwa_dev
+      POSTGRES_USER: stablerwa
+      POSTGRES_PASSWORD: password
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stablerwa -d stablerwa_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - stablerwa-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: stablerwa-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - stablerwa-network
+
+  # Frontend Development Server
+  frontend:
+    build:
+      context: ./webui
+      dockerfile: Dockerfile.dev
+    container_name: stablerwa-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./webui:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - WATCHPACK_POLLING=true
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - stablerwa-network
+    stdin_open: true
+    tty: true
+
+  # Backend API Server (when compilation issues are resolved)
+  # backend:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.dev
+  #   container_name: stablerwa-backend
+  #   ports:
+  #     - "8080:8080"
+  #   volumes:
+  #     - .:/app
+  #     - cargo_cache:/usr/local/cargo/registry
+  #     - target_cache:/app/target
+  #   environment:
+  #     - RUST_ENV=development
+  #     - DATABASE_URL=postgresql://stablerwa:password@postgres:5432/stablerwa_dev
+  #     - REDIS_URL=redis://redis:6379
+  #     - JWT_SECRET=dev-secret-key
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - stablerwa-network
+
+  # Adminer for Database Management
+  adminer:
+    image: adminer:4.8.1
+    container_name: stablerwa-adminer
+    ports:
+      - "8081:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: pepa-linha
+    depends_on:
+      - postgres
+    networks:
+      - stablerwa-network
+
+  # Redis Commander for Redis Management
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: stablerwa-redis-commander
+    ports:
+      - "8082:8081"
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    depends_on:
+      - redis
+    networks:
+      - stablerwa-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  cargo_cache:
+    driver: local
+  target_cache:
+    driver: local
+
+networks:
+  stablerwa-network:
+    driver: bridge

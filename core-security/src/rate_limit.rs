@@ -81,7 +81,7 @@ impl InMemoryRateLimiter {
     pub async fn start_cleanup_task(self: Arc<Self>) {
         let limiter = Arc::clone(&self);
         tokio::spawn(async move {
-            let mut interval = limiter.cleanup_interval.clone();
+            let mut interval = tokio::time::interval(limiter.cleanup_interval.period());
             loop {
                 interval.tick().await;
                 if let Err(e) = limiter.cleanup().await {

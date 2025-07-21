@@ -196,7 +196,7 @@ impl RwaAssetToken {
     /// Mint new tokens for an asset
     pub async fn mint_tokens(&self, to: &Address, amount: &str, asset_id: &str) -> Result<Transaction, BlockchainError> {
         let args = vec![
-            ContractArg::address(&to.address),
+            ContractArg::address(&to.value),
             ContractArg::uint256(amount),
             ContractArg::string(asset_id),
         ];
@@ -207,7 +207,7 @@ impl RwaAssetToken {
     /// Transfer tokens between addresses
     pub async fn transfer_tokens(&self, from: &Address, to: &Address, amount: &str) -> Result<Transaction, BlockchainError> {
         let args = vec![
-            ContractArg::address(&to.address),
+            ContractArg::address(&to.value),
             ContractArg::uint256(amount),
         ];
 
@@ -216,7 +216,7 @@ impl RwaAssetToken {
 
     /// Get token balance for an address
     pub async fn get_balance(&self, address: &Address) -> Result<String, BlockchainError> {
-        let args = vec![ContractArg::address(&address.address)];
+        let args = vec![ContractArg::address(&address.value)];
         let result = self.call("balanceOf", args).await?;
 
         if let Some(ContractArg::Uint256(balance)) = result.return_values.first() {
@@ -462,7 +462,7 @@ impl ContractManager {
         let deployment = contract.deploy(deployer, vec![]).await?;
         
         info!(
-            contract_address = %deployment.contract_address.address,
+            contract_address = %deployment.contract_address.value,
             transaction_hash = %deployment.transaction_hash,
             "RWA Asset Token contract deployed successfully"
         );

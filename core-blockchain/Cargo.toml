@@ -6,22 +6,58 @@ authors = ["arkSong <arksong2018@gmail.com>"]
 description = "Production-grade blockchain integration layer for RWA platform"
 
 [dependencies]
-ethers = { version = "2.0", features = ["ws", "rustls"], default-features = false }
-ethers-etherscan = { version = "2.0", default-features = false }
-# solana-client = { version = "1.16", default-features = false }
-subxt = { workspace = true }
-tokio = { version = "1.32", features = ["full"] }
+# Async runtime
+tokio = { workspace = true }
+async-trait = { workspace = true }
+futures-util = "0.3"
+
+# Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
-chrono = { workspace = true }
+
+# Error handling
 anyhow = { workspace = true }
 thiserror = { workspace = true }
+
+# Logging
 tracing = { workspace = true }
-async-trait = { workspace = true }
+
+# Date and time
+chrono = { workspace = true }
+
+# UUID generation
 uuid = { workspace = true }
+
+# HTTP client
 reqwest = { workspace = true }
-futures-util = "0.3"
-core-config = { path = "../core-config" }
+
+# Random number generation
+rand = { workspace = true }
+
+# Blockchain dependencies
+ethers = { workspace = true, features = ["ws", "rustls"], default-features = false, optional = true }
+ethers-etherscan = { version = "2.0", default-features = false, optional = true }
+# solana-client = { workspace = true, optional = true }
+subxt = { workspace = true, optional = true }
+
+# Cryptography
+sha2 = { workspace = true }
+hex = { workspace = true }
+ed25519-dalek = { workspace = true }
+ring = { workspace = true }
+
+# Internal dependencies
+core-utils = { path = "../core-utils" }
+core-security = { path = "../core-security" }
 
 [dev-dependencies]
 tokio-test = "0.4"
+mockall = "0.11"
+tempfile = "3.8"
+
+[features]
+default = ["ethereum"]
+ethereum = ["ethers", "ethers-etherscan"]
+# solana = ["solana-client"]
+polkadot = ["subxt"]
+all-chains = ["ethereum", "polkadot"]

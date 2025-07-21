@@ -5,6 +5,7 @@
 // =====================================================================================
 
 use crate::GatewayError;
+use actix_web::HttpMessage;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};

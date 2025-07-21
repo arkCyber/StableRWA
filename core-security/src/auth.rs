@@ -146,18 +146,40 @@ impl PasswordUtils {
         Ok(())
     }
     
-    /// Generate secure random password
+    /// Generate secure random password that meets default policy requirements
     pub fn generate_password(length: usize) -> String {
         use rand::Rng;
-        const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
         let mut rng = rand::thread_rng();
-        
-        (0..length)
-            .map(|_| {
-                let idx = rng.gen_range(0..CHARSET.len());
-                CHARSET[idx] as char
-            })
-            .collect()
+
+        // Ensure minimum length
+        let actual_length = length.max(8);
+
+        // Character sets
+        const UPPERCASE: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const LOWERCASE: &[u8] = b"abcdefghijklmnopqrstuvwxyz";
+        const NUMBERS: &[u8] = b"0123456789";
+        const SPECIAL: &[u8] = b"!@#$%^&*";
+        const ALL_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+
+        let mut password = Vec::with_capacity(actual_length);
+
+        // Ensure at least one character from each required set
+        password.push(UPPERCASE[rng.gen_range(0..UPPERCASE.len())] as char);
+        password.push(LOWERCASE[rng.gen_range(0..LOWERCASE.len())] as char);
+        password.push(NUMBERS[rng.gen_range(0..NUMBERS.len())] as char);
+        password.push(SPECIAL[rng.gen_range(0..SPECIAL.len())] as char);
+
+        // Fill the rest with random characters
+        for _ in 4..actual_length {
+            let idx = rng.gen_range(0..ALL_CHARS.len());
+            password.push(ALL_CHARS[idx] as char);
+        }
+
+        // Shuffle the password to avoid predictable patterns
+        use rand::seq::SliceRandom;
+        password.shuffle(&mut rng);
+
+        password.into_iter().collect()
     }
 }
 

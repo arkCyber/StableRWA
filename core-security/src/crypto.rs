@@ -5,8 +5,9 @@
 // =====================================================================================
 
 use crate::SecurityError;
+use base64::{Engine as _, engine::general_purpose};
 use ring::{
-    aead::{self, Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM},
+    aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM},
     digest::{self, SHA256},
     hkdf,
     pbkdf2,
@@ -80,13 +81,13 @@ impl EncryptionService {
     /// Encrypt string data
     pub fn encrypt_string(&self, plaintext: &str) -> Result<String, SecurityError> {
         let encrypted = self.encrypt(plaintext.as_bytes())?;
-        Ok(base64::encode(serde_json::to_vec(&encrypted)
+        Ok(general_purpose::STANDARD.encode(serde_json::to_vec(&encrypted)
             .map_err(|e| SecurityError::EncryptionError(format!("Serialization failed: {}", e)))?))
     }
     
     /// Decrypt string data
     pub fn decrypt_string(&self, encrypted_base64: &str) -> Result<String, SecurityError> {
-        let encrypted_bytes = base64::decode(encrypted_base64)
+        let encrypted_bytes = general_purpose::STANDARD.decode(encrypted_base64)
             .map_err(|e| SecurityError::EncryptionError(format!("Base64 decode failed: {}", e)))?;
         
         let encrypted_data: EncryptedData = serde_json::from_slice(&encrypted_bytes)
@@ -142,8 +143,10 @@ impl KeyDerivation {
         let prk = salt.extract(input_key_material);
         
         let mut key = vec![0u8; key_length];
-        prk.expand(info, &mut key)
-            .map_err(|e| SecurityError::EncryptionError(format!("HKDF expand failed: {:?}", e)))?;
+        prk.expand(&[info], hkdf::HKDF_SHA256)
+            .map_err(|e| SecurityError::EncryptionError(format!("HKDF expand failed: {:?}", e)))?
+            .fill(&mut key)
+            .map_err(|e| SecurityError::EncryptionError(format!("HKDF fill failed: {:?}", e)))?;
         
         Ok(key)
     }
@@ -217,9 +220,9 @@ impl SignatureUtils {
 }
 
 /// Secure random number generation
-pub struct SecureRandom;
+pub struct SecureRandomGenerator;
 
-impl SecureRandom {
+impl SecureRandomGenerator {
     /// Generate random bytes
     pub fn generate_bytes(length: usize) -> Result<Vec<u8>, SecurityError> {
         let rng = SystemRandom::new();
@@ -232,7 +235,7 @@ impl SecureRandom {
     /// Generate random string (base64 encoded)
     pub fn generate_string(byte_length: usize) -> Result<String, SecurityError> {
         let bytes = Self::generate_bytes(byte_length)?;
-        Ok(base64::encode(bytes))
+        Ok(general_purpose::STANDARD.encode(bytes))
     }
     
     /// Generate random UUID-like string
@@ -323,26 +326,26 @@ mod tests {
     
     #[test]
     fn test_secure_random() {
-        let bytes1 = SecureRandom::generate_bytes(16).unwrap();
-        let bytes2 = SecureRandom::generate_bytes(16).unwrap();
+        let bytes1 = SecureRandomGenerator::generate_bytes(16).unwrap();
+        let bytes2 = SecureRandomGenerator::generate_bytes(16).unwrap();
         
         assert_eq!(bytes1.len(), 16);
         assert_eq!(bytes2.len(), 16);
         assert_ne!(bytes1, bytes2); // Should be different
         
-        let string = SecureRandom::generate_string(16).unwrap();
+        let string = SecureRandomGenerator::generate_string(16).unwrap();
         assert!(!string.is_empty());
         
-        let uuid = SecureRandom::generate_uuid();
+        let uuid = SecureRandomGenerator::generate_uuid();
         assert_eq!(uuid.len(), 36); // UUID format length
     }
     
     #[test]
     fn test_random_range() {
-        let random = SecureRandom::generate_u32_in_range(10, 20).unwrap();
+        let random = SecureRandomGenerator::generate_u32_in_range(10, 20).unwrap();
         assert!(random >= 10 && random < 20);
         
-        let invalid = SecureRandom::generate_u32_in_range(20, 10);
+        let invalid = SecureRandomGenerator::generate_u32_in_range(20, 10);
         assert!(invalid.is_err());
     }
 }

@@ -244,7 +244,7 @@ where
                 .finish();
 
             return Box::pin(async move {
-                Ok(req.into_response(response))
+                Ok(req.into_response(response).map_into_boxed_body())
             });
         }
 
@@ -352,7 +352,7 @@ where
                                                                 "error": "Invalid token",
                                                                 "message": e.to_string()
                                                             }))
-                                                    ));
+                                                    ).map_into_boxed_body());
                                                 }
                                             }
                                         }
@@ -364,7 +364,7 @@ where
                                                         "error": "Invalid authorization header",
                                                         "message": e.to_string()
                                                     }))
-                                            ));
+                                            ).map_into_boxed_body());
                                         }
                                     }
                                 }
@@ -375,7 +375,7 @@ where
                                             .json(serde_json::json!({
                                                 "error": "Authentication service error"
                                             }))
-                                    ));
+                                    ).map_into_boxed_body());
                                 }
                             }
                         } else {
@@ -385,7 +385,7 @@ where
                                     .json(serde_json::json!({
                                         "error": "Missing authorization header"
                                     }))
-                            ));
+                            ).map_into_boxed_body());
                         }
                     }
                     

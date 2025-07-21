@@ -1,0 +1,89 @@
+[package]
+name = "core-institutional"
+version = "0.1.0"
+edition = "2021"
+authors = ["arkSong <arksong2018@gmail.com>"]
+description = "Institutional services for StableRWA platform"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/arkSong/rwa-platform"
+keywords = ["rwa", "institutional", "custody", "trading", "finance"]
+categories = ["finance", "cryptography::cryptocurrencies"]
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Date and time
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID generation
+uuid = { version = "1.6", features = ["v4", "serde"] }
+
+# Decimal arithmetic
+rust_decimal = { version = "1.33", features = ["serde-float"] }
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "rust_decimal"] }
+
+# Redis for caching
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+
+# Cryptography
+ring = "0.17"
+ed25519-dalek = { version = "2.0", features = ["serde"] }
+sha2 = "0.10"
+hex = "0.4"
+
+# Configuration
+config = "0.14"
+
+# Metrics
+prometheus = "0.13"
+
+# Rate limiting
+governor = "0.6"
+
+# Validation
+validator = { version = "0.16", features = ["derive"] }
+
+# Parallel processing
+rayon = "1.8"
+
+# Fast hashing
+fxhash = "0.2"
+
+# Internal dependencies
+core-utils = { path = "../core-utils" }
+core-security = { path = "../core-security" }
+core-compliance = { path = "../core-compliance" }
+core-asset-lifecycle = { path = "../core-asset-lifecycle" }
+core-trading = { path = "../core-trading" }
+core-bridge = { path = "../core-bridge" }
+
+[dev-dependencies]
+tokio-test = "0.4"
+mockall = "0.12"
+tempfile = "3.8"
+
+[features]
+default = ["custody", "bulk-trading", "whitelabel", "api-gateway"]
+custody = []
+bulk-trading = []
+whitelabel = []
+api-gateway = []

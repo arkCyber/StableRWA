@@ -389,6 +389,7 @@ impl EnvUtils {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::{Datelike, Timelike};
 
     #[test]
     fn test_pagination() {

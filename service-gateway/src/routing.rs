@@ -22,6 +22,7 @@ pub struct ServiceInstance {
     pub protocol: String,
     pub health_check_url: Option<String>,
     pub metadata: HashMap<String, String>,
+    #[serde(skip)]
     pub last_heartbeat: Instant,
     pub status: ServiceStatus,
     pub weight: u32,
@@ -221,11 +222,11 @@ impl ServiceRegistry {
     }
 
     /// Select instance using weighted round-robin
-    fn select_weighted_instance(
+    fn select_weighted_instance<'a>(
         &self,
-        instances: &[&ServiceInstance],
+        instances: &[&'a ServiceInstance],
         state: &mut LoadBalancerState,
-    ) -> &ServiceInstance {
+    ) -> &'a ServiceInstance {
         let total_weight: u32 = instances.iter().map(|i| i.weight).sum();
         
         if total_weight == 0 {

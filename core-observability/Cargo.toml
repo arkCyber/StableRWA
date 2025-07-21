@@ -23,7 +23,7 @@ reqwest = { workspace = true }
 sqlx = { workspace = true }
 redis = { workspace = true }
 tracing-opentelemetry = "0.21"
-core-config = { path = "../core-config" }
+core-utils = { path = "../core-utils" }
 
 [features]
 default = []

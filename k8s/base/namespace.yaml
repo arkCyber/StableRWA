@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: stablerwa
+  labels:
+    name: stablerwa
+    app.kubernetes.io/name: stablerwa
+    app.kubernetes.io/part-of: stablerwa-platform
+    app.kubernetes.io/managed-by: kustomize
+    environment: base
+  annotations:
+    description: "StableRWA platform namespace"
+    contact: "devops@stablerwa.com"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: stablerwa-monitoring
+  labels:
+    name: stablerwa-monitoring
+    app.kubernetes.io/name: stablerwa-monitoring
+    app.kubernetes.io/part-of: stablerwa-platform
+    app.kubernetes.io/managed-by: kustomize
+    environment: base
+  annotations:
+    description: "StableRWA platform monitoring namespace"
+    contact: "devops@stablerwa.com"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: stablerwa-system
+  labels:
+    name: stablerwa-system
+    app.kubernetes.io/name: stablerwa-system
+    app.kubernetes.io/part-of: stablerwa-platform
+    app.kubernetes.io/managed-by: kustomize
+    environment: base
+  annotations:
+    description: "StableRWA platform system namespace"
+    contact: "devops@stablerwa.com"

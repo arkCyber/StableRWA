@@ -13,8 +13,7 @@ pub mod routing;
 pub mod health;
 
 use actix_web::{web, App, HttpServer, Result as ActixResult};
-use core_config::AppConfig;
-use core_observability::BusinessMetrics;
+use core_utils::config::Config;
 use core_security::SecurityError;
 use std::sync::Arc;
 use thiserror::Error;
@@ -49,8 +48,7 @@ impl From<SecurityError> for GatewayError {
 
 /// Gateway application state
 pub struct GatewayState {
-    pub config: AppConfig,
-    pub metrics: Arc<BusinessMetrics>,
+    pub config: Config,
     pub service_registry: Arc<routing::ServiceRegistry>,
     pub rate_limiter: Arc<rate_limit::RateLimiter>,
 }

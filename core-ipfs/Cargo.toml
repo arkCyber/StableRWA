@@ -1,0 +1,55 @@
+[package]
+name = "core-ipfs"
+version = "0.1.0"
+edition = "2021"
+authors = ["arkSong <arksong2018@gmail.com>"]
+description = "IPFS distributed storage module for RWA platform"
+license = "MIT"
+repository = "https://github.com/mastodon/mastodon"
+
+[dependencies]
+# Core dependencies
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+async-trait = "0.1"
+
+# IPFS client
+ipfs-api-backend-hyper = { workspace = true }
+ipfs-api-prelude = { workspace = true }
+hyper = { version = "0.14", features = ["full"] }
+hyper-rustls = "0.24"
+futures-util = "0.3"
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+
+# Crypto and encoding
+sha2 = "0.10"
+base64 = "0.21"
+hex = "0.4"
+
+# File handling
+mime = "0.3"
+mime_guess = "2.0"
+tempfile = "3.0"
+infer = "0.15"
+url = "2.4"
+
+# Additional utilities
+regex = "1.10"
+http = "0.2"
+
+# Internal dependencies
+core-utils = { path = "../core-utils" }
+core-security = { path = "../core-security" }
+
+[dev-dependencies]
+tokio-test = "0.4"
+mockito = "1.0"
+tempfile = "3.0"
+assert-json-diff = "2.0"

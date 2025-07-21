@@ -1,0 +1,115 @@
+[package]
+name = "core-smart-contract"
+version = "0.1.0"
+edition = "2021"
+authors = ["arkSong <arksong2018@gmail.com>"]
+description = "Enterprise-grade smart contract management system for StableRWA platform"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/arkSong/rwa-platform"
+keywords = ["smart-contract", "blockchain", "ethereum", "solidity", "proxy"]
+categories = ["finance", "cryptography::cryptocurrencies"]
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Date and time
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID generation
+uuid = { version = "1.6", features = ["v4", "serde"] }
+
+# Decimal arithmetic
+rust_decimal = { version = "1.33", features = ["serde-float"] }
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "rust_decimal"] }
+
+# Redis for caching
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+
+# Ethereum integration
+ethers = { version = "2.0", features = ["ws", "rustls", "contract", "abigen", "legacy"] }
+ethers-solc = { version = "2.0", features = ["full"] }
+ethers-providers = { version = "2.0", features = ["ws", "rustls"] }
+ethers-signers = { version = "2.0" }
+ethers-contract = { version = "2.0" }
+ethers-core = { version = "2.0" }
+ethers-middleware = { version = "2.0" }
+
+# Solidity compiler
+solc = { version = "0.1", features = ["svm-solc"] }
+
+# Cryptography
+ring = "0.17"
+sha2 = "0.10"
+hex = "0.4"
+
+# Configuration
+config = "0.14"
+
+# Metrics
+prometheus = "0.13"
+
+# Rate limiting
+governor = "0.6"
+
+# Validation
+validator = { version = "0.16", features = ["derive"] }
+
+# Parallel processing
+rayon = "1.8"
+
+# Fast hashing
+fxhash = "0.2"
+
+# Math operations
+num-bigint = "0.4"
+num-traits = "0.2"
+
+# Semver for versioning
+semver = "1.0"
+
+# Git integration
+git2 = "0.18"
+
+# Solidity parser
+tree-sitter = "0.20"
+tree-sitter-solidity = "0.0.2"
+
+# Internal dependencies
+core-utils = { path = "../core-utils" }
+core-security = { path = "../core-security" }
+core-blockchain = { path = "../core-blockchain" }
+
+[dev-dependencies]
+tokio-test = "0.4"
+mockall = "0.12"
+tempfile = "3.8"
+
+[features]
+default = ["ethereum", "proxy", "verification", "monitoring"]
+ethereum = []
+solana = []
+polygon = []
+proxy = []
+verification = []
+monitoring = []
+audit = []
+gas-optimization = []

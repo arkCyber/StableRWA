@@ -7,7 +7,7 @@
 use crate::{Cache, DatabaseError};
 use async_trait::async_trait;
 use core_config::RedisConfig;
-use redis::{aio::ConnectionManager, AsyncCommands, Client, RedisError};
+use redis::{AsyncCommands, Client};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tracing::{info, warn};
@@ -15,7 +15,7 @@ use tracing::{info, warn};
 /// Redis client wrapper with connection pooling
 #[derive(Clone)]
 pub struct RedisClient {
-    connection_manager: ConnectionManager,
+    client: Client,
 }
 
 impl RedisClient {
@@ -26,25 +26,20 @@ impl RedisClient {
         let client = Client::open(config.url.as_str())
             .map_err(|e| DatabaseError::Connection(format!("Failed to create Redis client: {}", e)))?;
             
-        let connection_manager = ConnectionManager::new(client)
-            .await
-            .map_err(|e| DatabaseError::Connection(format!("Failed to create Redis connection manager: {}", e)))?;
-            
         info!("Redis client created successfully");
-        Ok(Self { connection_manager })
+        Ok(Self { client })
     }
     
     /// Ping Redis server
     pub async fn ping(&self) -> Result<(), DatabaseError> {
-        let mut conn = self.connection_manager.clone();
-        let _: String = conn.ping().await.map_err(DatabaseError::from)?;
+        let mut conn = self.client.get_async_connection().await
+            .map_err(|e| DatabaseError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+        redis::cmd("PING").query_async(&mut conn).await
+            .map_err(|e| DatabaseError::Connection(format!("Redis ping failed: {}", e)))?;
         Ok(())
     }
     
-    /// Get connection manager for direct Redis operations
-    pub fn connection_manager(&self) -> ConnectionManager {
-        self.connection_manager.clone()
-    }
+
 }
 
 #[async_trait]
@@ -55,9 +50,11 @@ impl Cache for RedisClient {
     where
         T: for<'de> Deserialize<'de> + Send,
     {
-        let mut conn = self.connection_manager.clone();
-        let value: Option<String> = conn.get(key).await.map_err(DatabaseError::from)?;
-        
+        let mut conn = self.client.get_async_connection().await
+            .map_err(|e| DatabaseError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+        let value: Option<String> = conn.get(key).await
+            .map_err(|e| DatabaseError::Connection(format!("Redis get failed: {}", e)))?;
+
         match value {
             Some(json_str) => {
                 let deserialized = serde_json::from_str(&json_str)
@@ -72,37 +69,46 @@ impl Cache for RedisClient {
     where
         T: Serialize + Send + Sync,
     {
-        let mut conn = self.connection_manager.clone();
+        let mut conn = self.client.get_async_connection().await
+            .map_err(|e| DatabaseError::Connection(format!("Failed to get Redis connection: {}", e)))?;
         let json_str = serde_json::to_string(value)
             .map_err(|e| DatabaseError::Serialization(e.to_string()))?;
-            
+
         match ttl {
             Some(seconds) => {
-                let _: () = conn.set_ex(key, json_str, seconds).await.map_err(DatabaseError::from)?;
+                let _: () = conn.set_ex(key, json_str, seconds).await
+                    .map_err(|e| DatabaseError::Connection(format!("Redis set_ex failed: {}", e)))?;
             }
             None => {
-                let _: () = conn.set(key, json_str).await.map_err(DatabaseError::from)?;
+                let _: () = conn.set(key, json_str).await
+                    .map_err(|e| DatabaseError::Connection(format!("Redis set failed: {}", e)))?;
             }
         }
-        
+
         Ok(())
     }
     
     async fn delete(&self, key: &str) -> Result<bool, Self::Error> {
-        let mut conn = self.connection_manager.clone();
-        let deleted: i32 = conn.del(key).await.map_err(DatabaseError::from)?;
+        let mut conn = self.client.get_async_connection().await
+            .map_err(|e| DatabaseError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+        let deleted: i32 = conn.del(key).await
+            .map_err(|e| DatabaseError::Connection(format!("Redis delete failed: {}", e)))?;
         Ok(deleted > 0)
     }
-    
+
     async fn exists(&self, key: &str) -> Result<bool, Self::Error> {
-        let mut conn = self.connection_manager.clone();
-        let exists: bool = conn.exists(key).await.map_err(DatabaseError::from)?;
+        let mut conn = self.client.get_async_connection().await
+            .map_err(|e| DatabaseError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+        let exists: bool = conn.exists(key).await
+            .map_err(|e| DatabaseError::Connection(format!("Redis exists failed: {}", e)))?;
         Ok(exists)
     }
-    
+
     async fn expire(&self, key: &str, ttl: u64) -> Result<bool, Self::Error> {
-        let mut conn = self.connection_manager.clone();
-        let result: bool = conn.expire(key, ttl as usize).await.map_err(DatabaseError::from)?;
+        let mut conn = self.client.get_async_connection().await
+            .map_err(|e| DatabaseError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+        let result: bool = conn.expire(key, ttl as i64).await
+            .map_err(|e| DatabaseError::Connection(format!("Redis expire failed: {}", e)))?;
         Ok(result)
     }
 }

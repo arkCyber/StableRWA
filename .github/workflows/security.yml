@@ -1,0 +1,340 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run security scans daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Dependency vulnerability scanning
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-security-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Run dependency audit
+        run: cargo audit --json > audit-results.json
+
+      - name: Upload audit results
+        uses: actions/upload-artifact@v3
+        with:
+          name: dependency-audit-results
+          path: audit-results.json
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny
+
+      - name: Run cargo-deny
+        run: cargo deny check
+
+  # License compliance check
+  license-check:
+    name: License Compliance Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-license
+        run: cargo install cargo-license
+
+      - name: Check licenses
+        run: |
+          cargo license --json > licenses.json
+          # Check for forbidden licenses
+          if grep -q "GPL\|AGPL\|LGPL" licenses.json; then
+            echo "Found copyleft licenses that may not be compatible"
+            exit 1
+          fi
+
+      - name: Upload license report
+        uses: actions/upload-artifact@v3
+        with:
+          name: license-report
+          path: licenses.json
+
+  # Static code analysis
+  static-analysis:
+    name: Static Code Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Run Clippy with security lints
+        run: |
+          cargo clippy --all-targets --all-features -- \
+            -W clippy::all \
+            -W clippy::pedantic \
+            -W clippy::nursery \
+            -W clippy::cargo \
+            -D clippy::suspicious \
+            -D clippy::perf \
+            -D clippy::correctness
+
+      - name: Install semgrep
+        run: |
+          python3 -m pip install semgrep
+
+      - name: Run semgrep security scan
+        run: |
+          semgrep --config=auto --json --output=semgrep-results.json .
+
+      - name: Upload semgrep results
+        uses: actions/upload-artifact@v3
+        with:
+          name: semgrep-results
+          path: semgrep-results.json
+
+  # Container security scanning
+  container-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build test image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/gateway/Dockerfile
+          tags: test-image:latest
+          load: true
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy
+
+      - name: Run Trivy vulnerability scanner
+        run: |
+          trivy image --format json --output trivy-results.json test-image:latest
+
+      - name: Upload Trivy results
+        uses: actions/upload-artifact@v3
+        with:
+          name: trivy-results
+          path: trivy-results.json
+
+      - name: Check for critical vulnerabilities
+        run: |
+          if trivy image --severity CRITICAL --exit-code 1 test-image:latest; then
+            echo "No critical vulnerabilities found"
+          else
+            echo "Critical vulnerabilities found!"
+            exit 1
+          fi
+
+  # Secrets scanning
+  secrets-scan:
+    name: Secrets Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        run: |
+          wget https://github.com/zricethezav/gitleaks/releases/latest/download/gitleaks_8.18.0_linux_x64.tar.gz
+          tar -xzf gitleaks_8.18.0_linux_x64.tar.gz
+          sudo mv gitleaks /usr/local/bin/
+
+      - name: Run gitleaks
+        run: |
+          gitleaks detect --source . --report-format json --report-path gitleaks-report.json
+
+      - name: Upload gitleaks results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: gitleaks-results
+          path: gitleaks-report.json
+
+  # SAST (Static Application Security Testing)
+  sast:
+    name: SAST Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: rust
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build project
+        run: cargo build --all-features
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+
+  # Security policy compliance
+  compliance-check:
+    name: Security Policy Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for security policy files
+        run: |
+          # Check for required security files
+          files=("SECURITY.md" ".github/SECURITY.md" "docs/SECURITY.md")
+          found=false
+          for file in "${files[@]}"; do
+            if [[ -f "$file" ]]; then
+              echo "Found security policy: $file"
+              found=true
+              break
+            fi
+          done
+          if [[ "$found" == false ]]; then
+            echo "No security policy found. Please add SECURITY.md"
+            exit 1
+          fi
+
+      - name: Check for vulnerability disclosure
+        run: |
+          if ! grep -r -i "vulnerability\|security\|disclosure" SECURITY.md docs/ .github/ 2>/dev/null; then
+            echo "Security policy should include vulnerability disclosure process"
+            exit 1
+          fi
+
+  # Generate security report
+  security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, license-check, static-analysis, container-scan, secrets-scan, sast, compliance-check]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Generate security report
+        run: |
+          cat > security-report.md << 'EOF'
+          # Security Scan Report
+          
+          **Date:** $(date)
+          **Commit:** ${{ github.sha }}
+          **Branch:** ${{ github.ref_name }}
+          
+          ## Summary
+          
+          | Check | Status |
+          |-------|--------|
+          | Dependency Scan | ${{ needs.dependency-scan.result }} |
+          | License Check | ${{ needs.license-check.result }} |
+          | Static Analysis | ${{ needs.static-analysis.result }} |
+          | Container Scan | ${{ needs.container-scan.result }} |
+          | Secrets Scan | ${{ needs.secrets-scan.result }} |
+          | SAST Analysis | ${{ needs.sast.result }} |
+          | Compliance Check | ${{ needs.compliance-check.result }} |
+          
+          ## Recommendations
+          
+          - Review any failed checks above
+          - Update dependencies with known vulnerabilities
+          - Address any secrets found in the codebase
+          - Ensure all security policies are up to date
+          
+          EOF
+
+      - name: Upload security report
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-report
+          path: security-report.md
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('security-report.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Security Scan Results\n\n${report}`
+            });
+
+  # Notify security team
+  notify-security:
+    name: Notify Security Team
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, static-analysis, container-scan, secrets-scan]
+    if: failure() && github.ref == 'refs/heads/main'
+    steps:
+      - name: Send Slack notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          channel: '#security-alerts'
+          title: 'Security Scan Failed'
+          message: 'Security vulnerabilities detected in main branch'
+          webhook_url: ${{ secrets.SLACK_SECURITY_WEBHOOK }}
+
+      - name: Create security issue
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Security Scan Failed - Immediate Attention Required',
+              body: `Security vulnerabilities detected in commit ${context.sha}.\n\nPlease review the security scan results and address any critical issues immediately.`,
+              labels: ['security', 'critical', 'bug']
+            });

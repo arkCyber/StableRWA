@@ -19,9 +19,11 @@ uuid = { workspace = true }
 reqwest = { workspace = true }
 jsonwebtoken = { workspace = true }
 async-trait = { workspace = true }
-core-config = { path = "../core-config" }
+core-utils = { path = "../core-utils" }
 core-security = { path = "../core-security" }
-core-observability = { path = "../core-observability" }
+futures-util = "0.3"
+rand = "0.8"
+prometheus = "0.13"
 
 [dev-dependencies]
 tokio-test = "0.4"

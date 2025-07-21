@@ -1,8 +1,39 @@
 [package]
 name = "core-ai"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+authors = ["arkSong <arksong2018@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/arkSong/StableRWA"
+homepage = "https://github.com/arkSong/StableRWA"
+documentation = "https://github.com/arkSong/StableRWA/docs"
+description = "AI intelligence core library for StableRWA Framework"
+keywords = ["ai", "openai", "machine-learning", "blockchain", "rwa"]
+categories = ["web-programming", "api-bindings", "development-tools"]
 
 [dependencies]
-chrono = "0.4.41"
-log = "0.4.27"
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+async-trait = "0.1"
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+
+# Utilities
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
+mockito = "1.0"

@@ -72,7 +72,7 @@ impl AuthService {
         let token = self.extract_token_from_request(req)?;
         
         // Validate and decode token
-        match self.jwt_manager.validate_token(&token).await {
+        match self.jwt_manager.validate_access_token(&token) {
             Ok(claims) => {
                 debug!("Successfully authenticated user: {}", claims.get("user_id").unwrap_or(&serde_json::Value::Null));
                 
@@ -276,6 +276,8 @@ impl AuthService {
         Ok(())
     }
 }
+
+
 
 /// Extract user claims from request extensions
 pub fn get_user_claims(req: &HttpRequest) -> Option<UserClaims> {

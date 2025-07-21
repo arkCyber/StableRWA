@@ -129,12 +129,14 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::{Datelike, Timelike};
 
     #[test]
     fn test_format_timestamp() {
         let timestamp = format_timestamp();
         assert!(timestamp.contains('T'));
-        assert!(timestamp.contains('Z'));
+        // RFC3339 format may end with 'Z' or '+00:00' for UTC
+        assert!(timestamp.ends_with('Z') || timestamp.ends_with("+00:00"));
     }
 
     #[test]

@@ -74,6 +74,12 @@ pub struct TransactionHash {
     pub network: BlockchainNetwork,
 }
 
+impl std::fmt::Display for TransactionHash {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
 /// Transaction status
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TransactionStatus {

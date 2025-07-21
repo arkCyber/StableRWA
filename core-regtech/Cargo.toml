@@ -1,0 +1,121 @@
+[package]
+name = "core-regtech"
+version = "0.1.0"
+edition = "2021"
+authors = ["arkSong <arksong2018@gmail.com>"]
+description = "Regulatory technology (RegTech) automation for StableRWA platform"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/arkSong/rwa-platform"
+keywords = ["regtech", "compliance", "aml", "kyc", "regulatory"]
+categories = ["finance", "cryptography::cryptocurrencies"]
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Date and time
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID generation
+uuid = { version = "1.6", features = ["v4", "serde"] }
+
+# Decimal arithmetic
+rust_decimal = { version = "1.33", features = ["serde-float"] }
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "rust_decimal"] }
+
+# Redis for caching
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+
+# Ethereum integration
+ethers = { version = "2.0", features = ["ws", "rustls", "contract"] }
+
+# PDF generation
+pdf-canvas = "0.7"
+printpdf = "0.5"
+
+# Excel generation
+rust_xlsxwriter = "0.56"
+
+# Cryptography
+ring = "0.17"
+sha2 = "0.10"
+hex = "0.4"
+
+# Configuration
+config = "0.14"
+
+# Metrics
+prometheus = "0.13"
+
+# Rate limiting
+governor = "0.6"
+
+# Validation
+validator = { version = "0.16", features = ["derive"] }
+
+# Parallel processing
+rayon = "1.8"
+
+# Fast hashing
+fxhash = "0.2"
+
+# Math operations
+num-bigint = "0.4"
+num-traits = "0.2"
+
+# Regex
+regex = "1.10"
+
+# Email
+lettre = { version = "0.11", features = ["tokio1", "tokio1-rustls-tls", "smtp-transport"] }
+
+# Template engine
+handlebars = "5.0"
+tera = "1.19"
+
+# NLP for document processing
+rust-bert = { version = "0.21", optional = true }
+
+# Graph algorithms for risk analysis
+petgraph = "0.6"
+
+# Internal dependencies
+core-utils = { path = "../core-utils" }
+core-security = { path = "../core-security" }
+core-compliance = { path = "../core-compliance" }
+core-blockchain = { path = "../core-blockchain" }
+
+[dev-dependencies]
+tokio-test = "0.4"
+mockall = "0.12"
+tempfile = "3.8"
+
+[features]
+default = ["aml", "kyc", "reporting", "monitoring"]
+aml = []
+kyc = []
+reporting = []
+monitoring = []
+travel-rule = []
+fatf = []
+gdpr = []
+mifid = []
+ai-analysis = ["rust-bert"]

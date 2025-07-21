@@ -158,11 +158,8 @@ impl Validate {
     }
 
     /// Validate that value is in a list of allowed values
-    pub fn in_list<T>(value: &T, field: &str, allowed: &[T]) -> ValidationResult
-    where
-        T: PartialEq + std::fmt::Display,
-    {
-        if allowed.contains(value) {
+    pub fn in_list_str(value: &str, field: &str, allowed: &[&str]) -> ValidationResult {
+        if allowed.contains(&value) {
             Ok(())
         } else {
             let mut error = ValidationError::new();
@@ -366,9 +363,9 @@ impl RwaValidate {
         validate![
             Validate::positive(amount, "amount"),
             Validate::not_empty(currency, "currency"),
-            Validate::in_list(currency, "currency", &allowed_currencies),
+            Validate::in_list_str(currency, "currency", &allowed_currencies),
             Validate::not_empty(payment_method, "payment_method"),
-            Validate::in_list(payment_method, "payment_method", &allowed_methods),
+            Validate::in_list_str(payment_method, "payment_method", &allowed_methods),
         ]
     }
 
@@ -386,7 +383,7 @@ impl RwaValidate {
             Validate::not_empty(to_address, "to_address"),
             Validate::positive(amount, "amount"),
             Validate::not_empty(blockchain_network, "blockchain_network"),
-            Validate::in_list(blockchain_network, "blockchain_network", &allowed_networks),
+            Validate::in_list_str(blockchain_network, "blockchain_network", &allowed_networks),
         ]
     }
 }
@@ -440,8 +437,8 @@ mod tests {
     #[test]
     fn test_validate_in_list() {
         let allowed = ["red", "green", "blue"];
-        assert!(Validate::in_list(&"red", "color", &allowed).is_ok());
-        assert!(Validate::in_list(&"yellow", "color", &allowed).is_err());
+        assert!(Validate::in_list_str("red", "color", &allowed).is_ok());
+        assert!(Validate::in_list_str("yellow", "color", &allowed).is_err());
     }
 
     #[test]

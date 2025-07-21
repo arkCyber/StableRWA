@@ -4,10 +4,15 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use crate::{AssetError, AssetRepository, Asset, AssetMetadata, AssetValuation, TokenizationRequest};
+use crate::{
+    AssetError, AssetResult,
+    models::*,
+};
 use async_trait::async_trait;
-use core_blockchain::{BlockchainServiceFactory, NetworkConfig, RwaAssetToken, ContractManager};
-use core_utils::{validation::RwaValidate, helpers::{Pagination, PaginatedResponse}};
+use core_blockchain::{BlockchainAdapter, ContractManager};
+use core_asset_lifecycle::{AssetManager, Asset, AssetValuation};
+use core_compliance::ComplianceService;
+use core_risk_management::RiskAssessmentService;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;

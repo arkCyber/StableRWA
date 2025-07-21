@@ -1,0 +1,136 @@
+[package]
+name = "core-api-gateway"
+version = "0.1.0"
+edition = "2021"
+authors = ["arkSong <arksong2018@gmail.com>"]
+description = "Enterprise-grade API gateway and SDK for StableRWA platform"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/arkSong/rwa-platform"
+keywords = ["api-gateway", "sdk", "rest", "graphql", "websocket"]
+categories = ["web-programming", "api-bindings"]
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+async-trait = "0.1"
+
+# Web framework
+axum = { version = "0.7", features = ["ws", "multipart", "macros"] }
+tower = { version = "0.4", features = ["full"] }
+tower-http = { version = "0.5", features = ["full"] }
+hyper = { version = "1.0", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Date and time
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID generation
+uuid = { version = "1.6", features = ["v4", "serde"] }
+
+# Decimal arithmetic
+rust_decimal = { version = "1.33", features = ["serde-float"] }
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "rust_decimal"] }
+
+# Redis for caching and rate limiting
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+
+# GraphQL
+async-graphql = { version = "7.0", features = ["chrono", "uuid", "decimal"] }
+async-graphql-axum = "7.0"
+
+# WebSocket
+tokio-tungstenite = { version = "0.20", features = ["rustls-tls-webpki-roots"] }
+
+# Authentication and authorization
+jsonwebtoken = "9.2"
+oauth2 = "4.4"
+
+# API documentation
+utoipa = { version = "4.2", features = ["axum_extras", "chrono", "uuid", "decimal"] }
+utoipa-swagger-ui = { version = "6.0", features = ["axum"] }
+
+# Configuration
+config = "0.14"
+
+# Metrics
+prometheus = "0.13"
+metrics = "0.21"
+metrics-exporter-prometheus = "0.12"
+
+# Rate limiting
+governor = "0.6"
+tower-governor = "0.1"
+
+# Validation
+validator = { version = "0.16", features = ["derive"] }
+
+# Parallel processing
+rayon = "1.8"
+
+# Fast hashing
+fxhash = "0.2"
+
+# CORS
+tower-cors = "0.1"
+
+# Compression
+tower-compression = "0.1"
+
+# Request ID
+tower-request-id = "0.3"
+
+# Load balancing
+tower-load-shed = "0.1"
+
+# Circuit breaker
+tower-circuit-breaker = "0.1"
+
+# Timeout
+tower-timeout = "0.1"
+
+# Retry
+tower-retry = "0.1"
+
+# Tracing
+tower-tracing = "0.1"
+
+# SDK generation
+openapi-generator = { version = "1.0", optional = true }
+
+# Internal dependencies
+core-utils = { path = "../core-utils" }
+core-security = { path = "../core-security" }
+core-analytics = { path = "../core-analytics" }
+core-monitoring = { path = "../core-monitoring" }
+
+[dev-dependencies]
+tokio-test = "0.4"
+mockall = "0.12"
+tempfile = "3.8"
+
+[features]
+default = ["rest", "graphql", "websocket", "sdk-generation"]
+rest = []
+graphql = ["async-graphql", "async-graphql-axum"]
+websocket = []
+grpc = []
+sdk-generation = ["openapi-generator"]
+load-balancing = []
+circuit-breaker = []
+distributed-tracing = []

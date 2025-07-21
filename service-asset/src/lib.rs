@@ -8,9 +8,8 @@ pub mod handlers;
 pub mod models;
 pub mod service;
 
-use core_config::AppConfig;
-use core_database::DatabaseManager;
-use core_observability::BusinessMetrics;
+use core_utils::config::Config;
+use core_asset_lifecycle::AssetManager;
 use service::AssetService;
 use std::sync::Arc;
 use thiserror::Error;
@@ -53,10 +52,9 @@ impl From<core_blockchain::BlockchainError> for AssetError {
 
 /// Application state for the asset service
 pub struct AppState {
-    pub config: AppConfig,
+    pub config: Config,
     pub asset_service: Arc<AssetService>,
-    pub metrics: Arc<BusinessMetrics>,
-    pub database: DatabaseManager,
+    pub asset_manager: Arc<AssetManager>,
 }
 
 /// Asset service result type

@@ -1,0 +1,200 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: stablerwa-base
+
+# Common labels applied to all resources
+commonLabels:
+  app.kubernetes.io/name: stablerwa
+  app.kubernetes.io/part-of: stablerwa-platform
+
+# Common annotations
+commonAnnotations:
+  app.kubernetes.io/managed-by: kustomize
+
+# Resources to include
+resources:
+  # Namespaces
+  - namespace.yaml
+  
+  # ConfigMaps and Secrets
+  - configmap.yaml
+  - secrets.yaml
+  
+  # Services
+  - services/gateway-service.yaml
+  - services/user-service.yaml
+  - services/asset-service.yaml
+  - services/payment-service.yaml
+  
+  # Deployments
+  - deployments/gateway-deployment.yaml
+  - deployments/user-service-deployment.yaml
+  - deployments/asset-service-deployment.yaml
+  - deployments/payment-service-deployment.yaml
+  
+  # Ingress
+  - ingress.yaml
+  
+  # Service Accounts
+  - serviceaccount.yaml
+  
+  # RBAC
+  - rbac.yaml
+  
+  # Network Policies
+  - networkpolicy.yaml
+  
+  # Pod Disruption Budgets
+  - poddisruptionbudget.yaml
+  
+  # Horizontal Pod Autoscalers
+  - hpa.yaml
+  
+  # Monitoring
+  - monitoring/servicemonitor.yaml
+  - monitoring/prometheusrule.yaml
+
+# Images to use
+images:
+  - name: gateway
+    newName: ghcr.io/arksong/rwa-platform/gateway
+    newTag: latest
+  - name: user-service
+    newName: ghcr.io/arksong/rwa-platform/user-service
+    newTag: latest
+  - name: asset-service
+    newName: ghcr.io/arksong/rwa-platform/asset-service
+    newTag: latest
+  - name: payment-service
+    newName: ghcr.io/arksong/rwa-platform/payment-service
+    newTag: latest
+
+# ConfigMap generator
+configMapGenerator:
+  - name: app-config
+    literals:
+      - LOG_LEVEL=info
+      - RUST_LOG=info
+      - ENVIRONMENT=base
+      - METRICS_ENABLED=true
+      - TRACING_ENABLED=true
+      - HEALTH_CHECK_INTERVAL=30s
+      - GRACEFUL_SHUTDOWN_TIMEOUT=30s
+
+# Secret generator
+secretGenerator:
+  - name: app-secrets
+    literals:
+      - DATABASE_PASSWORD=changeme
+      - JWT_SECRET=changeme
+      - ENCRYPTION_KEY=changeme
+      - API_KEY=changeme
+
+# Patches to apply
+patches:
+  # Add common environment variables
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+
+  # Add resource limits and requests
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+  # Add security context
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/securityContext
+        value:
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          fsGroup: 1000
+      - op: add
+        path: /spec/template/spec/containers/0/securityContext
+        value:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
+
+  # Add probes
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/livenessProbe
+        value:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      - op: add
+        path: /spec/template/spec/containers/0/readinessProbe
+        value:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+# Replicas
+replicas:
+  - name: gateway-deployment
+    count: 2
+  - name: user-service-deployment
+    count: 2
+  - name: asset-service-deployment
+    count: 2
+  - name: payment-service-deployment
+    count: 2
+
+# Namespace
+namespace: stablerwa
+
+# Name prefix
+namePrefix: stablerwa-
+
+# Name suffix
+nameSuffix: -v1

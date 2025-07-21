@@ -1,0 +1,271 @@
+version: '3.8'
+
+services:
+  # Test Database
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: rwa-postgres-test
+    environment:
+      POSTGRES_DB: rwa_platform_test
+      POSTGRES_USER: rwa_user
+      POSTGRES_PASSWORD: rwa_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rwa_user -d rwa_platform_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rwa-test-network
+
+  # Test Redis
+  redis-test:
+    image: redis:7-alpine
+    container_name: rwa-redis-test
+    ports:
+      - "6380:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_test_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rwa-test-network
+
+  # Test IPFS Node
+  ipfs-test:
+    image: ipfs/go-ipfs:latest
+    container_name: rwa-ipfs-test
+    ports:
+      - "4002:4001"
+      - "5002:5001"
+      - "8081:8080"
+    volumes:
+      - ipfs_test_data:/data/ipfs
+    environment:
+      - IPFS_PROFILE=test
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5001/api/v0/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - rwa-test-network
+
+  # Service Gateway (Test)
+  service-gateway-test:
+    build:
+      context: .
+      dockerfile: service-gateway/Dockerfile
+      target: runtime
+    container_name: rwa-gateway-test
+    ports:
+      - "8080:8080"
+    environment:
+      - RUST_LOG=info
+      - DATABASE_URL=postgresql://rwa_user:rwa_password@postgres-test:5432/rwa_platform_test
+      - REDIS_URL=redis://redis-test:6379
+      - IPFS_URL=http://ipfs-test:5001
+      - JWT_SECRET=test_jwt_secret_key_for_testing_only
+      - ENVIRONMENT=test
+      - RATE_LIMIT_REQUESTS_PER_MINUTE=1000
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - rwa-test-network
+
+  # Asset Service (Test)
+  service-asset-test:
+    build:
+      context: .
+      dockerfile: service-asset/Dockerfile
+      target: runtime
+    container_name: rwa-asset-test
+    ports:
+      - "8081:8081"
+    environment:
+      - RUST_LOG=info
+      - DATABASE_URL=postgresql://rwa_user:rwa_password@postgres-test:5432/rwa_platform_test
+      - REDIS_URL=redis://redis-test:6379
+      - IPFS_URL=http://ipfs-test:5001
+      - ENVIRONMENT=test
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+      ipfs-test:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - rwa-test-network
+
+  # AI Service (Test)
+  ai-service-test:
+    build:
+      context: .
+      dockerfile: ai-service/Dockerfile
+      target: runtime
+    container_name: rwa-ai-test
+    ports:
+      - "8082:8082"
+    environment:
+      - RUST_LOG=info
+      - REDIS_URL=redis://redis-test:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-test_key}
+      - AI_ENABLED=false
+      - ENVIRONMENT=test
+    depends_on:
+      redis-test:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - rwa-test-network
+
+  # Test Monitoring Stack
+  prometheus-test:
+    image: prom/prometheus:latest
+    container_name: rwa-prometheus-test
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./monitoring/prometheus.test.yml:/etc/prometheus/prometheus.yml
+      - prometheus_test_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=1h'
+      - '--web.enable-lifecycle'
+    networks:
+      - rwa-test-network
+
+  grafana-test:
+    image: grafana/grafana:latest
+    container_name: rwa-grafana-test
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana_test_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - rwa-test-network
+
+  # Jaeger for distributed tracing (Test)
+  jaeger-test:
+    image: jaegertracing/all-in-one:latest
+    container_name: rwa-jaeger-test
+    ports:
+      - "16687:16686"
+      - "14269:14268"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - SPAN_STORAGE_TYPE=memory
+    networks:
+      - rwa-test-network
+
+  # Test Load Generator
+  load-generator:
+    build:
+      context: .
+      dockerfile: tests/Dockerfile.load-generator
+    container_name: rwa-load-generator
+    environment:
+      - TARGET_URL=http://service-gateway-test:8080
+      - CONCURRENT_USERS=10
+      - TEST_DURATION=60s
+      - RAMP_UP_TIME=10s
+    depends_on:
+      service-gateway-test:
+        condition: service_healthy
+    networks:
+      - rwa-test-network
+    profiles:
+      - load-test
+
+  # Test Data Seeder
+  test-data-seeder:
+    build:
+      context: .
+      dockerfile: tests/Dockerfile.data-seeder
+    container_name: rwa-test-data-seeder
+    environment:
+      - DATABASE_URL=postgresql://rwa_user:rwa_password@postgres-test:5432/rwa_platform_test
+      - GATEWAY_URL=http://service-gateway-test:8080
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      service-gateway-test:
+        condition: service_healthy
+    networks:
+      - rwa-test-network
+    profiles:
+      - seed-data
+
+  # Test Results Collector
+  test-results-collector:
+    build:
+      context: .
+      dockerfile: tests/Dockerfile.results-collector
+    container_name: rwa-test-results-collector
+    volumes:
+      - ./target/test-reports:/app/reports
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - PROMETHEUS_URL=http://prometheus-test:9090
+      - GRAFANA_URL=http://grafana-test:3000
+      - JAEGER_URL=http://jaeger-test:16686
+    networks:
+      - rwa-test-network
+    profiles:
+      - collect-results
+
+volumes:
+  postgres_test_data:
+    driver: local
+  redis_test_data:
+    driver: local
+  ipfs_test_data:
+    driver: local
+  prometheus_test_data:
+    driver: local
+  grafana_test_data:
+    driver: local
+
+networks:
+  rwa-test-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

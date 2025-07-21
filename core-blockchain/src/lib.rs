@@ -13,6 +13,7 @@
 
 pub mod adapters;
 pub mod types;
+pub mod error;
 pub mod wallet;
 pub mod contracts;
 pub mod transaction_processor;
@@ -20,6 +21,7 @@ pub mod transaction_processor;
 // Re-export main types and traits
 pub use adapters::*;
 pub use types::*;
+pub use error::*;
 pub use wallet::*;
 pub use contracts::*;
 pub use transaction_processor::*;
@@ -31,81 +33,7 @@ use std::collections::HashMap;
 use thiserror::Error;
 use tracing::{debug, error, info, warn};
 
-/// Comprehensive blockchain error types for enterprise operations
-#[derive(Error, Debug, Clone)]
-pub enum BlockchainError {
-    #[error("Connection error: {0}")]
-    ConnectionError(String),
 
-    #[error("Invalid transaction: {0}")]
-    InvalidTransaction(String),
-
-    #[error("Insufficient balance: required {required}, available {available}")]
-    InsufficientBalance { required: String, available: String },
-
-    #[error("Transaction failed: {0}")]
-    TransactionFailed(String),
-
-    #[error("Transaction not found: {0}")]
-    TransactionNotFound(String),
-
-    #[error("Transaction timeout: {0}")]
-    TransactionTimeout(String),
-
-    #[error("Network error: {0}")]
-    NetworkError(String),
-
-    #[error("Parsing error: {0}")]
-    ParsingError(String),
-
-    #[error("Timeout error: {0}")]
-    TimeoutError(String),
-
-    #[error("Configuration error: {0}")]
-    ConfigurationError(String),
-
-    #[error("Unsupported operation: {0}")]
-    UnsupportedOperation(String),
-
-    #[error("Wallet not found: {0}")]
-    WalletNotFound(String),
-
-    #[error("Wallet locked: {0}")]
-    WalletLocked(String),
-
-    #[error("Invalid private key: {0}")]
-    InvalidPrivateKey(String),
-
-    #[error("Invalid address: {0}")]
-    InvalidAddress(String),
-
-    #[error("Contract call failed: {0}")]
-    ContractCallFailed(String),
-
-    #[error("Contract deployment failed: {0}")]
-    ContractDeploymentFailed(String),
-
-    #[error("Invalid gas price: {0}")]
-    InvalidGasPrice(String),
-
-    #[error("Insufficient gas: {0}")]
-    InsufficientGas(String),
-
-    #[error("Nonce error: {0}")]
-    NonceError(String),
-
-    #[error("Signature error: {0}")]
-    SignatureError(String),
-
-    #[error("RPC error: {0}")]
-    RpcError(String),
-
-    #[error("Serialization error: {0}")]
-    SerializationError(String),
-}
-
-/// Result type for blockchain operations
-pub type BlockchainResult<T> = Result<T, BlockchainError>;
 
 /// Common blockchain operation result
 #[derive(Debug, Clone, Serialize, Deserialize)]

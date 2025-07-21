@@ -5,7 +5,7 @@
 // =====================================================================================
 
 use crate::{GatewayError, GatewayState};
-use actix_web::{web, HttpRequest, HttpResponse, Result as ActixResult};
+use actix_web::{web, HttpRequest, HttpResponse, Result as ActixResult, http::header::HeaderMap};
 use reqwest::Client;
 use serde_json::Value;
 use std::time::Instant;
@@ -111,6 +111,7 @@ pub async fn proxy_to_asset_service(
 ) -> ActixResult<HttpResponse> {
     let service_url = data.service_registry
         .get_service_url("asset-service")
+        .await
         .ok_or_else(|| {
             error!("Asset service not found in registry");
             actix_web::error::ErrorServiceUnavailable("Asset service unavailable")
@@ -147,6 +148,7 @@ pub async fn proxy_to_user_service(
 ) -> ActixResult<HttpResponse> {
     let service_url = data.service_registry
         .get_service_url("user-service")
+        .await
         .ok_or_else(|| {
             error!("User service not found in registry");
             actix_web::error::ErrorServiceUnavailable("User service unavailable")
@@ -183,6 +185,7 @@ pub async fn proxy_to_payment_service(
 ) -> ActixResult<HttpResponse> {
     let service_url = data.service_registry
         .get_service_url("payment-service")
+        .await
         .ok_or_else(|| {
             error!("Payment service not found in registry");
             actix_web::error::ErrorServiceUnavailable("Payment service unavailable")
@@ -219,6 +222,7 @@ pub async fn proxy_to_auth_service(
 ) -> ActixResult<HttpResponse> {
     let service_url = data.service_registry
         .get_service_url("auth-service")
+        .await
         .ok_or_else(|| {
             error!("Auth service not found in registry");
             actix_web::error::ErrorServiceUnavailable("Auth service unavailable")

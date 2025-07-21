@@ -1,0 +1,271 @@
+# Health Check Configuration for RWA Platform
+# This file defines health check endpoints and monitoring configurations
+
+version: '1.0'
+
+health_checks:
+  # Core Services
+  service_gateway:
+    endpoint: "http://service-gateway:8080/health"
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    expected_status: 200
+    expected_body_contains: "healthy"
+    critical: true
+    tags:
+      - core
+      - gateway
+      - api
+
+  service_asset:
+    endpoint: "http://service-asset:8081/health"
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    expected_status: 200
+    expected_body_contains: "healthy"
+    critical: true
+    tags:
+      - core
+      - asset
+      - business
+
+  ai_service:
+    endpoint: "http://ai-service:8082/health"
+    interval: 60s
+    timeout: 15s
+    retries: 2
+    expected_status: 200
+    expected_body_contains: "healthy"
+    critical: false
+    tags:
+      - ai
+      - ml
+      - enhancement
+
+  service_user:
+    endpoint: "http://service-user:8083/health"
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    expected_status: 200
+    expected_body_contains: "healthy"
+    critical: true
+    tags:
+      - core
+      - user
+      - auth
+
+  # Infrastructure Services
+  postgres:
+    endpoint: "tcp://postgres:5432"
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    critical: true
+    tags:
+      - database
+      - infrastructure
+      - storage
+
+  redis:
+    endpoint: "tcp://redis:6379"
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    critical: true
+    tags:
+      - cache
+      - infrastructure
+      - session
+
+  ipfs:
+    endpoint: "http://ipfs:5001/api/v0/version"
+    interval: 60s
+    timeout: 10s
+    retries: 2
+    expected_status: 200
+    critical: false
+    tags:
+      - storage
+      - distributed
+      - ipfs
+
+  # Monitoring Services
+  prometheus:
+    endpoint: "http://prometheus:9090/-/healthy"
+    interval: 60s
+    timeout: 10s
+    retries: 2
+    expected_status: 200
+    critical: false
+    tags:
+      - monitoring
+      - metrics
+
+  grafana:
+    endpoint: "http://grafana:3000/api/health"
+    interval: 60s
+    timeout: 10s
+    retries: 2
+    expected_status: 200
+    critical: false
+    tags:
+      - monitoring
+      - visualization
+
+  jaeger:
+    endpoint: "http://jaeger:16686/api/services"
+    interval: 60s
+    timeout: 10s
+    retries: 2
+    expected_status: 200
+    critical: false
+    tags:
+      - monitoring
+      - tracing
+
+  loki:
+    endpoint: "http://loki:3100/ready"
+    interval: 60s
+    timeout: 10s
+    retries: 2
+    expected_status: 200
+    critical: false
+    tags:
+      - monitoring
+      - logging
+
+  alertmanager:
+    endpoint: "http://alertmanager:9093/-/healthy"
+    interval: 60s
+    timeout: 10s
+    retries: 2
+    expected_status: 200
+    critical: false
+    tags:
+      - monitoring
+      - alerting
+
+# Readiness Checks (more comprehensive)
+readiness_checks:
+  service_gateway:
+    endpoint: "http://service-gateway:8080/ready"
+    interval: 15s
+    timeout: 5s
+    dependencies:
+      - postgres
+      - redis
+    tags:
+      - core
+      - gateway
+
+  service_asset:
+    endpoint: "http://service-asset:8081/ready"
+    interval: 15s
+    timeout: 5s
+    dependencies:
+      - postgres
+      - redis
+      - ipfs
+    tags:
+      - core
+      - asset
+
+  ai_service:
+    endpoint: "http://ai-service:8082/ready"
+    interval: 30s
+    timeout: 10s
+    dependencies:
+      - redis
+    tags:
+      - ai
+      - ml
+
+# Custom Health Check Scripts
+custom_checks:
+  blockchain_connectivity:
+    script: "/scripts/check-blockchain.sh"
+    interval: 120s
+    timeout: 30s
+    critical: true
+    tags:
+      - blockchain
+      - connectivity
+
+  database_performance:
+    script: "/scripts/check-db-performance.sh"
+    interval: 300s
+    timeout: 60s
+    critical: false
+    tags:
+      - database
+      - performance
+
+  storage_capacity:
+    script: "/scripts/check-storage.sh"
+    interval: 300s
+    timeout: 30s
+    critical: false
+    tags:
+      - storage
+      - capacity
+
+# Notification Configuration
+notifications:
+  critical_failure:
+    channels:
+      - slack
+      - email
+      - pagerduty
+    escalation_time: 300s
+
+  warning:
+    channels:
+      - slack
+      - email
+    escalation_time: 900s
+
+  recovery:
+    channels:
+      - slack
+    escalation_time: 0s
+
+# Health Check Dashboard Configuration
+dashboard:
+  refresh_interval: 30s
+  auto_refresh: true
+  show_dependencies: true
+  group_by_tags: true
+  color_scheme:
+    healthy: "#28a745"
+    warning: "#ffc107"
+    critical: "#dc3545"
+    unknown: "#6c757d"
+
+# Metrics Collection
+metrics:
+  enabled: true
+  endpoint: "/metrics"
+  labels:
+    environment: "production"
+    cluster: "rwa-platform"
+  custom_metrics:
+    - name: "health_check_duration_seconds"
+      type: "histogram"
+      help: "Duration of health checks"
+    - name: "health_check_success_total"
+      type: "counter"
+      help: "Total successful health checks"
+    - name: "health_check_failure_total"
+      type: "counter"
+      help: "Total failed health checks"
+
+# Logging Configuration
+logging:
+  level: "info"
+  format: "json"
+  output: "stdout"
+  include_request_id: true
+  include_trace_id: true

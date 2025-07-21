@@ -199,8 +199,8 @@ pub async fn system_info() -> ActixResult<HttpResponse> {
         "runtime": {
             "version": env!("CARGO_PKG_VERSION"),
             "rust_version": env!("CARGO_PKG_RUST_VERSION"),
-            "build_timestamp": env!("VERGEN_BUILD_TIMESTAMP"),
-            "git_sha": env!("VERGEN_GIT_SHA")
+            "build_timestamp": std::env::var("VERGEN_BUILD_TIMESTAMP").unwrap_or_else(|_| "unknown".to_string()),
+            "git_sha": std::env::var("VERGEN_GIT_SHA").unwrap_or_else(|_| "unknown".to_string())
         },
         "process": {
             "pid": std::process::id(),

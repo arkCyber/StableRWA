@@ -135,8 +135,8 @@ pub struct PhoneValidator {
 
 impl PhoneValidator {
     pub fn new() -> Result<Self, SecurityError> {
-        // Simple international phone number regex
-        let regex = Regex::new(r"^\+?[1-9]\d{1,14}$")
+        // Simple international phone number regex (minimum 7 digits for valid phone)
+        let regex = Regex::new(r"^\+?[1-9]\d{6,14}$")
             .map_err(|e| SecurityError::ValidationError(format!("Invalid phone regex: {}", e)))?;
         Ok(Self { regex })
     }

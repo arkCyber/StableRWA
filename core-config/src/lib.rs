@@ -19,6 +19,7 @@ pub struct AppConfig {
     pub security: SecurityConfig,
     pub observability: ObservabilityConfig,
     pub external_services: ExternalServicesConfig,
+    pub ai: AIConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -117,6 +118,18 @@ pub struct ExternalServicesConfig {
     pub notification_service_url: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AIConfig {
+    pub enabled: bool,
+    pub openai_api_key: String,
+    pub openai_base_url: Option<String>,
+    pub default_model: String,
+    pub max_tokens: u32,
+    pub temperature: f32,
+    pub cache_enabled: bool,
+    pub cache_ttl_minutes: u32,
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
@@ -183,6 +196,16 @@ impl Default for AppConfig {
             external_services: ExternalServicesConfig {
                 openai_api_key: None,
                 notification_service_url: None,
+            },
+            ai: AIConfig {
+                enabled: false,
+                openai_api_key: "".to_string(),
+                openai_base_url: None,
+                default_model: "gpt-3.5-turbo".to_string(),
+                max_tokens: 1000,
+                temperature: 0.7,
+                cache_enabled: true,
+                cache_ttl_minutes: 30,
             },
         }
     }

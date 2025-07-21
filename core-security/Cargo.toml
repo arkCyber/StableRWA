@@ -23,7 +23,7 @@ url = "2.5"
 base64 = "0.22"
 hex = "0.4"
 rand = "0.8"
-core-config = { path = "../core-config" }
+core-utils = { path = "../core-utils" }
 
 [dev-dependencies]
 tokio-test = "0.4"

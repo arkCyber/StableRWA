@@ -5,6 +5,7 @@
 // =====================================================================================
 
 use crate::{Cache, DatabaseError, Entity, Repository};
+use crate::redis_client::RedisClient;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -16,7 +17,7 @@ use uuid::Uuid;
 /// Generic PostgreSQL repository with caching
 pub struct PostgresRepository<T: Entity> {
     pool: Pool<Postgres>,
-    cache: Option<Box<dyn Cache<Error = DatabaseError>>>,
+    cache: Option<RedisClient>,
     table_name: String,
     cache_prefix: String,
     cache_ttl: Option<u64>,
@@ -41,7 +42,7 @@ impl<T: Entity> PostgresRepository<T> {
     
     pub fn with_cache(
         mut self,
-        cache: Box<dyn Cache<Error = DatabaseError>>,
+        cache: RedisClient,
         ttl: Option<u64>,
     ) -> Self {
         self.cache = Some(cache);
@@ -391,15 +392,9 @@ mod tests {
     
     #[test]
     fn test_cache_key_generation() {
-        let repo = PostgresRepository::<User>::new(
-            // This would be a real pool in practice
-            Pool::connect("postgresql://test").await.unwrap(),
-            "users".to_string(),
-            "user".to_string(),
-        );
-        
+        // Test cache key generation without requiring a real database connection
         let id = utils::generate_id();
-        let key = repo.cache_key(&id);
+        let key = utils::cache_key("user", &id.to_string());
         assert_eq!(key, format!("user:{}", id));
     }
 }

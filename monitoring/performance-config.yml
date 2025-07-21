@@ -1,0 +1,413 @@
+# =====================================================================================
+# File: monitoring/performance-config.yml
+# Description: Performance monitoring configuration for StableRWA platform
+# Author: arkSong (arksong2018@gmail.com)
+# =====================================================================================
+
+# Performance monitoring configuration
+performance_monitoring:
+  # Metrics collection settings
+  metrics:
+    collection_interval: 10s
+    retention_period: 30d
+    high_resolution_period: 1h
+    
+    # Core performance metrics
+    core_metrics:
+      - name: request_duration
+        type: histogram
+        buckets: [0.001, 0.01, 0.1, 1.0, 10.0]
+        labels: [service, endpoint, method]
+        
+      - name: request_count
+        type: counter
+        labels: [service, endpoint, method, status]
+        
+      - name: active_connections
+        type: gauge
+        labels: [service, protocol]
+        
+      - name: memory_usage
+        type: gauge
+        labels: [service, type]
+        
+      - name: cpu_usage
+        type: gauge
+        labels: [service, core]
+        
+      - name: disk_io
+        type: counter
+        labels: [service, operation, device]
+        
+      - name: network_io
+        type: counter
+        labels: [service, direction, interface]
+
+    # Business metrics
+    business_metrics:
+      - name: trading_volume
+        type: counter
+        labels: [asset, trading_pair, side]
+        
+      - name: bridge_transfers
+        type: counter
+        labels: [source_chain, destination_chain, asset]
+        
+      - name: custody_aum
+        type: gauge
+        labels: [institution, asset_type]
+        
+      - name: compliance_checks
+        type: counter
+        labels: [check_type, status, jurisdiction]
+        
+      - name: asset_tokenizations
+        type: counter
+        labels: [asset_type, status]
+
+  # Performance thresholds and alerts
+  thresholds:
+    # Response time thresholds (in milliseconds)
+    response_time:
+      api_gateway:
+        p50: 100
+        p95: 500
+        p99: 1000
+      trading_service:
+        p50: 50
+        p95: 200
+        p99: 500
+      bridge_service:
+        p50: 200
+        p95: 1000
+        p99: 2000
+      custody_service:
+        p50: 100
+        p95: 300
+        p99: 800
+      
+    # Throughput thresholds (requests per second)
+    throughput:
+      api_gateway: 1000
+      trading_service: 500
+      bridge_service: 200
+      custody_service: 300
+      
+    # Resource utilization thresholds (percentage)
+    resources:
+      cpu_usage: 80
+      memory_usage: 85
+      disk_usage: 90
+      network_usage: 75
+      
+    # Error rate thresholds (percentage)
+    error_rates:
+      http_5xx: 1.0
+      http_4xx: 5.0
+      database_errors: 0.5
+      external_service_errors: 2.0
+
+  # Auto-scaling configuration
+  auto_scaling:
+    enabled: true
+    
+    # Scaling triggers
+    triggers:
+      cpu_threshold: 70
+      memory_threshold: 80
+      request_rate_threshold: 80
+      response_time_threshold: 1000
+      
+    # Scaling parameters
+    parameters:
+      min_instances: 2
+      max_instances: 20
+      scale_up_cooldown: 300s
+      scale_down_cooldown: 600s
+      scale_up_step: 2
+      scale_down_step: 1
+      
+    # Service-specific scaling
+    services:
+      api_gateway:
+        min_instances: 3
+        max_instances: 50
+        target_cpu: 60
+        
+      trading_service:
+        min_instances: 2
+        max_instances: 20
+        target_cpu: 70
+        
+      bridge_service:
+        min_instances: 2
+        max_instances: 15
+        target_cpu: 65
+        
+      custody_service:
+        min_instances: 2
+        max_instances: 10
+        target_cpu: 75
+
+  # Performance optimization settings
+  optimization:
+    # Caching configuration
+    caching:
+      redis:
+        enabled: true
+        ttl_default: 300s
+        max_memory: 2GB
+        eviction_policy: allkeys-lru
+        
+      application_cache:
+        enabled: true
+        max_size: 1000
+        ttl: 600s
+        
+      cdn:
+        enabled: true
+        cache_static_assets: true
+        cache_api_responses: true
+        edge_locations: [us-east-1, eu-west-1, ap-southeast-1]
+    
+    # Database optimization
+    database:
+      connection_pooling:
+        enabled: true
+        max_connections: 100
+        min_connections: 10
+        idle_timeout: 300s
+        
+      query_optimization:
+        enabled: true
+        slow_query_threshold: 1000ms
+        explain_analyze: true
+        
+      indexing:
+        auto_create_indexes: true
+        analyze_query_patterns: true
+        
+    # Load balancing
+    load_balancing:
+      algorithm: least_connections
+      health_check_interval: 30s
+      health_check_timeout: 5s
+      max_retries: 3
+      
+    # Circuit breaker
+    circuit_breaker:
+      enabled: true
+      failure_threshold: 5
+      timeout: 60s
+      half_open_max_calls: 3
+
+# Monitoring dashboards configuration
+dashboards:
+  # System overview dashboard
+  system_overview:
+    refresh_interval: 30s
+    panels:
+      - name: Service Health
+        type: stat
+        metrics: [service_up, service_response_time]
+        
+      - name: Request Rate
+        type: graph
+        metrics: [request_count]
+        time_range: 1h
+        
+      - name: Error Rate
+        type: graph
+        metrics: [error_rate]
+        time_range: 1h
+        
+      - name: Resource Usage
+        type: graph
+        metrics: [cpu_usage, memory_usage]
+        time_range: 1h
+
+  # Trading dashboard
+  trading_dashboard:
+    refresh_interval: 10s
+    panels:
+      - name: Trading Volume
+        type: graph
+        metrics: [trading_volume]
+        time_range: 24h
+        
+      - name: Order Book Depth
+        type: table
+        metrics: [order_book_depth]
+        
+      - name: Trade Execution Time
+        type: histogram
+        metrics: [trade_execution_time]
+        
+      - name: Market Data Latency
+        type: stat
+        metrics: [market_data_latency]
+
+  # Bridge dashboard
+  bridge_dashboard:
+    refresh_interval: 30s
+    panels:
+      - name: Cross-Chain Transfers
+        type: graph
+        metrics: [bridge_transfers]
+        time_range: 24h
+        
+      - name: Bridge Success Rate
+        type: stat
+        metrics: [bridge_success_rate]
+        
+      - name: Transfer Times
+        type: histogram
+        metrics: [bridge_transfer_time]
+        
+      - name: Chain Status
+        type: table
+        metrics: [chain_status]
+
+  # Institutional dashboard
+  institutional_dashboard:
+    refresh_interval: 60s
+    panels:
+      - name: Assets Under Management
+        type: stat
+        metrics: [custody_aum]
+        
+      - name: Institutional Activity
+        type: graph
+        metrics: [institutional_transactions]
+        time_range: 7d
+        
+      - name: Compliance Status
+        type: table
+        metrics: [compliance_status]
+        
+      - name: White Label Platforms
+        type: stat
+        metrics: [active_platforms]
+
+# Alerting configuration
+alerting:
+  # Alert channels
+  channels:
+    slack:
+      webhook_url: ${SLACK_WEBHOOK_URL}
+      channel: "#alerts"
+      
+    email:
+      smtp_server: ${SMTP_SERVER}
+      recipients: ["ops@stablerwa.com", "dev@stablerwa.com"]
+      
+    pagerduty:
+      integration_key: ${PAGERDUTY_INTEGRATION_KEY}
+      
+    webhook:
+      url: ${WEBHOOK_URL}
+      headers:
+        Authorization: "Bearer ${WEBHOOK_TOKEN}"
+
+  # Alert rules
+  rules:
+    # Critical alerts
+    - name: Service Down
+      severity: critical
+      condition: up == 0
+      for: 1m
+      channels: [slack, email, pagerduty]
+      
+    - name: High Error Rate
+      severity: critical
+      condition: error_rate > 5
+      for: 5m
+      channels: [slack, email, pagerduty]
+      
+    - name: Database Connection Failed
+      severity: critical
+      condition: database_up == 0
+      for: 30s
+      channels: [slack, email, pagerduty]
+      
+    # Warning alerts
+    - name: High Response Time
+      severity: warning
+      condition: response_time_p95 > 1000
+      for: 10m
+      channels: [slack, email]
+      
+    - name: High CPU Usage
+      severity: warning
+      condition: cpu_usage > 80
+      for: 15m
+      channels: [slack]
+      
+    - name: High Memory Usage
+      severity: warning
+      condition: memory_usage > 85
+      for: 15m
+      channels: [slack]
+      
+    # Info alerts
+    - name: Deployment Started
+      severity: info
+      condition: deployment_status == "started"
+      channels: [slack]
+      
+    - name: Scaling Event
+      severity: info
+      condition: scaling_event == true
+      channels: [slack]
+
+# Performance testing configuration
+performance_testing:
+  # Load testing scenarios
+  load_tests:
+    - name: api_gateway_load
+      target: ${API_GATEWAY_URL}
+      duration: 10m
+      users: 100
+      ramp_up: 30s
+      
+    - name: trading_load
+      target: ${TRADING_SERVICE_URL}
+      duration: 15m
+      users: 50
+      ramp_up: 60s
+      
+    - name: bridge_load
+      target: ${BRIDGE_SERVICE_URL}
+      duration: 20m
+      users: 30
+      ramp_up: 120s
+
+  # Stress testing scenarios
+  stress_tests:
+    - name: peak_load_simulation
+      target: ${API_GATEWAY_URL}
+      duration: 5m
+      users: 500
+      ramp_up: 60s
+      
+    - name: database_stress
+      target: ${DATABASE_URL}
+      duration: 10m
+      connections: 200
+      queries_per_second: 1000
+
+  # Performance benchmarks
+  benchmarks:
+    response_time_targets:
+      p50: 100ms
+      p95: 500ms
+      p99: 1000ms
+      
+    throughput_targets:
+      requests_per_second: 1000
+      transactions_per_second: 100
+      
+    resource_limits:
+      max_cpu_usage: 80%
+      max_memory_usage: 85%
+      max_disk_io: 100MB/s

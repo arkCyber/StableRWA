@@ -107,7 +107,7 @@ impl SpanUtils {
         // Add custom fields
         if let Some(fields) = fields {
             for (key, value) in fields {
-                span.record(&key, &value.as_str());
+                span.record(key.as_str(), value.as_str());
             }
         }
 
@@ -355,7 +355,7 @@ mod tests {
         let span = SpanUtils::create_span("test_operation", &context, None);
         
         // Span should be created successfully
-        assert_eq!(span.metadata().name(), "operation");
+        assert_eq!(span.metadata().unwrap().name(), "operation");
     }
 
     #[test]

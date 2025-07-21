@@ -116,12 +116,12 @@ impl TransactionMonitor {
             required_confirmations: 6, // Default for most networks
         };
 
-        self.pending_transactions.write().await.insert(transaction.hash.clone(), pending_tx);
+        self.pending_transactions.write().await.insert(transaction.hash.value.clone(), pending_tx);
         
         info!(
             tx_hash = %transaction.hash,
-            from = %transaction.from_address.address,
-            to = %transaction.to_address.address,
+            from = %transaction.from.value,
+            to = %transaction.to.value,
             "Transaction added to monitoring"
         );
     }
@@ -346,14 +346,14 @@ impl TransactionBatchProcessor {
                 
                 match processor.submit_transaction(&tx).await {
                     Ok(hash) => BatchResult {
-                        transaction_id: tx.id,
+                        transaction_id: tx.hash.value.clone(),
                         hash: Some(hash),
                         success: true,
                         error: None,
                         processing_time: start_time.elapsed(),
                     },
                     Err(e) => BatchResult {
-                        transaction_id: tx.id,
+                        transaction_id: tx.hash.value.clone(),
                         hash: None,
                         success: false,
                         error: Some(e.to_string()),

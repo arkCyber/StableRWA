@@ -1,0 +1,101 @@
+[package]
+name = "core-trading"
+version = "0.1.0"
+edition = "2021"
+authors = ["arkSong <arksong2018@gmail.com>"]
+description = "Trading and liquidity management system for StableRWA platform"
+license = "MIT"
+repository = "https://github.com/arkSong/rwa-platform"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Date and time
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID generation
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# HTTP client for external API calls
+reqwest = { version = "0.11", features = ["json"] }
+
+# Database (optional, for persistent storage)
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid"], optional = true }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Configuration
+config = "0.13"
+
+# Validation
+validator = { version = "0.16", features = ["derive"] }
+
+# Decimal arithmetic for financial calculations
+rust_decimal = { version = "1.0", features = ["serde-json"] }
+
+# Concurrent data structures
+dashmap = "5.5"
+parking_lot = "0.12"
+
+# Atomic operations
+atomic = "0.6"
+
+# Priority queue for order matching
+priority-queue = "1.3"
+
+# Binary heap for efficient order book
+binary-heap-plus = "0.5"
+
+# Rate limiting
+governor = "0.6"
+
+# Statistical calculations
+statrs = "0.16"
+
+# Time series analysis for price data
+polars = { version = "0.35", features = ["lazy", "temporal"], optional = true }
+
+# WebSocket for real-time data
+tokio-tungstenite = { version = "0.20", features = ["native-tls"] }
+
+# Message queue integration
+lapin = { version = "2.3", optional = true }
+
+# Redis for caching and pub/sub
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"], optional = true }
+
+# Internal dependencies
+core-utils = { path = "../core-utils" }
+core-security = { path = "../core-security" }
+core-asset-lifecycle = { path = "../core-asset-lifecycle" }
+core-risk-management = { path = "../core-risk-management" }
+
+[dev-dependencies]
+tokio-test = "0.4"
+fake = "2.10"
+mockall = "0.11"
+criterion = "0.5"
+proptest = "1.4"
+
+[features]
+default = []
+database = ["sqlx"]
+time-series = ["polars"]
+message-queue = ["lapin"]
+redis-cache = ["redis"]
+
+[[bench]]
+name = "trading_benchmarks"
+harness = false

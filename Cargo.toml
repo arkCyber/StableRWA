@@ -9,6 +9,29 @@ members = [
     "core-database",
     "core-security",
     "core-observability",
+    "core-ipfs",
+    "core-did",
+    "core-analytics",
+
+    # Web3 and DeFi Infrastructure
+    "core-defi",
+    "core-layer2",
+    "core-oracle",
+    "core-wallet",
+    "core-nft",
+    "core-compliance",
+    "core-asset-lifecycle",
+    "core-trading",
+    "core-bridge",
+    "core-institutional",
+
+    # Advanced Enterprise Modules
+    "core-smart-contract",
+    "core-regtech",
+    "core-ai-risk",
+    "core-monitoring",
+    "core-privacy",
+    "core-api-gateway",
 
     # Business Services
     "service-asset",
@@ -25,7 +48,7 @@ members = [
 
 [workspace.dependencies]
 # Core dependencies shared across workspace
-tokio = { version = "1.0", features = ["full"] }
+tokio = { version = "1.34", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 actix-web = "4.0"
@@ -39,22 +62,52 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 config = "0.14"
 async-trait = "0.1"
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+validator = { version = "0.16", features = ["derive"] }
+
+# Web framework
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+# AI and ML
+regex = "1.0"
+
+# Additional dependencies
+fxhash = "0.2"
+num_cpus = "1.0"
+rust_decimal = { version = "1.32", features = ["serde"] }
 
 # Blockchain dependencies
 ethers = "2.0"
-solana-client = "1.16"
+solana-client = "1.18"
 subxt = "0.32"
+
+# IPFS dependencies
+ipfs-api-backend-hyper = { version = "0.6", features = ["with-hyper-rustls"] }
+ipfs-api-prelude = "0.6"
 
 # Security dependencies
 jsonwebtoken = "9.0"
 bcrypt = "0.15"
 ring = "0.17"
 
-# Observability
+# Observability dependencies
 opentelemetry = "0.21"
 opentelemetry-jaeger = "0.20"
 prometheus = "0.13"
+
+# DID and cryptography
+ed25519-dalek = "2.1"
+x25519-dalek = "2.0"
+sha2 = "0.10"
+base64 = "0.22"
+hex = "0.4"
+rand = "0.8"
+jwk = "0.2"
+url = "2.5"
+
+
 
 [workspace.package]
 version = "0.1.0"

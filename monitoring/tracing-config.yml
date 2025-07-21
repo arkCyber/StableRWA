@@ -1,0 +1,278 @@
+# Distributed Tracing Configuration for RWA Platform
+# OpenTelemetry and Jaeger configuration for comprehensive observability
+
+version: '1.0'
+
+# OpenTelemetry Configuration
+opentelemetry:
+  service_name: "rwa-platform"
+  service_version: "1.0.0"
+  environment: "production"
+  
+  # Resource attributes
+  resource:
+    attributes:
+      service.name: "rwa-platform"
+      service.version: "1.0.0"
+      service.namespace: "rwa"
+      deployment.environment: "production"
+      k8s.cluster.name: "rwa-cluster"
+      k8s.namespace.name: "rwa-platform"
+
+  # Instrumentation configuration
+  instrumentation:
+    # HTTP instrumentation
+    http:
+      enabled: true
+      capture_headers: true
+      capture_body: false
+      max_body_size: 1024
+      ignored_paths:
+        - "/health"
+        - "/metrics"
+        - "/favicon.ico"
+      
+    # Database instrumentation
+    database:
+      enabled: true
+      capture_statement: true
+      capture_statement_attribute_name: "db.statement"
+      max_statement_length: 1024
+      sanitize_sql: true
+      
+    # Redis instrumentation
+    redis:
+      enabled: true
+      capture_statement: true
+      
+    # gRPC instrumentation
+    grpc:
+      enabled: true
+      capture_metadata: true
+
+  # Sampling configuration
+  sampling:
+    # Probabilistic sampling
+    probabilistic:
+      sampling_percentage: 10.0
+      
+    # Rate limiting sampling
+    rate_limiting:
+      max_traces_per_second: 100
+      
+    # Custom sampling rules
+    rules:
+      - service_name: "service-gateway"
+        operation_name: "GET /health"
+        sampling_percentage: 1.0
+        
+      - service_name: "service-asset"
+        operation_name: "POST /api/v1/assets"
+        sampling_percentage: 100.0
+        
+      - service_name: "ai-service"
+        operation_name: "*"
+        sampling_percentage: 50.0
+        
+      - http_method: "GET"
+        http_url: "/api/v1/assets/*"
+        sampling_percentage: 25.0
+
+  # Batch processing
+  batch:
+    timeout: 1s
+    max_export_batch_size: 512
+    max_queue_size: 2048
+    export_timeout: 30s
+
+# Jaeger Configuration
+jaeger:
+  # Collector configuration
+  collector:
+    endpoint: "http://jaeger:14268/api/traces"
+    timeout: 10s
+    
+  # Agent configuration (for UDP)
+  agent:
+    endpoint: "jaeger:6832"
+    
+  # Query configuration
+  query:
+    endpoint: "http://jaeger:16686"
+    
+  # Storage configuration
+  storage:
+    type: "elasticsearch"
+    elasticsearch:
+      server_urls: ["http://elasticsearch:9200"]
+      index_prefix: "jaeger"
+      max_span_age: "72h"
+      
+  # Sampling strategies
+  sampling_strategies:
+    default_strategy:
+      type: "probabilistic"
+      param: 0.1
+      
+    per_service_strategies:
+      - service: "service-gateway"
+        type: "probabilistic"
+        param: 0.5
+        max_traces_per_second: 100
+        
+      - service: "service-asset"
+        type: "probabilistic"
+        param: 1.0
+        max_traces_per_second: 50
+        
+      - service: "ai-service"
+        type: "probabilistic"
+        param: 0.3
+        max_traces_per_second: 20
+
+# Trace Context Propagation
+propagation:
+  # Supported propagators
+  propagators:
+    - "tracecontext"
+    - "baggage"
+    - "b3"
+    - "jaeger"
+    
+  # Custom headers
+  custom_headers:
+    - "x-request-id"
+    - "x-correlation-id"
+    - "x-user-id"
+
+# Span Configuration
+spans:
+  # Span attributes to capture
+  attributes:
+    http:
+      - "http.method"
+      - "http.url"
+      - "http.status_code"
+      - "http.user_agent"
+      - "http.request_content_length"
+      - "http.response_content_length"
+      
+    database:
+      - "db.system"
+      - "db.connection_string"
+      - "db.user"
+      - "db.name"
+      - "db.statement"
+      - "db.operation"
+      
+    messaging:
+      - "messaging.system"
+      - "messaging.destination"
+      - "messaging.operation"
+      - "messaging.message_id"
+      
+    rpc:
+      - "rpc.system"
+      - "rpc.service"
+      - "rpc.method"
+      
+    custom:
+      - "user.id"
+      - "tenant.id"
+      - "asset.id"
+      - "transaction.id"
+      - "blockchain.network"
+
+  # Span events
+  events:
+    enabled: true
+    max_events_per_span: 128
+    
+  # Span links
+  links:
+    enabled: true
+    max_links_per_span: 128
+
+# Error Handling
+error_handling:
+  # Capture exceptions as span events
+  capture_exceptions: true
+  
+  # Mark spans as error on exception
+  mark_span_as_error: true
+  
+  # Exception attributes to capture
+  exception_attributes:
+    - "exception.type"
+    - "exception.message"
+    - "exception.stacktrace"
+
+# Performance Configuration
+performance:
+  # Memory limits
+  memory_limit_mib: 512
+  
+  # Queue sizes
+  span_queue_size: 2048
+  batch_queue_size: 256
+  
+  # Worker threads
+  worker_threads: 4
+  
+  # Compression
+  compression: "gzip"
+
+# Security Configuration
+security:
+  # TLS configuration
+  tls:
+    enabled: false
+    cert_file: "/etc/ssl/certs/jaeger.crt"
+    key_file: "/etc/ssl/private/jaeger.key"
+    ca_file: "/etc/ssl/certs/ca.crt"
+    
+  # Authentication
+  auth:
+    enabled: false
+    type: "bearer"
+    token: "${JAEGER_AUTH_TOKEN}"
+
+# Metrics Integration
+metrics:
+  # Export span metrics to Prometheus
+  prometheus:
+    enabled: true
+    endpoint: "0.0.0.0:8889"
+    namespace: "jaeger"
+    
+  # Custom metrics
+  custom_metrics:
+    - name: "trace_duration_seconds"
+      type: "histogram"
+      help: "Duration of traces"
+      buckets: [0.1, 0.5, 1.0, 2.5, 5.0, 10.0]
+      
+    - name: "span_count_total"
+      type: "counter"
+      help: "Total number of spans"
+      
+    - name: "error_span_count_total"
+      type: "counter"
+      help: "Total number of error spans"
+
+# Debugging and Development
+debug:
+  # Enable debug logging
+  enabled: false
+  
+  # Log level
+  log_level: "info"
+  
+  # Export traces to file for debugging
+  file_export:
+    enabled: false
+    path: "/tmp/traces.json"
+    
+  # Console exporter for development
+  console_export:
+    enabled: false

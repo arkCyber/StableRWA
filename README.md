@@ -21,23 +21,15 @@ StableRWA is a **world-class enterprise Web3 platform** for Real World Asset (RW
 - 🏢 **Enterprise-Grade Features**: Smart contracts, RegTech, AI risk, monitoring, privacy
 - 🚀 **Developer-Friendly**: Unified API gateway with multi-language SDKs
 
-### 📊 Platform Interface Preview
+### 📊 Platform Screenshots
 
 **🖼️ Main Dashboard**
-- Real-time asset monitoring with 2,847 assets under management
-- Total value locked: $45.2M USD with +8.2% growth
-- Active users: 1,234 users in the last 30 days
-- Transaction volume: $12.8M trading volume this month
-- Professional dark theme with orange accent colors
+![StableRWA Dashboard](assets/screenshots/dashboard-main.png)
+*Real-time asset monitoring with 2,847 assets under management, $45.2M USD total value locked*
 
 **🤖 AI Services Interface**
-- AI Asset Valuation service with 90% accuracy
-- Risk Assessment service with 91% accuracy
-- Document Analysis service with 88% accuracy (Beta)
-- Market Intelligence service (Coming Soon)
-- Advanced AI-powered analytics and decision-making tools
-
-> 📸 **Screenshots**: Platform screenshots are being updated. Please see the live demo or contact us for the latest interface previews.
+![AI Services](assets/screenshots/ai-services.png)
+*Advanced AI-powered services including asset valuation (90% accuracy), risk assessment (91% accuracy), and document analysis*
 
 ## ✨ Key Features
 

@@ -5,11 +5,11 @@
 // =====================================================================================
 
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 use crate::{
     error::{InstitutionalError, InstitutionalResult},
@@ -468,26 +468,46 @@ pub enum LogLevel {
 #[async_trait]
 pub trait WhiteLabelService: Send + Sync {
     /// Create a new white label platform
-    async fn create_platform(&self, platform: WhiteLabelPlatform) -> InstitutionalResult<WhiteLabelPlatform>;
-    
+    async fn create_platform(
+        &self,
+        platform: WhiteLabelPlatform,
+    ) -> InstitutionalResult<WhiteLabelPlatform>;
+
     /// Get platform by ID
-    async fn get_platform(&self, platform_id: Uuid) -> InstitutionalResult<Option<WhiteLabelPlatform>>;
-    
+    async fn get_platform(
+        &self,
+        platform_id: Uuid,
+    ) -> InstitutionalResult<Option<WhiteLabelPlatform>>;
+
     /// Get all platforms for an institution
-    async fn get_institution_platforms(&self, institution_id: Uuid) -> InstitutionalResult<Vec<WhiteLabelPlatform>>;
-    
+    async fn get_institution_platforms(
+        &self,
+        institution_id: Uuid,
+    ) -> InstitutionalResult<Vec<WhiteLabelPlatform>>;
+
     /// Update platform configuration
-    async fn update_platform(&self, platform: WhiteLabelPlatform) -> InstitutionalResult<WhiteLabelPlatform>;
-    
+    async fn update_platform(
+        &self,
+        platform: WhiteLabelPlatform,
+    ) -> InstitutionalResult<WhiteLabelPlatform>;
+
     /// Deploy platform
-    async fn deploy_platform(&self, platform_id: Uuid) -> InstitutionalResult<WhiteLabelDeployment>;
-    
+    async fn deploy_platform(&self, platform_id: Uuid)
+        -> InstitutionalResult<WhiteLabelDeployment>;
+
     /// Get deployment status
-    async fn get_deployment_status(&self, deployment_id: Uuid) -> InstitutionalResult<Option<WhiteLabelDeployment>>;
-    
+    async fn get_deployment_status(
+        &self,
+        deployment_id: Uuid,
+    ) -> InstitutionalResult<Option<WhiteLabelDeployment>>;
+
     /// Update platform status
-    async fn update_platform_status(&self, platform_id: Uuid, status: PlatformStatus) -> InstitutionalResult<()>;
-    
+    async fn update_platform_status(
+        &self,
+        platform_id: Uuid,
+        status: PlatformStatus,
+    ) -> InstitutionalResult<()>;
+
     /// Get platform analytics
     async fn get_platform_analytics(
         &self,
@@ -495,10 +515,13 @@ pub trait WhiteLabelService: Send + Sync {
         start_date: DateTime<Utc>,
         end_date: DateTime<Utc>,
     ) -> InstitutionalResult<PlatformAnalytics>;
-    
+
     /// Validate platform configuration
-    async fn validate_configuration(&self, platform: &WhiteLabelPlatform) -> InstitutionalResult<ValidationResult>;
-    
+    async fn validate_configuration(
+        &self,
+        platform: &WhiteLabelPlatform,
+    ) -> InstitutionalResult<ValidationResult>;
+
     /// Health check
     async fn health_check(&self) -> InstitutionalResult<WhiteLabelHealthStatus>;
 }

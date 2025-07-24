@@ -6,7 +6,7 @@
 
 use crate::{BlockchainError, BlockchainNetwork, Address, Transaction, TransactionStatus};
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
+// Serde imports would go here when needed
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -83,7 +83,7 @@ impl TransactionMonitor {
                             if status != TransactionStatus::Pending {
                                 let update = TransactionUpdate {
                                     hash: pending_tx.hash.clone(),
-                                    status,
+                                    status: status.clone(),
                                     confirmations: pending_tx.confirmations,
                                     updated_at: chrono::Utc::now(),
                                 };
@@ -110,7 +110,7 @@ impl TransactionMonitor {
     /// Add transaction to monitoring
     pub async fn monitor_transaction(&self, transaction: &Transaction) {
         let pending_tx = PendingTransaction {
-            hash: transaction.hash.clone(),
+            hash: transaction.hash.value.clone(),
             submitted_at: chrono::Utc::now(),
             confirmations: 0,
             required_confirmations: 6, // Default for most networks
@@ -222,7 +222,7 @@ impl TransactionProcessor for EthereumTransactionProcessor {
                 Ok(TransactionStatus::Confirmed)
             }
         } else {
-            Err(BlockchainError::TransactionNotFound(tx_hash.to_string()))
+            Err(BlockchainError::TransactionNotFound { hash: tx_hash.to_string() })
         }
     }
 
@@ -248,7 +248,10 @@ impl TransactionProcessor for EthereumTransactionProcessor {
                     }
                 }
                 TransactionStatus::Failed => {
-                    return Err(BlockchainError::TransactionFailed(tx_hash.to_string()));
+                    return Err(BlockchainError::TransactionFailed {
+                        hash: tx_hash.to_string(),
+                        reason: "Transaction failed".to_string()
+                    });
                 }
                 _ => {}
             }
@@ -296,7 +299,7 @@ impl TransactionProcessor for EthereumTransactionProcessor {
         let mut transactions = self.transactions.write().await;
         if let Some(transaction) = transactions.get_mut(tx_hash) {
             transaction.status = TransactionStatus::Cancelled;
-            transaction.updated_at = chrono::Utc::now();
+            transaction.updated_at = Some(chrono::Utc::now());
         }
 
         Ok(replacement_hash)
@@ -412,7 +415,7 @@ impl FeeOptimizer {
     pub async fn get_optimal_fee(&self, priority: FeePriority) -> Result<String, BlockchainError> {
         let base_gas_price = self.processor.get_gas_price().await?;
         let base_price: f64 = base_gas_price.parse()
-            .map_err(|_| BlockchainError::InvalidGasPrice(base_gas_price))?;
+            .map_err(|_| BlockchainError::InvalidGasPrice(0))?;
 
         let multiplier = match priority {
             FeePriority::Low => 0.8,
@@ -432,7 +435,7 @@ impl FeeOptimizer {
         
         let base_gas_price = self.processor.get_gas_price().await?;
         let base_price: f64 = base_gas_price.parse()
-            .map_err(|_| BlockchainError::InvalidGasPrice(base_gas_price))?;
+            .map_err(|_| BlockchainError::InvalidGasPrice(0))?;
 
         let time_multiplier = match target_confirmation_time.as_secs() {
             0..=60 => 2.0,      // 1 minute - urgent

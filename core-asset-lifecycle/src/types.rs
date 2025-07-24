@@ -376,6 +376,145 @@ pub enum MaintenanceStatus {
     Overdue,
 }
 
+/// Maintenance record structure
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MaintenanceRecord {
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub maintenance_type: MaintenanceType,
+    pub status: MaintenanceStatus,
+    pub scheduled_date: DateTime<Utc>,
+    pub completed_date: Option<DateTime<Utc>>,
+    pub description: String,
+    pub performed_by: Option<String>,
+    pub cost: Option<rust_decimal::Decimal>,
+    pub notes: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Tokenization status enumeration
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TokenizationStatus {
+    /// Not yet tokenized
+    NotTokenized,
+    /// Tokenization in progress
+    InProgress,
+    /// Successfully deployed
+    Deployed,
+    /// Tokenization failed
+    Failed,
+    /// Tokens burned/retired
+    Burned,
+}
+
+/// Token metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenMetadata {
+    pub name: String,
+    pub description: String,
+    pub image: Option<String>,
+    pub external_url: Option<String>,
+    pub attributes: Vec<TokenAttribute>,
+    pub properties: HashMap<String, serde_json::Value>,
+}
+
+/// Token attribute
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenAttribute {
+    pub trait_type: String,
+    pub value: serde_json::Value,
+    pub display_type: Option<String>,
+}
+
+/// Custody status enumeration
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CustodyStatus {
+    /// Asset is in active custody
+    Active,
+    /// Custody is being transferred
+    InTransfer,
+    /// Custody is suspended
+    Suspended,
+    /// Custody is terminated
+    Terminated,
+    /// Custody is under review
+    UnderReview,
+}
+
+/// Custody provider information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustodyProvider {
+    pub id: String,
+    pub name: String,
+    pub provider_type: String,
+    pub location: String,
+    pub insurance_coverage: Option<f64>,
+    pub certifications: Vec<String>,
+    pub contact_info: HashMap<String, String>,
+}
+
+/// Custody type enumeration (to avoid circular dependency)
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CustodyType {
+    SelfCustody,
+    ThirdPartyCustody,
+    MultiSigCustody,
+    InstitutionalCustody,
+    EscrowCustody,
+}
+
+/// Custody record
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustodyRecord {
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub provider: CustodyProvider,
+    pub custody_type: CustodyType,
+    pub status: CustodyStatus,
+    pub start_date: DateTime<Utc>,
+    pub end_date: Option<DateTime<Utc>>,
+    pub location: String,
+    pub insurance_coverage: Option<f64>,
+    pub access_controls: Vec<String>,
+    pub last_verified: Option<DateTime<Utc>>,
+    pub notes: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Asset lifecycle stage enumeration
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum LifecycleStage {
+    /// Asset registration stage
+    Registration,
+    /// Asset verification stage
+    Verification,
+    /// Asset valuation stage
+    Valuation,
+    /// Asset is active and operational
+    Active,
+    /// Asset maintenance stage
+    Maintenance,
+    /// Asset disposal stage
+    Disposal,
+    /// Asset is retired
+    Retired,
+}
+
+/// Asset lifecycle event
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AssetLifecycleEvent {
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub event_type: String,
+    pub lifecycle_stage: LifecycleStage,
+    pub description: String,
+    pub metadata: serde_json::Value,
+    pub timestamp: DateTime<Utc>,
+    pub triggered_by: String,
+}
+
 /// Asset ownership record
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssetOwnership {

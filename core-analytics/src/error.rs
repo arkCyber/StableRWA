@@ -4,8 +4,8 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use thiserror::Error;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 /// Result type alias for analytics operations
 pub type AnalyticsResult<T> = Result<T, AnalyticsError>;
@@ -42,8 +42,8 @@ pub enum AnalyticsError {
     QueryError { query_type: String, message: String },
 
     /// Data source errors
-    #[error("Data source error: {source} - {message}")]
-    DataSourceError { source: String, message: String },
+    #[error("Data source error: {message}")]
+    DataSourceError { message: String },
 
     /// Data quality errors
     #[error("Data quality error: {issue_type} - {message}")]
@@ -59,7 +59,10 @@ pub enum AnalyticsError {
 
     /// Dashboard errors
     #[error("Dashboard error: {dashboard_id} - {message}")]
-    DashboardError { dashboard_id: String, message: String },
+    DashboardError {
+        dashboard_id: String,
+        message: String,
+    },
 
     /// Widget errors
     #[error("Widget error: {widget_id} - {message}")]
@@ -74,8 +77,8 @@ pub enum AnalyticsError {
     ExportError { format: String, message: String },
 
     /// Data import errors
-    #[error("Import error: {source} - {message}")]
-    ImportError { source: String, message: String },
+    #[error("Import error: {message}")]
+    ImportError { message: String },
 
     /// Cache errors
     #[error("Cache error: {operation} - {message}")]
@@ -83,7 +86,10 @@ pub enum AnalyticsError {
 
     /// Computation timeout
     #[error("Computation timeout: {operation} - exceeded {timeout_seconds}s")]
-    ComputationTimeout { operation: String, timeout_seconds: u64 },
+    ComputationTimeout {
+        operation: String,
+        timeout_seconds: u64,
+    },
 
     /// Insufficient data
     #[error("Insufficient data: {data_type} - {message}")]
@@ -91,7 +97,10 @@ pub enum AnalyticsError {
 
     /// Data format errors
     #[error("Data format error: {expected_format} - {message}")]
-    DataFormatError { expected_format: String, message: String },
+    DataFormatError {
+        expected_format: String,
+        message: String,
+    },
 
     /// Schema validation errors
     #[error("Schema validation error: {schema} - {message}")]
@@ -99,11 +108,17 @@ pub enum AnalyticsError {
 
     /// Permission errors
     #[error("Permission denied: {resource} - {required_permission}")]
-    PermissionDenied { resource: String, required_permission: String },
+    PermissionDenied {
+        resource: String,
+        required_permission: String,
+    },
 
     /// Resource limit exceeded
     #[error("Resource limit exceeded: {resource_type} - {limit}")]
-    ResourceLimitExceeded { resource_type: String, limit: String },
+    ResourceLimitExceeded {
+        resource_type: String,
+        limit: String,
+    },
 
     /// Configuration errors
     #[error("Configuration error: {component} - {message}")]
@@ -135,7 +150,10 @@ pub enum AnalyticsError {
 
     /// Concurrent modification error
     #[error("Concurrent modification detected for {resource_type} {resource_id}")]
-    ConcurrentModification { resource_type: String, resource_id: String },
+    ConcurrentModification {
+        resource_type: String,
+        resource_id: String,
+    },
 
     /// Business rule violation
     #[error("Business rule violation: {rule} - {message}")]
@@ -153,22 +171,30 @@ pub enum AnalyticsError {
 impl AnalyticsError {
     /// Create a metrics error
     pub fn metrics_error<S: Into<String>>(message: S) -> Self {
-        Self::MetricsError { message: message.into() }
+        Self::MetricsError {
+            message: message.into(),
+        }
     }
 
     /// Create an aggregation error
     pub fn aggregation_error<S: Into<String>>(message: S) -> Self {
-        Self::AggregationError { message: message.into() }
+        Self::AggregationError {
+            message: message.into(),
+        }
     }
 
     /// Create a report generation error
     pub fn report_generation_error<S: Into<String>>(message: S) -> Self {
-        Self::ReportGenerationError { message: message.into() }
+        Self::ReportGenerationError {
+            message: message.into(),
+        }
     }
 
     /// Create a visualization error
     pub fn visualization_error<S: Into<String>>(message: S) -> Self {
-        Self::VisualizationError { message: message.into() }
+        Self::VisualizationError {
+            message: message.into(),
+        }
     }
 
     /// Create a forecasting error
@@ -188,9 +214,15 @@ impl AnalyticsError {
     }
 
     /// Create a data source error
-    pub fn data_source_error<S: Into<String>>(source: S, message: S) -> Self {
+    pub fn data_source_error<S: Into<String>>(message: S) -> Self {
         Self::DataSourceError {
-            source: source.into(),
+            message: message.into(),
+        }
+    }
+
+    /// Create an import error
+    pub fn import_error<S: Into<String>>(message: S) -> Self {
+        Self::ImportError {
             message: message.into(),
         }
     }
@@ -213,7 +245,9 @@ impl AnalyticsError {
 
     /// Create a metric not found error
     pub fn metric_not_found<S: Into<String>>(metric_name: S) -> Self {
-        Self::MetricNotFound { metric_name: metric_name.into() }
+        Self::MetricNotFound {
+            metric_name: metric_name.into(),
+        }
     }
 
     /// Create a dashboard error
@@ -266,12 +300,16 @@ impl AnalyticsError {
 
     /// Create a template not found error
     pub fn template_not_found<S: Into<String>>(template_id: S) -> Self {
-        Self::MetricNotFound { metric_name: format!("template_{}", template_id.into()) }
+        Self::MetricNotFound {
+            metric_name: format!("template_{}", template_id.into()),
+        }
     }
 
     /// Create a request not found error
     pub fn request_not_found<S: Into<String>>(request_id: S) -> Self {
-        Self::MetricNotFound { metric_name: format!("request_{}", request_id.into()) }
+        Self::MetricNotFound {
+            metric_name: format!("request_{}", request_id.into()),
+        }
     }
 
     /// Check if the error is retryable
@@ -349,7 +387,10 @@ impl AnalyticsError {
 
     /// Check if error requires immediate attention
     pub fn requires_immediate_attention(&self) -> bool {
-        matches!(self.severity(), ErrorSeverity::Critical | ErrorSeverity::High)
+        matches!(
+            self.severity(),
+            ErrorSeverity::Critical | ErrorSeverity::High
+        )
     }
 
     /// Check if error affects data accuracy
@@ -391,20 +432,26 @@ pub enum ErrorSeverity {
 // Implement conversions from common error types
 impl From<serde_json::Error> for AnalyticsError {
     fn from(err: serde_json::Error) -> Self {
-        Self::SerializationError { message: err.to_string() }
+        Self::SerializationError {
+            message: err.to_string(),
+        }
     }
 }
 
 impl From<reqwest::Error> for AnalyticsError {
     fn from(err: reqwest::Error) -> Self {
-        Self::NetworkError { message: err.to_string() }
+        Self::NetworkError {
+            message: err.to_string(),
+        }
     }
 }
 
 #[cfg(feature = "database")]
 impl From<sqlx::Error> for AnalyticsError {
     fn from(err: sqlx::Error) -> Self {
-        Self::DatabaseError { message: err.to_string() }
+        Self::DatabaseError {
+            message: err.to_string(),
+        }
     }
 }
 
@@ -420,7 +467,6 @@ impl From<validator::ValidationErrors> for AnalyticsError {
 impl From<polars::error::PolarsError> for AnalyticsError {
     fn from(err: polars::error::PolarsError) -> Self {
         Self::DataSourceError {
-            source: "polars".to_string(),
             message: err.to_string(),
         }
     }
@@ -498,13 +544,23 @@ mod tests {
     #[test]
     fn test_specific_error_constructors() {
         let timeout_error = AnalyticsError::computation_timeout("aggregation", 300);
-        assert!(matches!(timeout_error, AnalyticsError::ComputationTimeout { .. }));
+        assert!(matches!(
+            timeout_error,
+            AnalyticsError::ComputationTimeout { .. }
+        ));
 
         let permission_error = AnalyticsError::permission_denied("dashboard", "read");
-        assert!(matches!(permission_error, AnalyticsError::PermissionDenied { .. }));
+        assert!(matches!(
+            permission_error,
+            AnalyticsError::PermissionDenied { .. }
+        ));
 
-        let forecasting_error = AnalyticsError::forecasting_error("ARIMA", "Model convergence failed");
-        assert!(matches!(forecasting_error, AnalyticsError::ForecastingError { .. }));
+        let forecasting_error =
+            AnalyticsError::forecasting_error("ARIMA", "Model convergence failed");
+        assert!(matches!(
+            forecasting_error,
+            AnalyticsError::ForecastingError { .. }
+        ));
     }
 
     #[test]
@@ -517,6 +573,14 @@ mod tests {
         ];
 
         let categories: Vec<&str> = errors.iter().map(|e| e.category()).collect();
-        assert_eq!(categories, vec!["metrics", "aggregation", "report_generation", "visualization"]);
+        assert_eq!(
+            categories,
+            vec![
+                "metrics",
+                "aggregation",
+                "report_generation",
+                "visualization"
+            ]
+        );
     }
 }

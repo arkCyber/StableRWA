@@ -41,7 +41,7 @@ impl Layer2Service {
         let bridge_key = format!("{:?}-{:?}", message.source_network, message.destination_network);
         let bridge_services = self.bridge_services.read().await;
         let bridge_service = bridge_services.get(&bridge_key)
-            .ok_or_else(|| Layer2Error::not_found("BridgeService", bridge_key))?;
+            .ok_or_else(|| Layer2Error::not_found("BridgeService", &bridge_key))?;
 
         // Send message
         bridge_service.send_message(message).await
@@ -55,9 +55,9 @@ impl Layer2Service {
         // Get network clients
         let network_clients = self.network_clients.read().await;
         let source_client = network_clients.get(&transaction.source_network)
-            .ok_or_else(|| Layer2Error::not_found("NetworkClient", transaction.source_network.name().to_string()))?;
+            .ok_or_else(|| Layer2Error::not_found("NetworkClient", transaction.source_network.name()))?;
         let dest_client = network_clients.get(&transaction.destination_network)
-            .ok_or_else(|| Layer2Error::not_found("NetworkClient", transaction.destination_network.name().to_string()))?;
+            .ok_or_else(|| Layer2Error::not_found("NetworkClient", transaction.destination_network.name()))?;
 
         // Execute bridge transaction
         let source_tx = source_client.lock_tokens(&transaction).await?;
@@ -70,7 +70,7 @@ impl Layer2Service {
     pub async fn get_network_status(&self, network: Layer2Network) -> Layer2Result<NetworkStatus> {
         let network_clients = self.network_clients.read().await;
         let client = network_clients.get(&network)
-            .ok_or_else(|| Layer2Error::not_found("NetworkClient", network.name().to_string()))?;
+            .ok_or_else(|| Layer2Error::not_found("NetworkClient", network.name()))?;
 
         client.get_status().await
     }
@@ -175,9 +175,13 @@ impl NetworkClient for MockNetworkClient {
         Ok(NetworkStatus {
             network: self.network,
             is_online: true,
+            is_healthy: true,
             block_height: 1000000,
+            latest_block: 1000000,
             gas_price: 20,
             tps: 100.0,
+            finality_time_seconds: 2,
+            bridge_status: crate::types::BridgeHealthStatus::Operational,
             last_updated: chrono::Utc::now(),
         })
     }

@@ -5,15 +5,15 @@
 // =====================================================================================
 
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 use crate::{
     error::{BridgeError, BridgeResult},
-    types::{ChainId, BridgeStatus, AssetTransfer, BridgeTransaction},
+    types::{AssetTransfer, BridgeStatus, BridgeTransaction, ChainId},
 };
 
 /// Transfer service configuration
@@ -46,11 +46,11 @@ pub struct TransferConfig {
 impl Default for TransferConfig {
     fn default() -> Self {
         Self {
-            min_transfer_amount: Decimal::new(1000, 2), // $10.00
+            min_transfer_amount: Decimal::new(1000, 2),      // $10.00
             max_transfer_amount: Decimal::new(100000000, 2), // $1,000,000.00
-            transfer_fee_percentage: Decimal::new(30, 4), // 0.30%
-            max_slippage: Decimal::new(500, 4), // 5.00%
-            timeout_seconds: 3600, // 1 hour
+            transfer_fee_percentage: Decimal::new(30, 4),    // 0.30%
+            max_slippage: Decimal::new(500, 4),              // 5.00%
+            timeout_seconds: 3600,                           // 1 hour
             auto_retry: true,
             max_retry_attempts: 3,
             retry_delay_seconds: 60,
@@ -133,14 +133,20 @@ impl TransferRequest {
         if self.amount < config.min_transfer_amount {
             return Err(BridgeError::validation_error(
                 "amount",
-                format!("Amount {} is below minimum {}", self.amount, config.min_transfer_amount),
+                format!(
+                    "Amount {} is below minimum {}",
+                    self.amount, config.min_transfer_amount
+                ),
             ));
         }
 
         if self.amount > config.max_transfer_amount {
             return Err(BridgeError::validation_error(
                 "amount",
-                format!("Amount {} exceeds maximum {}", self.amount, config.max_transfer_amount),
+                format!(
+                    "Amount {} exceeds maximum {}",
+                    self.amount, config.max_transfer_amount
+                ),
             ));
         }
 
@@ -224,13 +230,13 @@ pub struct TransferResult {
 pub trait TransferService: Send + Sync {
     /// Submit a transfer request
     async fn submit_transfer(&self, request: TransferRequest) -> BridgeResult<TransferResult>;
-    
+
     /// Get transfer status
     async fn get_transfer_status(&self, request_id: Uuid) -> BridgeResult<Option<TransferResult>>;
-    
+
     /// Cancel a pending transfer
     async fn cancel_transfer(&self, request_id: Uuid) -> BridgeResult<()>;
-    
+
     /// Get transfer history for a user
     async fn get_transfer_history(
         &self,
@@ -238,13 +244,13 @@ pub trait TransferService: Send + Sync {
         limit: Option<usize>,
         offset: Option<usize>,
     ) -> BridgeResult<Vec<TransferResult>>;
-    
+
     /// Estimate transfer fee
     async fn estimate_fee(&self, request: &TransferRequest) -> BridgeResult<Decimal>;
-    
+
     /// Get supported transfer routes
     async fn get_supported_routes(&self) -> BridgeResult<Vec<TransferRoute>>;
-    
+
     /// Health check
     async fn health_check(&self) -> BridgeResult<TransferHealthStatus>;
 }
@@ -302,7 +308,7 @@ mod tests {
     #[test]
     fn test_transfer_request_validation() {
         let config = TransferConfig::default();
-        
+
         let valid_request = TransferRequest::new(
             "user123".to_string(),
             ChainId::Ethereum,

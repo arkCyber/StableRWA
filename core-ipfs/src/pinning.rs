@@ -1,17 +1,17 @@
 // =====================================================================================
 // IPFS Pinning Management
-// 
+//
 // Advanced pinning strategies and management for IPFS content
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use crate::{IpfsError, IpfsResult, IpfsHash, client::IpfsClientTrait};
+use crate::{client::IpfsClientTrait, IpfsError, IpfsHash, IpfsResult};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, info, warn, instrument};
+use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 
 /// Pin priority levels
@@ -84,7 +84,7 @@ impl PinInfo {
             metadata: HashMap::new(),
         }
     }
-    
+
     /// Check if pin is expired
     pub fn is_expired(&self) -> bool {
         if let Some(expires_at) = self.expires_at {
@@ -93,7 +93,7 @@ impl PinInfo {
             false
         }
     }
-    
+
     /// Set expiration based on retention days
     pub fn set_expiration(&mut self, retention_days: u32) {
         self.expires_at = Some(self.pinned_at + chrono::Duration::days(retention_days as i64));
@@ -117,43 +117,47 @@ pub struct PinningStats {
 pub trait PinningManagerTrait {
     /// Create pinning policy
     async fn create_policy(&self, policy: PinPolicy) -> IpfsResult<()>;
-    
+
     /// Get pinning policy
     async fn get_policy(&self, name: &str) -> IpfsResult<PinPolicy>;
-    
+
     /// Update pinning policy
     async fn update_policy(&self, policy: PinPolicy) -> IpfsResult<()>;
-    
+
     /// Delete pinning policy
     async fn delete_policy(&self, name: &str) -> IpfsResult<()>;
-    
+
     /// Pin content with policy
     async fn pin_with_policy(&self, hash: &IpfsHash, policy_name: &str) -> IpfsResult<PinInfo>;
-    
+
     /// Pin content with priority
-    async fn pin_with_priority(&self, hash: &IpfsHash, priority: PinPriority) -> IpfsResult<PinInfo>;
-    
+    async fn pin_with_priority(
+        &self,
+        hash: &IpfsHash,
+        priority: PinPriority,
+    ) -> IpfsResult<PinInfo>;
+
     /// Unpin content
     async fn unpin_content(&self, hash: &IpfsHash) -> IpfsResult<()>;
-    
+
     /// Get pin information
     async fn get_pin_info(&self, hash: &IpfsHash) -> IpfsResult<PinInfo>;
-    
+
     /// List all pins
     async fn list_pins(&self) -> IpfsResult<Vec<PinInfo>>;
-    
+
     /// List pins by priority
     async fn list_pins_by_priority(&self, priority: PinPriority) -> IpfsResult<Vec<PinInfo>>;
-    
+
     /// List pins by policy
     async fn list_pins_by_policy(&self, policy_name: &str) -> IpfsResult<Vec<PinInfo>>;
-    
+
     /// Clean up expired pins
     async fn cleanup_expired_pins(&self) -> IpfsResult<Vec<IpfsHash>>;
-    
+
     /// Get pinning statistics
     async fn get_pinning_stats(&self) -> IpfsResult<PinningStats>;
-    
+
     /// Rebalance pins based on policies
     async fn rebalance_pins(&self) -> IpfsResult<()>;
 }
@@ -170,36 +174,45 @@ impl InMemoryPinningManager {
     pub fn new(client: Arc<dyn IpfsClientTrait>) -> Self {
         let mut policies = HashMap::new();
         policies.insert("default".to_string(), PinPolicy::default());
-        
+
         Self {
             client,
             policies: Arc::new(RwLock::new(policies)),
             pins: Arc::new(RwLock::new(HashMap::new())),
         }
     }
-    
+
     /// Check if content matches policy criteria
-    async fn matches_policy(&self, policy: &PinPolicy, size: u64, mime_type: &str, tags: &[String]) -> bool {
+    async fn matches_policy(
+        &self,
+        policy: &PinPolicy,
+        size: u64,
+        mime_type: &str,
+        tags: &[String],
+    ) -> bool {
         // Check size limit
         if let Some(max_size) = policy.max_size {
             if size > max_size {
                 return false;
             }
         }
-        
+
         // Check MIME types
         if !policy.mime_types.is_empty() && !policy.mime_types.contains(&mime_type.to_string()) {
             return false;
         }
-        
+
         // Check tags
         if !policy.tags.is_empty() {
-            let has_matching_tag = policy.tags.iter().any(|policy_tag| tags.contains(policy_tag));
+            let has_matching_tag = policy
+                .tags
+                .iter()
+                .any(|policy_tag| tags.contains(policy_tag));
             if !has_matching_tag {
                 return false;
             }
         }
-        
+
         true
     }
 }
@@ -209,93 +222,117 @@ impl PinningManagerTrait for InMemoryPinningManager {
     #[instrument(skip(self, policy))]
     async fn create_policy(&self, policy: PinPolicy) -> IpfsResult<()> {
         debug!("Creating pinning policy: {}", policy.name);
-        
-        self.policies.write().await.insert(policy.name.clone(), policy);
-        
+
+        self.policies
+            .write()
+            .await
+            .insert(policy.name.clone(), policy);
+
         info!("Successfully created pinning policy");
         Ok(())
     }
-    
+
     #[instrument(skip(self))]
     async fn get_policy(&self, name: &str) -> IpfsResult<PinPolicy> {
         debug!("Getting pinning policy: {}", name);
-        
-        self.policies.read().await
+
+        self.policies
+            .read()
+            .await
             .get(name)
             .cloned()
             .ok_or_else(|| IpfsError::PinningError(format!("Policy not found: {}", name)))
     }
-    
+
     #[instrument(skip(self, policy))]
     async fn update_policy(&self, policy: PinPolicy) -> IpfsResult<()> {
         debug!("Updating pinning policy: {}", policy.name);
-        
+
         let mut policies = self.policies.write().await;
         if policies.contains_key(&policy.name) {
             policies.insert(policy.name.clone(), policy);
             info!("Successfully updated pinning policy");
             Ok(())
         } else {
-            Err(IpfsError::PinningError(format!("Policy not found: {}", policy.name)))
+            Err(IpfsError::PinningError(format!(
+                "Policy not found: {}",
+                policy.name
+            )))
         }
     }
-    
+
     #[instrument(skip(self))]
     async fn delete_policy(&self, name: &str) -> IpfsResult<()> {
         debug!("Deleting pinning policy: {}", name);
-        
+
         if name == "default" {
-            return Err(IpfsError::PinningError("Cannot delete default policy".to_string()));
+            return Err(IpfsError::PinningError(
+                "Cannot delete default policy".to_string(),
+            ));
         }
-        
+
         let mut policies = self.policies.write().await;
         if policies.remove(name).is_some() {
             info!("Successfully deleted pinning policy: {}", name);
             Ok(())
         } else {
-            Err(IpfsError::PinningError(format!("Policy not found: {}", name)))
+            Err(IpfsError::PinningError(format!(
+                "Policy not found: {}",
+                name
+            )))
         }
     }
-    
+
     #[instrument(skip(self))]
     async fn pin_with_policy(&self, hash: &IpfsHash, policy_name: &str) -> IpfsResult<PinInfo> {
         debug!("Pinning content with policy: {} -> {}", hash, policy_name);
-        
+
         let policy = self.get_policy(policy_name).await?;
-        
+
         // Get content size
         let size = self.client.size(hash).await?;
-        
+
         // Pin the content
         self.client.pin(hash).await?;
-        
+
         // Create pin info
-        let mut pin_info = PinInfo::new(hash.clone(), policy.priority, policy_name.to_string(), size);
-        
+        let mut pin_info =
+            PinInfo::new(hash.clone(), policy.priority, policy_name.to_string(), size);
+
         // Set expiration if specified in policy
         if let Some(retention_days) = policy.retention_days {
             pin_info.set_expiration(retention_days);
         }
-        
+
         pin_info.replication_count = policy.replication_factor;
-        
+
         // Store pin info
-        self.pins.write().await.insert(hash.as_str().to_string(), pin_info.clone());
-        
-        info!("Successfully pinned content with policy: {} -> {}", hash, policy_name);
+        self.pins
+            .write()
+            .await
+            .insert(hash.as_str().to_string(), pin_info.clone());
+
+        info!(
+            "Successfully pinned content with policy: {} -> {}",
+            hash, policy_name
+        );
         Ok(pin_info)
     }
-    
+
     #[instrument(skip(self))]
-    async fn pin_with_priority(&self, hash: &IpfsHash, priority: PinPriority) -> IpfsResult<PinInfo> {
+    async fn pin_with_priority(
+        &self,
+        hash: &IpfsHash,
+        priority: PinPriority,
+    ) -> IpfsResult<PinInfo> {
         debug!("Pinning content with priority: {} -> {:?}", hash, priority);
-        
+
         // Get content size
         let size = self.client.size(hash).await?;
-        
+
         // Pin the content
         self.client.pin(hash).await?;
-        
+
         // Create pin info with default policy
         let pin_info = PinInfo {
             hash: hash.clone(),
@@ -307,90 +344,109 @@ impl PinningManagerTrait for InMemoryPinningManager {
             replication_count: 1,
             metadata: HashMap::new(),
         };
-        
+
         // Store pin info
-        self.pins.write().await.insert(hash.as_str().to_string(), pin_info.clone());
-        
-        info!("Successfully pinned content with priority: {} -> {:?}", hash, priority);
+        self.pins
+            .write()
+            .await
+            .insert(hash.as_str().to_string(), pin_info.clone());
+
+        info!(
+            "Successfully pinned content with priority: {} -> {:?}",
+            hash, priority
+        );
         Ok(pin_info)
     }
-    
+
     #[instrument(skip(self))]
     async fn unpin_content(&self, hash: &IpfsHash) -> IpfsResult<()> {
         debug!("Unpinning content: {}", hash);
-        
+
         // Unpin from IPFS
         self.client.unpin(hash).await?;
-        
+
         // Remove from pin info
         self.pins.write().await.remove(hash.as_str());
-        
+
         info!("Successfully unpinned content: {}", hash);
         Ok(())
     }
-    
+
     #[instrument(skip(self))]
     async fn get_pin_info(&self, hash: &IpfsHash) -> IpfsResult<PinInfo> {
         debug!("Getting pin info: {}", hash);
-        
-        self.pins.read().await
+
+        self.pins
+            .read()
+            .await
             .get(hash.as_str())
             .cloned()
             .ok_or_else(|| IpfsError::PinningError(format!("Pin info not found: {}", hash)))
     }
-    
+
     #[instrument(skip(self))]
     async fn list_pins(&self) -> IpfsResult<Vec<PinInfo>> {
         debug!("Listing all pins");
-        
+
         let pins = self.pins.read().await;
         let pin_list: Vec<PinInfo> = pins.values().cloned().collect();
-        
+
         info!("Found {} pins", pin_list.len());
         Ok(pin_list)
     }
-    
+
     #[instrument(skip(self))]
     async fn list_pins_by_priority(&self, priority: PinPriority) -> IpfsResult<Vec<PinInfo>> {
         debug!("Listing pins by priority: {:?}", priority);
-        
+
         let pins = self.pins.read().await;
-        let filtered_pins: Vec<PinInfo> = pins.values()
+        let filtered_pins: Vec<PinInfo> = pins
+            .values()
             .filter(|pin| pin.priority == priority)
             .cloned()
             .collect();
-        
-        info!("Found {} pins with priority {:?}", filtered_pins.len(), priority);
+
+        info!(
+            "Found {} pins with priority {:?}",
+            filtered_pins.len(),
+            priority
+        );
         Ok(filtered_pins)
     }
-    
+
     #[instrument(skip(self))]
     async fn list_pins_by_policy(&self, policy_name: &str) -> IpfsResult<Vec<PinInfo>> {
         debug!("Listing pins by policy: {}", policy_name);
-        
+
         let pins = self.pins.read().await;
-        let filtered_pins: Vec<PinInfo> = pins.values()
+        let filtered_pins: Vec<PinInfo> = pins
+            .values()
             .filter(|pin| pin.policy_name == policy_name)
             .cloned()
             .collect();
-        
-        info!("Found {} pins with policy {}", filtered_pins.len(), policy_name);
+
+        info!(
+            "Found {} pins with policy {}",
+            filtered_pins.len(),
+            policy_name
+        );
         Ok(filtered_pins)
     }
-    
+
     #[instrument(skip(self))]
     async fn cleanup_expired_pins(&self) -> IpfsResult<Vec<IpfsHash>> {
         debug!("Cleaning up expired pins");
-        
+
         let mut pins = self.pins.write().await;
         let mut expired_hashes = Vec::new();
-        
+
         // Find expired pins
-        let expired_keys: Vec<String> = pins.iter()
+        let expired_keys: Vec<String> = pins
+            .iter()
             .filter(|(_, pin)| pin.is_expired())
             .map(|(key, _)| key.clone())
             .collect();
-        
+
         // Remove expired pins
         for key in expired_keys {
             if let Some(pin) = pins.remove(&key) {
@@ -401,42 +457,45 @@ impl PinningManagerTrait for InMemoryPinningManager {
                 expired_hashes.push(pin.hash);
             }
         }
-        
+
         info!("Cleaned up {} expired pins", expired_hashes.len());
         Ok(expired_hashes)
     }
-    
+
     #[instrument(skip(self))]
     async fn get_pinning_stats(&self) -> IpfsResult<PinningStats> {
         debug!("Calculating pinning statistics");
-        
+
         let pins = self.pins.read().await;
         let total_pins = pins.len() as u64;
         let total_size: u64 = pins.values().map(|pin| pin.size).sum();
-        
+
         // Calculate pins by priority
         let mut pins_by_priority = HashMap::new();
         for pin in pins.values() {
             *pins_by_priority.entry(pin.priority).or_insert(0) += 1;
         }
-        
+
         // Calculate pins by policy
         let mut pins_by_policy = HashMap::new();
         for pin in pins.values() {
             *pins_by_policy.entry(pin.policy_name.clone()).or_insert(0) += 1;
         }
-        
+
         // Count expired pins
         let expired_pins = pins.values().filter(|pin| pin.is_expired()).count() as u64;
-        
+
         // Calculate replication health (simplified)
-        let healthy_pins = pins.values().filter(|pin| pin.replication_count >= 1).count();
+        let healthy_pins = pins
+            .values()
+            .filter(|pin| pin.replication_count >= 1)
+            .count();
         let replication_health = if total_pins > 0 {
             (healthy_pins as f64 / total_pins as f64) * 100.0
         } else {
             100.0
         };
-        
+
         let stats = PinningStats {
             total_pins,
             total_size,
@@ -446,21 +505,24 @@ impl PinningManagerTrait for InMemoryPinningManager {
             replication_health,
             last_updated: chrono::Utc::now(),
         };
-        
-        info!("Generated pinning statistics: {} pins, {} bytes", total_pins, total_size);
+
+        info!(
+            "Generated pinning statistics: {} pins, {} bytes",
+            total_pins, total_size
+        );
         Ok(stats)
     }
-    
+
     #[instrument(skip(self))]
     async fn rebalance_pins(&self) -> IpfsResult<()> {
         debug!("Rebalancing pins based on policies");
-        
+
         // This is a simplified rebalancing implementation
         // In a real system, this would involve more complex logic
-        
+
         let pins = self.pins.read().await;
         let mut rebalanced_count = 0;
-        
+
         for pin in pins.values() {
             // Check if pin needs rebalancing based on policy
             if let Ok(policy) = self.get_policy(&pin.policy_name).await {
@@ -470,7 +532,7 @@ impl PinningManagerTrait for InMemoryPinningManager {
                 }
             }
         }
-        
+
         info!("Rebalanced {} pins", rebalanced_count);
         Ok(())
     }
@@ -508,8 +570,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_pin_info_creation_and_expiration() {
-        let hash = IpfsHash::new("QmTestPin123456789012345678901234567890123456".to_string()).unwrap();
-        let mut pin_info = PinInfo::new(hash.clone(), PinPriority::High, "test_policy".to_string(), 1024);
+        let hash =
+            IpfsHash::new("QmTestPin123456789012345678901234567890123456".to_string()).unwrap();
+        let mut pin_info = PinInfo::new(
+            hash.clone(),
+            PinPriority::High,
+            "test_policy".to_string(),
+            1024,
+        );
 
         assert_eq!(pin_info.hash, hash);
         assert_eq!(pin_info.priority, PinPriority::High);
@@ -560,13 +628,17 @@ mod tests {
         manager.create_policy(policy).await.unwrap();
 
         // Add test content to mock client
-        let hash = IpfsHash::new("QmPinTest123456789012345678901234567890123456".to_string()).unwrap();
+        let hash =
+            IpfsHash::new("QmPinTest123456789012345678901234567890123456".to_string()).unwrap();
         let client = manager.client.clone();
         // For testing, we'll use the client directly without downcasting
         let actual_hash = client.add_bytes(b"test content".to_vec()).await.unwrap();
 
         // Pin with policy using the actual hash
-        let pin_info = manager.pin_with_policy(&actual_hash, "test_policy").await.unwrap();
+        let pin_info = manager
+            .pin_with_policy(&actual_hash, "test_policy")
+            .await
+            .unwrap();
         assert_eq!(pin_info.hash, actual_hash);
         assert_eq!(pin_info.priority, PinPriority::High);
         assert_eq!(pin_info.policy_name, "test_policy");
@@ -588,7 +660,10 @@ mod tests {
         let actual_hash = client.add_bytes(b"priority test".to_vec()).await.unwrap();
 
         // Pin with priority
-        let pin_info = manager.pin_with_priority(&actual_hash, PinPriority::Critical).await.unwrap();
+        let pin_info = manager
+            .pin_with_priority(&actual_hash, PinPriority::Critical)
+            .await
+            .unwrap();
         assert_eq!(pin_info.priority, PinPriority::Critical);
         assert_eq!(pin_info.policy_name, "default");
         assert!(pin_info.expires_at.is_none());
@@ -610,24 +685,42 @@ mod tests {
         // Add content using the client interface and get actual hashes
         let mut actual_hashes = Vec::new();
         for i in 0..3 {
-            let hash = client.add_bytes(format!("content {}", i).into_bytes()).await.unwrap();
+            let hash = client
+                .add_bytes(format!("content {}", i).into_bytes())
+                .await
+                .unwrap();
             actual_hashes.push(hash);
         }
 
         // Pin with different priorities
-        manager.pin_with_priority(&actual_hashes[0], PinPriority::Low).await.unwrap();
-        manager.pin_with_priority(&actual_hashes[1], PinPriority::High).await.unwrap();
-        manager.pin_with_priority(&actual_hashes[2], PinPriority::High).await.unwrap();
+        manager
+            .pin_with_priority(&actual_hashes[0], PinPriority::Low)
+            .await
+            .unwrap();
+        manager
+            .pin_with_priority(&actual_hashes[1], PinPriority::High)
+            .await
+            .unwrap();
+        manager
+            .pin_with_priority(&actual_hashes[2], PinPriority::High)
+            .await
+            .unwrap();
 
         // List all pins
         let all_pins = manager.list_pins().await.unwrap();
         assert_eq!(all_pins.len(), 3);
 
         // List pins by priority
-        let high_priority_pins = manager.list_pins_by_priority(PinPriority::High).await.unwrap();
+        let high_priority_pins = manager
+            .list_pins_by_priority(PinPriority::High)
+            .await
+            .unwrap();
         assert_eq!(high_priority_pins.len(), 2);
 
-        let low_priority_pins = manager.list_pins_by_priority(PinPriority::Low).await.unwrap();
+        let low_priority_pins = manager
+            .list_pins_by_priority(PinPriority::Low)
+            .await
+            .unwrap();
         assert_eq!(low_priority_pins.len(), 1);
 
         // List pins by policy
@@ -643,7 +736,10 @@ mod tests {
         let client = manager.client.clone();
         let actual_hash = client.add_bytes(b"unpin test".to_vec()).await.unwrap();
 
-        manager.pin_with_priority(&actual_hash, PinPriority::Normal).await.unwrap();
+        manager
+            .pin_with_priority(&actual_hash, PinPriority::Normal)
+            .await
+            .unwrap();
 
         // Verify pin exists
         assert!(manager.get_pin_info(&actual_hash).await.is_ok());
@@ -669,11 +765,18 @@ mod tests {
         let actual_hash = client.add_bytes(b"expired test".to_vec()).await.unwrap();
 
         // Pin with policy
-        let mut pin_info = manager.pin_with_policy(&actual_hash, "test_policy").await.unwrap();
+        let mut pin_info = manager
+            .pin_with_policy(&actual_hash, "test_policy")
+            .await
+            .unwrap();
 
         // Manually set expiration to past date for testing
         pin_info.expires_at = Some(chrono::Utc::now() - chrono::Duration::hours(1));
-        manager.pins.write().await.insert(actual_hash.as_str().to_string(), pin_info);
+        manager
+            .pins
+            .write()
+            .await
+            .insert(actual_hash.as_str().to_string(), pin_info);
 
         // Cleanup expired pins
         let expired_hashes = manager.cleanup_expired_pins().await.unwrap();
@@ -700,9 +803,18 @@ mod tests {
         }
 
         // Pin with different priorities
-        manager.pin_with_priority(&actual_hashes[0], PinPriority::Low).await.unwrap();
-        manager.pin_with_priority(&actual_hashes[1], PinPriority::High).await.unwrap();
-        manager.pin_with_priority(&actual_hashes[2], PinPriority::Critical).await.unwrap();
+        manager
+            .pin_with_priority(&actual_hashes[0], PinPriority::Low)
+            .await
+            .unwrap();
+        manager
+            .pin_with_priority(&actual_hashes[1], PinPriority::High)
+            .await
+            .unwrap();
+        manager
+            .pin_with_priority(&actual_hashes[2], PinPriority::Critical)
+            .await
+            .unwrap();
 
         // Get statistics
         let stats = manager.get_pinning_stats().await.unwrap();
@@ -725,7 +837,10 @@ mod tests {
         let client = manager.client.clone();
         let actual_hash = client.add_bytes(b"rebalance test".to_vec()).await.unwrap();
 
-        manager.pin_with_priority(&actual_hash, PinPriority::Normal).await.unwrap();
+        manager
+            .pin_with_priority(&actual_hash, PinPriority::Normal)
+            .await
+            .unwrap();
 
         // Rebalance pins (this is a simplified test)
         let result = manager.rebalance_pins().await;

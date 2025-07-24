@@ -1,23 +1,25 @@
 // =====================================================================================
 // DID Resolver Implementation
-// 
+//
 // Resolves DIDs to their corresponding DID documents
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use crate::{DidDocument, DidError, DidResult, DidResolutionResult, DidResolutionMetadata, DidMetadata};
+use crate::{
+    DidDocument, DidError, DidMetadata, DidResolutionMetadata, DidResolutionResult, DidResult,
+};
 use async_trait::async_trait;
+use reqwest::Client;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use reqwest::Client;
 
 /// DID resolver trait
 #[async_trait]
 pub trait DidResolver: Send + Sync {
     /// Resolve a DID to its document
     async fn resolve(&self, did: &str) -> DidResult<DidResolutionResult>;
-    
+
     /// Check if this resolver supports the given DID method
     fn supports_method(&self, method: &str) -> bool;
 }
@@ -83,7 +85,9 @@ impl UniversalResolver {
     /// Parse DID to extract method
     fn parse_method(did: &str) -> DidResult<String> {
         if !did.starts_with("did:") {
-            return Err(DidError::InvalidDidFormat("DID must start with 'did:'".to_string()));
+            return Err(DidError::InvalidDidFormat(
+                "DID must start with 'did:'".to_string(),
+            ));
         }
 
         let parts: Vec<&str> = did.split(':').collect();
@@ -126,17 +130,19 @@ impl UniversalResolver {
     /// Resolve DID via HTTP
     async fn resolve_http(&self, did: &str) -> DidResult<DidResolutionResult> {
         let url = format!("https://dev.uniresolver.io/1.0/identifiers/{}", did);
-        
-        let response = self.client
+
+        let response = self
+            .client
             .get(&url)
             .header("Accept", "application/did+ld+json")
             .send()
             .await?;
 
         if !response.status().is_success() {
-            return Err(DidError::ResolutionError(
-                format!("HTTP resolution failed: {}", response.status())
-            ));
+            return Err(DidError::ResolutionError(format!(
+                "HTTP resolution failed: {}",
+                response.status()
+            )));
         }
 
         let result: DidResolutionResult = response.json().await?;
@@ -186,7 +192,7 @@ impl MemoryResolver {
 impl DidResolver for MemoryResolver {
     async fn resolve(&self, did: &str) -> DidResult<DidResolutionResult> {
         let documents = self.documents.read().await;
-        
+
         if let Some(document) = documents.get(did) {
             Ok(DidResolutionResult {
                 did_document: Some(document.clone()),
@@ -219,8 +225,8 @@ impl DidResolver for MemoryResolver {
 mod tests {
     use super::*;
     use crate::{Did, DidDocument};
-    use tokio::time::{sleep, Duration};
     use std::str::FromStr;
+    use tokio::time::{sleep, Duration};
 
     #[tokio::test]
     async fn test_universal_resolver_new() {
@@ -257,7 +263,9 @@ mod tests {
         let did = Did::new("123456789".to_string());
         let document = DidDocument::new(did.clone());
 
-        memory_resolver.store(did.to_string(), document.clone()).await;
+        memory_resolver
+            .store(did.to_string(), document.clone())
+            .await;
 
         // Resolve to populate cache
         universal.resolve(&did.to_string()).await.unwrap();
@@ -272,8 +280,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_universal_resolver_parse_method() {
-        assert_eq!(UniversalResolver::parse_method("did:rwa:123456789").unwrap(), "rwa");
-        assert_eq!(UniversalResolver::parse_method("did:example:test").unwrap(), "example");
+        assert_eq!(
+            UniversalResolver::parse_method("did:rwa:123456789").unwrap(),
+            "rwa"
+        );
+        assert_eq!(
+            UniversalResolver::parse_method("did:example:test").unwrap(),
+            "example"
+        );
 
         assert!(UniversalResolver::parse_method("invalid").is_err());
         assert!(UniversalResolver::parse_method("did:").is_err());
@@ -290,7 +304,9 @@ mod tests {
         let did = Did::new("123456789".to_string());
         let document = DidDocument::new(did.clone());
 
-        memory_resolver.store(did.to_string(), document.clone()).await;
+        memory_resolver
+            .store(did.to_string(), document.clone())
+            .await;
 
         let result = universal.resolve(&did.to_string()).await.unwrap();
 
@@ -323,7 +339,9 @@ mod tests {
         let did = Did::new("123456789".to_string());
         let document = DidDocument::new(did.clone());
 
-        memory_resolver.store(did.to_string(), document.clone()).await;
+        memory_resolver
+            .store(did.to_string(), document.clone())
+            .await;
 
         // First resolution
         let start = std::time::Instant::now();
@@ -337,7 +355,10 @@ mod tests {
 
         assert!(result1.did_document.is_some());
         assert!(result2.did_document.is_some());
-        assert_eq!(result1.did_document.as_ref().unwrap().id, result2.did_document.as_ref().unwrap().id);
+        assert_eq!(
+            result1.did_document.as_ref().unwrap().id,
+            result2.did_document.as_ref().unwrap().id
+        );
 
         // Second resolution should be faster (cached)
         assert!(second_duration <= first_duration);
@@ -354,7 +375,9 @@ mod tests {
         let did = Did::new("123456789".to_string());
         let document = DidDocument::new(did.clone());
 
-        memory_resolver.store(did.to_string(), document.clone()).await;
+        memory_resolver
+            .store(did.to_string(), document.clone())
+            .await;
 
         // First resolution
         let result1 = universal.resolve(&did.to_string()).await.unwrap();
@@ -391,7 +414,10 @@ mod tests {
         assert!(result.did_document.is_some());
         assert_eq!(result.did_document.unwrap().id, did.to_string());
         assert!(result.did_resolution_metadata.error.is_none());
-        assert_eq!(result.did_resolution_metadata.content_type, Some("application/did+ld+json".to_string()));
+        assert_eq!(
+            result.did_resolution_metadata.content_type,
+            Some("application/did+ld+json".to_string())
+        );
     }
 
     #[tokio::test]
@@ -401,7 +427,10 @@ mod tests {
         let result = resolver.resolve("did:rwa:nonexistent").await.unwrap();
 
         assert!(result.did_document.is_none());
-        assert_eq!(result.did_resolution_metadata.error, Some("notFound".to_string()));
+        assert_eq!(
+            result.did_resolution_metadata.error,
+            Some("notFound".to_string())
+        );
         assert!(result.did_resolution_metadata.error_message.is_some());
     }
 
@@ -481,7 +510,9 @@ mod tests {
 
         let example_did = Did::new_with_method("example".to_string(), "987654321".to_string());
         let example_document = DidDocument::new(example_did.clone());
-        example_resolver.store(example_did.to_string(), example_document).await;
+        example_resolver
+            .store(example_did.to_string(), example_document)
+            .await;
 
         // Resolve both
         let rwa_result = universal.resolve(&rwa_did.to_string()).await.unwrap();
@@ -490,7 +521,10 @@ mod tests {
         assert!(rwa_result.did_document.is_some());
         assert!(example_result.did_document.is_some());
         assert_eq!(rwa_result.did_document.unwrap().id, rwa_did.to_string());
-        assert_eq!(example_result.did_document.unwrap().id, example_did.to_string());
+        assert_eq!(
+            example_result.did_document.unwrap().id,
+            example_did.to_string()
+        );
     }
 
     #[tokio::test]
@@ -516,9 +550,7 @@ mod tests {
         for did in dids {
             let resolver = universal.clone();
             let did_string = did.to_string();
-            let handle = tokio::spawn(async move {
-                resolver.resolve(&did_string).await
-            });
+            let handle = tokio::spawn(async move { resolver.resolve(&did_string).await });
             handles.push(handle);
         }
 
@@ -540,7 +572,10 @@ mod tests {
         assert!(result.is_ok());
         let resolution_result = result.unwrap();
         assert!(resolution_result.did_document.is_none());
-        assert_eq!(resolution_result.did_resolution_metadata.error, Some("notFound".to_string()));
+        assert_eq!(
+            resolution_result.did_resolution_metadata.error,
+            Some("notFound".to_string())
+        );
     }
 
     #[tokio::test]
@@ -555,7 +590,10 @@ mod tests {
         let result = resolver.resolve(&did.to_string()).await.unwrap();
 
         assert!(result.did_document.is_some());
-        assert_eq!(result.did_resolution_metadata.content_type, Some("application/did+ld+json".to_string()));
+        assert_eq!(
+            result.did_resolution_metadata.content_type,
+            Some("application/did+ld+json".to_string())
+        );
         assert!(result.did_resolution_metadata.error.is_none());
         assert!(result.did_resolution_metadata.error_message.is_none());
 

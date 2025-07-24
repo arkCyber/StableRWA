@@ -45,7 +45,7 @@ sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chron
 redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
 
 # Ethereum integration
-ethers = { version = "2.0", features = ["ws", "rustls", "contract"] }
+ethers = { version = "2.0", features = ["ws", "rustls"] }
 
 # IPFS integration
 ipfs-api-backend-hyper = { version = "0.6", features = ["with-hyper-rustls"] }
@@ -91,11 +91,16 @@ fxhash = "0.2"
 # Internal dependencies
 core-utils = { path = "../core-utils" }
 core-security = { path = "../core-security" }
-core-blockchain = { path = "../core-blockchain" }
+# core-blockchain = { path = "../core-blockchain" }  # Temporarily disabled due to compilation issues
 
 [dev-dependencies]
 tokio-test = "0.4"
 mockall = "0.12"
+tracing-subscriber = "0.3"
+
+[[example]]
+name = "basic_usage"
+path = "examples/basic_usage.rs"
 
 [features]
 default = ["erc721", "erc1155", "ipfs", "metadata"]

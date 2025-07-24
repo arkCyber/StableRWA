@@ -4,11 +4,11 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 /// Supported blockchain chain IDs
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -58,8 +58,13 @@ impl ChainId {
     /// Get chain type
     pub fn chain_type(&self) -> ChainType {
         match self {
-            ChainId::Ethereum | ChainId::Polygon | ChainId::BSC | ChainId::Avalanche 
-            | ChainId::Arbitrum | ChainId::Optimism | ChainId::Fantom => ChainType::EVM,
+            ChainId::Ethereum
+            | ChainId::Polygon
+            | ChainId::BSC
+            | ChainId::Avalanche
+            | ChainId::Arbitrum
+            | ChainId::Optimism
+            | ChainId::Fantom => ChainType::EVM,
             ChainId::Bitcoin => ChainType::UTXO,
             ChainId::Solana => ChainType::Solana,
             ChainId::Cosmos => ChainType::Cosmos,
@@ -71,8 +76,14 @@ impl ChainId {
     pub fn supports_smart_contracts(&self) -> bool {
         matches!(
             self,
-            ChainId::Ethereum | ChainId::Polygon | ChainId::BSC | ChainId::Avalanche 
-            | ChainId::Arbitrum | ChainId::Optimism | ChainId::Fantom | ChainId::Solana
+            ChainId::Ethereum
+                | ChainId::Polygon
+                | ChainId::BSC
+                | ChainId::Avalanche
+                | ChainId::Arbitrum
+                | ChainId::Optimism
+                | ChainId::Fantom
+                | ChainId::Solana
         )
     }
 }
@@ -122,8 +133,11 @@ impl BridgeStatus {
     pub fn is_final(&self) -> bool {
         matches!(
             self,
-            BridgeStatus::Completed | BridgeStatus::Failed | BridgeStatus::Cancelled 
-            | BridgeStatus::Refunded | BridgeStatus::Expired
+            BridgeStatus::Completed
+                | BridgeStatus::Failed
+                | BridgeStatus::Cancelled
+                | BridgeStatus::Refunded
+                | BridgeStatus::Expired
         )
     }
 

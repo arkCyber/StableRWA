@@ -4,10 +4,10 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 /// Compliance status enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -27,7 +27,7 @@ pub enum ComplianceStatus {
 }
 
 /// Compliance level enumeration (ordered by strictness)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum ComplianceLevel {
     /// Basic compliance for low-value transactions
     Basic = 1,
@@ -40,7 +40,7 @@ pub enum ComplianceLevel {
 }
 
 /// Risk level enumeration (ordered by risk)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum RiskLevel {
     /// Risk level not determined
     Unknown = 0,
@@ -159,6 +159,8 @@ pub struct AmlCheck {
     pub user_id: String,
     pub check_type: AmlCheckType,
     pub result: AmlResult,
+    pub overall_result: AmlResult,
+    pub risk_level: RiskLevel,
     pub risk_score: f64,
     pub matches: Vec<AmlMatch>,
     pub checked_at: DateTime<Utc>,
@@ -166,7 +168,7 @@ pub struct AmlCheck {
 }
 
 /// AML check type
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AmlCheckType {
     Sanctions,
     PoliticallyExposed,
@@ -185,7 +187,7 @@ pub enum AmlResult {
 }
 
 /// KYC verification result (re-export for convenience)
-pub type KycResult = crate::kyc::KycResult;
+// KycResult is defined in kyc module
 
 /// AML match information
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -210,7 +212,7 @@ pub struct ComplianceReport {
 }
 
 /// Report type enumeration
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ReportType {
     /// Suspicious Activity Report
     SAR,
@@ -249,7 +251,7 @@ pub struct AuditEvent {
 }
 
 /// Audit event type
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AuditEventType {
     KycSubmission,
     KycApproval,

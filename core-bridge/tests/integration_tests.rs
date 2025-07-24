@@ -4,12 +4,12 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use core_bridge::*;
 use chrono::{DateTime, Utc};
+use core_bridge::*;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
-use uuid::Uuid;
 use tokio_test;
+use uuid::Uuid;
 
 #[tokio::test]
 async fn test_transfer_service_integration() {
@@ -28,9 +28,11 @@ async fn test_transfer_service_integration() {
 
     let config = TransferConfig::default();
     assert!(request.validate(&config).is_ok());
-    
+
     // Test priority ordering
-    assert!(transfer::TransferPriority::Critical.score() > transfer::TransferPriority::High.score());
+    assert!(
+        transfer::TransferPriority::Critical.score() > transfer::TransferPriority::High.score()
+    );
     assert!(transfer::TransferPriority::High.score() > transfer::TransferPriority::Normal.score());
 }
 
@@ -44,10 +46,13 @@ async fn test_liquidity_service_integration() {
         ChainId::Ethereum,
         "USDC".to_string(),
         "ETH".to_string(),
-        Decimal::new(100000000, 6), // 100 USDC
+        Decimal::new(100000000, 6),            // 100 USDC
         Decimal::new(1000000000000000000, 18), // 1 ETH
     )
-    .with_min_amounts(Decimal::new(99000000, 6), Decimal::new(990000000000000000, 18))
+    .with_min_amounts(
+        Decimal::new(99000000, 6),
+        Decimal::new(990000000000000000, 18),
+    )
     .with_slippage(Decimal::new(50, 4)); // 0.5%
 
     assert_eq!(request.provider_id, "provider123");
@@ -81,15 +86,16 @@ async fn test_atomic_swap_integration() {
         "ETH".to_string(),
         "BTC".to_string(),
         Decimal::new(1000000000000000000, 18), // 1 ETH
-        Decimal::new(5000000, 8), // 0.05 BTC
+        Decimal::new(5000000, 8),              // 0.05 BTC
         "0x1234567890123456789012345678901234567890".to_string(),
         "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh".to_string(),
         24, // 24 hours timelock
-    ).unwrap();
+    )
+    .unwrap();
 
     let config = atomic_swap::AtomicSwapConfig::default();
     assert!(swap_request.validate(&config).is_ok());
-    
+
     // Test hash lock verification
     let secret = "test_secret_123456789012345678901234567890";
     let hash_lock = atomic_swap::generate_hash_lock(secret);
@@ -123,7 +129,7 @@ async fn test_security_service_integration() {
     let config = security::SecurityConfig::default();
     let monitor = security::SecurityMonitor::new(config);
     let risk_score = monitor.calculate_risk_score(&security_request);
-    
+
     assert!(risk_score >= 0.0 && risk_score <= 1.0);
 
     // Test user risk profile
@@ -234,7 +240,7 @@ async fn test_bridge_service_integration() {
         destination_chain: ChainId::Polygon,
         asset_symbol: "USDC".to_string(),
         amount: Decimal::new(100000000, 6), // 100 USDC
-        fee: Decimal::new(300000, 6), // 0.3 USDC
+        fee: Decimal::new(300000, 6),       // 0.3 USDC
         source_address: "0x1234567890123456789012345678901234567890".to_string(),
         destination_address: "0x0987654321098765432109876543210987654321".to_string(),
         source_tx_hash: Some("0xabc123".to_string()),
@@ -254,7 +260,10 @@ async fn test_bridge_service_integration() {
     let config = BridgeServiceConfig::default();
     assert!(config.global_settings.enable_security_checks);
     assert!(config.global_settings.enable_compliance_checks);
-    assert_eq!(config.global_settings.max_transaction_amount, Decimal::new(100000000, 2));
+    assert_eq!(
+        config.global_settings.max_transaction_amount,
+        Decimal::new(100000000, 2)
+    );
 }
 
 #[tokio::test]
@@ -262,7 +271,7 @@ async fn test_cross_service_integration() {
     // Test a complete bridge flow integration
     let user_id = "integration_test_user".to_string();
     let amount = Decimal::new(50000000, 6); // 50 USDC
-    
+
     // 1. Create transfer request
     let transfer_request = TransferRequest::new(
         user_id.clone(),
@@ -303,15 +312,21 @@ async fn test_cross_service_integration() {
     // Verify all components work together
     assert_eq!(transfer_request.user_id, security_request.user_id);
     assert_eq!(transfer_request.source_chain, relay_request.source_chain);
-    assert_eq!(transfer_request.destination_chain, relay_request.destination_chain);
-    assert_eq!(transfer_request.destination_address, relay_request.recipient_address);
+    assert_eq!(
+        transfer_request.destination_chain,
+        relay_request.destination_chain
+    );
+    assert_eq!(
+        transfer_request.destination_address,
+        relay_request.recipient_address
+    );
 }
 
 #[tokio::test]
 async fn test_error_handling_integration() {
     // Test various error scenarios
     let config = TransferConfig::default();
-    
+
     // Test invalid transfer request (amount too small)
     let invalid_request = TransferRequest::new(
         "user123".to_string(),
@@ -345,7 +360,7 @@ async fn test_error_handling_integration() {
 async fn test_performance_metrics() {
     // Test performance-related functionality
     let start_time = std::time::Instant::now();
-    
+
     // Create multiple requests to test performance
     let mut requests = Vec::new();
     for i in 0..1000 {
@@ -360,10 +375,10 @@ async fn test_performance_metrics() {
         );
         requests.push(request);
     }
-    
+
     let elapsed = start_time.elapsed();
     println!("Created 1000 transfer requests in {:?}", elapsed);
-    
+
     // Should be able to create 1000 requests quickly
     assert!(elapsed.as_millis() < 1000); // Less than 1 second
     assert_eq!(requests.len(), 1000);

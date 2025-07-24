@@ -199,7 +199,11 @@ impl JurisdictionService {
         self.check_aml_requirements(&rules.aml_requirements, &mut violations, &mut requirements);
 
         // Check license requirements
-        self.check_license_requirements(&rules.license_requirements, &mut violations, &mut requirements);
+        self.check_license_requirements(
+            &rules.license_requirements,
+            &mut violations,
+            &mut requirements,
+        );
 
         let check = JurisdictionCheck {
             jurisdiction,
@@ -463,7 +467,7 @@ mod tests {
     fn test_jurisdiction_service_creation() {
         let jurisdictions = vec![JurisdictionCode::US, JurisdictionCode::EU];
         let service = JurisdictionService::new(jurisdictions);
-        
+
         assert!(service.is_supported(JurisdictionCode::US));
         assert!(service.is_supported(JurisdictionCode::EU));
         assert!(!service.is_supported(JurisdictionCode::JP));
@@ -473,11 +477,11 @@ mod tests {
     async fn test_compliance_check() {
         let jurisdictions = vec![JurisdictionCode::US];
         let service = JurisdictionService::new(jurisdictions);
-        
+
         let result = service
             .check_compliance(JurisdictionCode::US, ComplianceLevel::Basic)
             .await;
-        
+
         assert!(result.is_ok());
         let checks = result.unwrap();
         assert_eq!(checks.len(), 1);
@@ -488,11 +492,11 @@ mod tests {
     async fn test_unsupported_jurisdiction() {
         let jurisdictions = vec![JurisdictionCode::US];
         let service = JurisdictionService::new(jurisdictions);
-        
+
         let result = service
             .check_compliance(JurisdictionCode::JP, ComplianceLevel::Basic)
             .await;
-        
+
         assert!(result.is_err());
     }
 

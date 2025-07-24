@@ -30,9 +30,10 @@ pub use service::AssetLifecycleService;
 pub use registration::{AssetRegistrationService, RegistrationRequest};
 pub use verification::{AssetVerificationService, VerificationResult};
 pub use valuation::{AssetValuationService, ValuationMethod, ValuationRequest};
-pub use maintenance::{AssetMaintenanceService, MaintenanceRecord};
-pub use tokenization::{TokenizationService, TokenizationRequest};
-pub use custody::{CustodyService, CustodyRecord};
+pub use maintenance::{MaintenanceService};
+pub use tokenization::{TokenizationService, TokenizationConfig};
+pub use custody::{CustodyService};
+pub use types::{CustodyRecord, MaintenanceRecord};
 
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
@@ -49,7 +50,7 @@ pub struct AssetLifecycleConfig {
     /// Valuation service configuration
     pub valuation_config: valuation::ValuationConfig,
     /// Maintenance service configuration
-    pub maintenance_config: maintenance::MaintenanceConfig,
+    pub maintenance_enabled: bool,
     /// Tokenization service configuration
     pub tokenization_config: tokenization::TokenizationConfig,
     /// Custody service configuration
@@ -66,7 +67,7 @@ impl Default for AssetLifecycleConfig {
             registration_config: registration::RegistrationConfig::default(),
             verification_config: verification::VerificationConfig::default(),
             valuation_config: valuation::ValuationConfig::default(),
-            maintenance_config: maintenance::MaintenanceConfig::default(),
+            maintenance_enabled: true,
             tokenization_config: tokenization::TokenizationConfig::default(),
             custody_config: custody::CustodyConfig::default(),
             default_retention_days: 2555, // 7 years

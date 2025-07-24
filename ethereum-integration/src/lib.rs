@@ -6,7 +6,7 @@
 // =====================================================================================
 
 use chrono::Utc;
-use log::{info, error};
+use log::{error, info};
 
 /// Logs the import of this module with a timestamp.
 pub fn log_import() {

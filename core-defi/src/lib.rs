@@ -22,183 +22,17 @@ pub mod price_oracle;
 pub mod governance;
 pub mod service;
 
-// Stub modules for compilation
-pub mod lending {
-    use super::*;
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct LendingConfig {
-        pub default_ltv: Decimal,
-        pub liquidation_threshold: Decimal,
-    }
-    impl Default for LendingConfig {
-        fn default() -> Self {
-            Self {
-                default_ltv: Decimal::new(75, 2),
-                liquidation_threshold: Decimal::new(80, 2),
-            }
-        }
-    }
-}
-
-pub mod staking {
-    use super::*;
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct StakingConfig {
-        pub min_stake_amount: Decimal,
-        pub unbonding_period_days: u32,
-    }
-    impl Default for StakingConfig {
-        fn default() -> Self {
-            Self {
-                min_stake_amount: Decimal::new(32, 0),
-                unbonding_period_days: 7,
-            }
-        }
-    }
-}
-
-pub mod yield_farming {
-    use super::*;
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct YieldFarmingConfig {
-        pub auto_compound: bool,
-        pub harvest_threshold: Decimal,
-    }
-    impl Default for YieldFarmingConfig {
-        fn default() -> Self {
-            Self {
-                auto_compound: true,
-                harvest_threshold: Decimal::new(10, 2),
-            }
-        }
-    }
-}
-
-pub mod flash_loans {
-    use super::*;
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct FlashLoanConfig {
-        pub fee_rate: Decimal,
-        pub max_loan_amount: Decimal,
-    }
-    impl Default for FlashLoanConfig {
-        fn default() -> Self {
-            Self {
-                fee_rate: Decimal::new(9, 4), // 0.09%
-                max_loan_amount: Decimal::new(100000000, 2),
-            }
-        }
-    }
-}
-
-pub mod derivatives {
-    use super::*;
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct DerivativesConfig {
-        pub enable_options: bool,
-        pub enable_futures: bool,
-    }
-    impl Default for DerivativesConfig {
-        fn default() -> Self {
-            Self {
-                enable_options: true,
-                enable_futures: true,
-            }
-        }
-    }
-}
-
-pub mod liquidity_pools {
-    use super::*;
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct LiquidityPoolConfig {
-        pub min_liquidity: Decimal,
-    }
-    impl Default for LiquidityPoolConfig {
-        fn default() -> Self {
-            Self {
-                min_liquidity: Decimal::new(1000, 2),
-            }
-        }
-    }
-}
-
-pub mod price_oracle {
-    use super::*;
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct PriceOracleConfig {
-        pub update_interval_seconds: u64,
-        pub deviation_threshold: Decimal,
-    }
-    impl Default for PriceOracleConfig {
-        fn default() -> Self {
-            Self {
-                update_interval_seconds: 60,
-                deviation_threshold: Decimal::new(5, 2),
-            }
-        }
-    }
-}
-
-pub mod governance {
-    use super::*;
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct GovernanceConfig {
-        pub voting_period_days: u32,
-        pub quorum_threshold: Decimal,
-    }
-    impl Default for GovernanceConfig {
-        fn default() -> Self {
-            Self {
-                voting_period_days: 7,
-                quorum_threshold: Decimal::new(10, 2),
-            }
-        }
-    }
-}
-
 // Re-export main types and traits
+pub use lending::{LendingService, LendingConfig, LendingPosition, LendingMarket, CompoundProtocol, AaveProtocol, MakerDAOProtocol};
+pub use staking::{StakingService, StakingConfig, StakingPosition, StakingPool, StakingReward, UnstakingRequest, ValidatorStaking, LiquidStaking};
+pub use yield_farming::{YieldFarmingService, YieldFarmConfig, FarmingPosition, YieldFarm, HarvestRequest};
+pub use flash_loans::{FlashLoanService, FlashLoanConfig, FlashLoanRequest, FlashLoanExecution, ArbitrageOpportunity, LiquidationOpportunity};
+
+
+// Additional re-exports
 pub use error::{DeFiError, DeFiResult};
-pub use types::{
-    Token, TokenPair, LiquidityPool, Position, Strategy,
-    AMMProtocol, LendingProtocol, StakingProtocol, YieldFarmingProtocol
-};
-pub use amm::{
-    AMMService, UniswapV2Pool, UniswapV3Pool, CurvePool, BalancerPool,
-    SwapRequest, SwapResult, LiquidityRequest, LiquidityResult
-};
-pub use lending::{
-    LendingService, CompoundProtocol, AaveProtocol, MakerDAOProtocol,
-    LendRequest, BorrowRequest, CollateralRequest, LiquidationRequest
-};
-pub use staking::{
-    StakingService, StakingPool, StakingReward, UnstakingRequest,
-    ValidatorStaking, LiquidStaking, RewardDistribution
-};
-pub use yield_farming::{
-    YieldFarmingService, Farm, FarmPool, YieldStrategy,
-    DepositRequest, WithdrawRequest, HarvestRequest, CompoundRequest
-};
-pub use flash_loans::{
-    FlashLoanService, FlashLoanRequest, FlashLoanCallback,
-    ArbitrageStrategy, LiquidationStrategy
-};
-pub use derivatives::{
-    DerivativesService, Option, Future, Perpetual, Swap,
-    OptionStrategy, FutureStrategy, PerpetualStrategy
-};
-pub use liquidity_pools::{
-    LiquidityPoolManager, PoolFactory, PoolRouter,
-    PoolMetrics, PoolAnalytics, ImpermanentLoss
-};
-pub use price_oracle::{
-    PriceOracle, ChainlinkOracle, UniswapOracle, BandOracle,
-    PriceFeed, PriceAggregator, PriceValidation
-};
-pub use governance::{
-    GovernanceService, Proposal, Vote, Delegation,
-    GovernanceToken, VotingPower, ProposalExecution
-};
+pub use types::{Token, TokenPair, LiquidityPool, Position, Strategy, AMMProtocol};
+pub use amm::{AMMService, SwapRequest, SwapResult, LiquidityRequest, LiquidityResult};
 pub use service::DeFiService;
 
 use serde::{Deserialize, Serialize};
@@ -217,7 +51,7 @@ pub struct DeFiServiceConfig {
     /// Staking configuration
     pub staking_config: staking::StakingConfig,
     /// Yield farming configuration
-    pub yield_farming_config: yield_farming::YieldFarmingConfig,
+    pub yield_farming_config: yield_farming::YieldFarmConfig,
     /// Flash loan configuration
     pub flash_loan_config: flash_loans::FlashLoanConfig,
     /// Derivatives configuration
@@ -236,7 +70,7 @@ impl Default for DeFiServiceConfig {
             amm_config: amm::AMMConfig::default(),
             lending_config: lending::LendingConfig::default(),
             staking_config: staking::StakingConfig::default(),
-            yield_farming_config: yield_farming::YieldFarmingConfig::default(),
+            yield_farming_config: yield_farming::YieldFarmConfig::default(),
             flash_loan_config: flash_loans::FlashLoanConfig::default(),
             derivatives_config: derivatives::DerivativesConfig::default(),
             price_oracle_config: price_oracle::PriceOracleConfig::default(),

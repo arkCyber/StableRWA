@@ -177,11 +177,15 @@ where
                     .map(|res| res.status().as_u16())
                     .unwrap_or(500);
 
-                state.metrics.http_requests_total
+                state
+                    .metrics
+                    .http_requests_total
                     .with_label_values(&[&method, &path, &status.to_string()])
                     .inc();
 
-                state.metrics.http_request_duration
+                state
+                    .metrics
+                    .http_request_duration
                     .with_label_values(&[&method, &path])
                     .observe(duration.as_secs_f64());
             }
@@ -238,13 +242,19 @@ where
         if req.method() == actix_web::http::Method::OPTIONS {
             let response = HttpResponse::Ok()
                 .insert_header(("Access-Control-Allow-Origin", origin))
-                .insert_header(("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"))
-                .insert_header(("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With"))
+                .insert_header((
+                    "Access-Control-Allow-Methods",
+                    "GET, POST, PUT, DELETE, OPTIONS",
+                ))
+                .insert_header((
+                    "Access-Control-Allow-Headers",
+                    "Content-Type, Authorization, X-Requested-With",
+                ))
                 .insert_header(("Access-Control-Max-Age", "3600"))
                 .finish();
 
             return Box::pin(async move {
-                Ok(req.into_response(response).map_into_boxed_body())
+                Err(actix_web::error::ErrorMethodNotAllowed("Method not allowed"))
             });
         }
 
@@ -346,49 +356,45 @@ where
                                                 }
                                                 Err(e) => {
                                                     warn!("Token validation failed: {}", e);
-                                                    return Ok(res.into_response(
-                                                        HttpResponse::Unauthorized()
-                                                            .json(serde_json::json!({
-                                                                "error": "Invalid token",
-                                                                "message": e.to_string()
-                                                            }))
-                                                    ).map_into_boxed_body());
+                                                    return Err(actix_web::error::ErrorUnauthorized(
+                                                        serde_json::json!({
+                                                            "error": "Invalid token",
+                                                            "message": e.to_string()
+                                                        })
+                                                    ).into());
                                                 }
                                             }
                                         }
                                         Err(e) => {
                                             warn!("Token extraction failed: {}", e);
-                                            return Ok(res.into_response(
-                                                HttpResponse::Unauthorized()
-                                                    .json(serde_json::json!({
-                                                        "error": "Invalid authorization header",
-                                                        "message": e.to_string()
-                                                    }))
-                                            ).map_into_boxed_body());
+                                            return Err(actix_web::error::ErrorUnauthorized(
+                                                serde_json::json!({
+                                                    "error": "Invalid authorization header",
+                                                    "message": e.to_string()
+                                                })
+                                            ).into());
                                         }
                                     }
                                 }
                                 Err(e) => {
                                     error!("JWT manager creation failed: {}", e);
-                                    return Ok(res.into_response(
-                                        HttpResponse::InternalServerError()
-                                            .json(serde_json::json!({
-                                                "error": "Authentication service error"
-                                            }))
-                                    ).map_into_boxed_body());
+                                    return Err(actix_web::error::ErrorInternalServerError(
+                                        serde_json::json!({
+                                            "error": "Authentication service error"
+                                        })
+                                    ).into());
                                 }
                             }
                         } else {
                             // No authorization header
-                            return Ok(res.into_response(
-                                HttpResponse::Unauthorized()
-                                    .json(serde_json::json!({
-                                        "error": "Missing authorization header"
-                                    }))
-                            ).map_into_boxed_body());
+                            return Err(actix_web::error::ErrorUnauthorized(
+                                serde_json::json!({
+                                    "error": "Missing authorization header"
+                                })
+                            ).into());
                         }
                     }
-                    
+
                     Ok(res)
                 }
                 Err(e) => Err(e),
@@ -451,8 +457,9 @@ where
                     // Get gateway state for rate limiting
                     if let Some(state) = res.request().app_data::<web::Data<GatewayState>>() {
                         // Generate rate limit key based on IP and endpoint
-                        let rate_limit_key = RateLimitKeyGenerator::by_ip_endpoint(&remote_addr, &path);
-                        
+                        let rate_limit_key =
+                            RateLimitKeyGenerator::by_ip_endpoint(&remote_addr, &path);
+
                         // Check rate limit (simplified - in real implementation would be async)
                         // For now, just log the rate limit check
                         info!(
@@ -462,7 +469,7 @@ where
                             "Rate limit check performed"
                         );
                     }
-                    
+
                     Ok(res)
                 }
                 Err(e) => Err(e),
@@ -487,13 +494,12 @@ mod tests {
         let app = test::init_service(
             App::new()
                 .wrap(RequestLogging)
-                .route("/test", web::get().to(test_handler))
-        ).await;
+                .route("/test", web::get().to(test_handler)),
+        )
+        .await;
 
-        let req = test::TestRequest::get()
-            .uri("/test")
-            .to_request();
-        
+        let req = test::TestRequest::get().uri("/test").to_request();
+
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_success());
     }
@@ -503,15 +509,16 @@ mod tests {
         let app = test::init_service(
             App::new()
                 .wrap(CORS)
-                .route("/test", web::get().to(test_handler))
-        ).await;
+                .route("/test", web::get().to(test_handler)),
+        )
+        .await;
 
         // Test preflight request
         let req = test::TestRequest::with_header("origin", "http://localhost:3000")
             .method(actix_web::http::Method::OPTIONS)
             .uri("/test")
             .to_request();
-        
+
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_success());
         assert!(resp.headers().contains_key("access-control-allow-origin"));
@@ -522,14 +529,15 @@ mod tests {
         let app = test::init_service(
             App::new()
                 .wrap(CORS)
-                .route("/test", web::get().to(test_handler))
-        ).await;
+                .route("/test", web::get().to(test_handler)),
+        )
+        .await;
 
         let req = test::TestRequest::get()
             .insert_header(("origin", "http://localhost:3000"))
             .uri("/test")
             .to_request();
-        
+
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_success());
         assert!(resp.headers().contains_key("access-control-allow-origin"));

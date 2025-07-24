@@ -1,6 +1,6 @@
 // =====================================================================================
 // DID Identifier Implementation
-// 
+//
 // W3C DID specification compliant identifier parsing and validation
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
@@ -62,12 +62,12 @@ impl Did {
         if seed.len() < 16 {
             return Err(DidError::InvalidKeyFormat("Seed too short".to_string()));
         }
-        
+
         // Use first 16 bytes to create a UUID
         let mut uuid_bytes = [0u8; 16];
         uuid_bytes.copy_from_slice(&seed[..16]);
         let uuid = Uuid::from_bytes(uuid_bytes);
-        
+
         Ok(Self::new(uuid.to_string()))
     }
 
@@ -97,22 +97,22 @@ impl Did {
     /// Get the full DID string
     pub fn to_string(&self) -> String {
         let mut did = self.base();
-        
+
         if let Some(path) = &self.path {
             did.push('/');
             did.push_str(path);
         }
-        
+
         if let Some(query) = &self.query {
             did.push('?');
             did.push_str(query);
         }
-        
+
         if let Some(fragment) = &self.fragment {
             did.push('#');
             did.push_str(fragment);
         }
-        
+
         did
     }
 
@@ -120,27 +120,33 @@ impl Did {
     pub fn validate(&self) -> DidResult<()> {
         // Validate method
         if self.method.is_empty() {
-            return Err(DidError::InvalidDidMethod("Method cannot be empty".to_string()));
+            return Err(DidError::InvalidDidMethod(
+                "Method cannot be empty".to_string(),
+            ));
         }
 
         // Method must be lowercase alphanumeric
-        if !self.method.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()) {
+        if !self
+            .method
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+        {
             return Err(DidError::InvalidDidMethod(
-                "Method must be lowercase alphanumeric".to_string()
+                "Method must be lowercase alphanumeric".to_string(),
             ));
         }
 
         // Validate method-specific ID
         if self.method_specific_id.is_empty() {
             return Err(DidError::InvalidDidFormat(
-                "Method-specific ID cannot be empty".to_string()
+                "Method-specific ID cannot be empty".to_string(),
             ));
         }
 
         // Method-specific ID must not contain invalid characters
         if self.method_specific_id.contains(':') {
             return Err(DidError::InvalidDidFormat(
-                "Method-specific ID cannot contain ':'".to_string()
+                "Method-specific ID cannot contain ':'".to_string(),
             ));
         }
 
@@ -171,7 +177,7 @@ impl FromStr for Did {
         // Basic DID format validation
         if !s.starts_with("did:") {
             return Err(DidError::InvalidDidFormat(
-                "DID must start with 'did:'".to_string()
+                "DID must start with 'did:'".to_string(),
             ));
         }
 
@@ -206,7 +212,7 @@ impl FromStr for Did {
         let parts: Vec<&str> = core_did_part.split(':').collect();
         if parts.len() < 3 {
             return Err(DidError::InvalidDidFormat(
-                "DID must have at least method and method-specific-id".to_string()
+                "DID must have at least method and method-specific-id".to_string(),
             ));
         }
 
@@ -335,8 +341,7 @@ mod tests {
 
     #[test]
     fn test_did_with_path() {
-        let did = Did::new("123456789".to_string())
-            .with_path("service".to_string());
+        let did = Did::new("123456789".to_string()).with_path("service".to_string());
 
         assert_eq!(did.path, Some("service".to_string()));
         assert_eq!(did.to_string(), "did:rwa:123456789/service");
@@ -344,8 +349,7 @@ mod tests {
 
     #[test]
     fn test_did_with_query() {
-        let did = Did::new("123456789".to_string())
-            .with_query("version=1".to_string());
+        let did = Did::new("123456789".to_string()).with_query("version=1".to_string());
 
         assert_eq!(did.query, Some("version=1".to_string()));
         assert_eq!(did.to_string(), "did:rwa:123456789?version=1");
@@ -353,8 +357,7 @@ mod tests {
 
     #[test]
     fn test_did_with_fragment() {
-        let did = Did::new("123456789".to_string())
-            .with_fragment("key-1".to_string());
+        let did = Did::new("123456789".to_string()).with_fragment("key-1".to_string());
 
         assert_eq!(did.fragment, Some("key-1".to_string()));
         assert_eq!(did.to_string(), "did:rwa:123456789#key-1");
@@ -440,15 +443,14 @@ mod tests {
         let did_without_fragment = Did::new("123456789".to_string());
         assert!(did_without_fragment.key_reference().is_none());
 
-        let did_with_fragment = Did::new("123456789".to_string())
-            .with_fragment("key-1".to_string());
+        let did_with_fragment =
+            Did::new("123456789".to_string()).with_fragment("key-1".to_string());
         assert_eq!(did_with_fragment.key_reference(), Some("key-1"));
     }
 
     #[test]
     fn test_did_display() {
-        let did = Did::new("123456789".to_string())
-            .with_fragment("key-1".to_string());
+        let did = Did::new("123456789".to_string()).with_fragment("key-1".to_string());
 
         let display_str = format!("{}", did);
         assert_eq!(display_str, "did:rwa:123456789#key-1");
@@ -488,14 +490,7 @@ mod tests {
 
     #[test]
     fn test_did_from_str_invalid_format() {
-        let invalid_dids = vec![
-            "invalid",
-            "did:",
-            "did:method:",
-            "not-a-did",
-            "did",
-            "",
-        ];
+        let invalid_dids = vec!["invalid", "did:", "did:method:", "not-a-did", "did", ""];
 
         for invalid_did in invalid_dids {
             let result = Did::from_str(invalid_did);
@@ -563,11 +558,7 @@ mod tests {
 
     #[test]
     fn test_did_url_from_str_invalid() {
-        let invalid_urls = vec![
-            "invalid",
-            "did:",
-            "not-a-did#resource",
-        ];
+        let invalid_urls = vec!["invalid", "did:", "not-a-did#resource"];
 
         for invalid_url in invalid_urls {
             let result = DidUrl::from_str(invalid_url);
@@ -586,7 +577,10 @@ mod tests {
         let parsed_did = Did::from_str(&did_str).unwrap();
 
         assert_eq!(original_did.method, parsed_did.method);
-        assert_eq!(original_did.method_specific_id, parsed_did.method_specific_id);
+        assert_eq!(
+            original_did.method_specific_id,
+            parsed_did.method_specific_id
+        );
         assert_eq!(original_did.path, parsed_did.path);
         assert_eq!(original_did.query, parsed_did.query);
         assert_eq!(original_did.fragment, parsed_did.fragment);
@@ -602,7 +596,10 @@ mod tests {
         let parsed_url = DidUrl::from_str(&url_str).unwrap();
 
         assert_eq!(original_url.did.method, parsed_url.did.method);
-        assert_eq!(original_url.did.method_specific_id, parsed_url.did.method_specific_id);
+        assert_eq!(
+            original_url.did.method_specific_id,
+            parsed_url.did.method_specific_id
+        );
         assert_eq!(original_url.resource, parsed_url.resource);
     }
 }

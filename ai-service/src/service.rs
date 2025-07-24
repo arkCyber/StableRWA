@@ -7,15 +7,15 @@
 
 use crate::models::*;
 use crate::openai::OpenAIClient;
-use core_config::AppConfig;
+use crate::Config;
 use std::collections::HashMap;
-use tracing::{info, error, instrument};
+use tracing::{error, info, instrument};
 use uuid::Uuid;
 
 /// AI service business logic
 pub struct AIServiceLogic {
     openai_client: Option<OpenAIClient>,
-    config: AppConfig,
+    config: Config,
     cache: HashMap<String, CachedResponse>,
 }
 
@@ -27,7 +27,7 @@ struct CachedResponse {
 }
 
 impl AIServiceLogic {
-    pub fn new(config: AppConfig, openai_client: Option<OpenAIClient>) -> Self {
+    pub fn new(config: Config, openai_client: Option<OpenAIClient>) -> Self {
         Self {
             openai_client,
             config,
@@ -70,21 +70,24 @@ impl AIServiceLogic {
         &mut self,
         request: AssetValuationRequest,
     ) -> Result<AssetValuationResponse, Box<dyn std::error::Error>> {
-        info!("Processing asset valuation for type: {}", request.asset_type);
+        info!(
+            "Processing asset valuation for type: {}",
+            request.asset_type
+        );
 
         // Build AI prompt for asset valuation
         let prompt = self.build_valuation_prompt(&request);
-        
+
         let completion_request = CompletionRequest::new(prompt)
             .with_model("gpt-4".to_string())
             .with_max_tokens(500)
             .with_temperature(0.3);
 
         let completion = self.process_completion(completion_request).await?;
-        
+
         // Parse AI response into structured valuation
         let valuation = self.parse_valuation_response(&request, &completion.content)?;
-        
+
         Ok(valuation)
     }
 
@@ -97,16 +100,16 @@ impl AIServiceLogic {
         info!("Processing risk assessment for asset: {}", request.asset_id);
 
         let prompt = self.build_risk_assessment_prompt(&request);
-        
+
         let completion_request = CompletionRequest::new(prompt)
             .with_model("gpt-4".to_string())
             .with_max_tokens(400)
             .with_temperature(0.2);
 
         let completion = self.process_completion(completion_request).await?;
-        
+
         let assessment = self.parse_risk_assessment_response(&request, &completion.content)?;
-        
+
         Ok(assessment)
     }
 
@@ -119,16 +122,16 @@ impl AIServiceLogic {
         info!("Processing market analysis for: {}", request.market_type);
 
         let prompt = self.build_market_analysis_prompt(&request);
-        
+
         let completion_request = CompletionRequest::new(prompt)
             .with_model("gpt-4".to_string())
             .with_max_tokens(600)
             .with_temperature(0.4);
 
         let completion = self.process_completion(completion_request).await?;
-        
+
         let analysis = self.parse_market_analysis_response(&request, &completion.content)?;
-        
+
         Ok(analysis)
     }
 
@@ -146,7 +149,7 @@ impl AIServiceLogic {
         };
 
         let openai_response = client.complete(openai_request).await?;
-        
+
         Ok(CompletionResponse {
             id: Uuid::new_v4(),
             content: openai_response.content,
@@ -167,7 +170,7 @@ impl AIServiceLogic {
         request: CompletionRequest,
     ) -> Result<CompletionResponse, Box<dyn std::error::Error>> {
         info!("Using mock AI response");
-        
+
         let mock_content = format!(
             "Mock AI response for prompt: '{}'. This is a simulated response for development and testing purposes.",
             &request.prompt[..50.min(request.prompt.len())]
@@ -195,7 +198,7 @@ impl AIServiceLogic {
         request.prompt.hash(&mut hasher);
         request.model.hash(&mut hasher);
         request.max_tokens.hash(&mut hasher);
-        
+
         format!("ai_completion_{:x}", hasher.finish())
     }
 
@@ -226,19 +229,19 @@ impl AIServiceLogic {
         );
 
         prompt.push_str(&format!("Asset Type: {}\n", request.asset_type));
-        
+
         if let Some(location) = &request.location {
             prompt.push_str(&format!("Location: {}\n", location));
         }
-        
+
         if let Some(area) = request.area {
             prompt.push_str(&format!("Area: {} square units\n", area));
         }
-        
+
         if let Some(year) = request.year_built {
             prompt.push_str(&format!("Year Built: {}\n", year));
         }
-        
+
         if let Some(amenities) = &request.amenities {
             prompt.push_str(&format!("Amenities: {}\n", amenities.join(", ")));
         }
@@ -300,8 +303,10 @@ impl AIServiceLogic {
         ai_response: &str,
     ) -> Result<AssetValuationResponse, Box<dyn std::error::Error>> {
         // This is a simplified parser - in production, you'd use more sophisticated NLP
-        let estimated_value = self.extract_value_from_text(ai_response).unwrap_or(1000000.0);
-        
+        let estimated_value = self
+            .extract_value_from_text(ai_response)
+            .unwrap_or(1000000.0);
+
         Ok(AssetValuationResponse {
             id: Uuid::new_v4(),
             estimated_value,
@@ -371,14 +376,12 @@ impl AIServiceLogic {
                 "Market showing strong growth potential".to_string(),
                 "Increased institutional interest".to_string(),
             ],
-            indicators: vec![
-                MarketIndicator {
-                    name: "Price Index".to_string(),
-                    value: 105.2,
-                    change: 2.1,
-                    change_percent: 2.0,
-                },
-            ],
+            indicators: vec![MarketIndicator {
+                name: "Price Index".to_string(),
+                value: 105.2,
+                change: 2.1,
+                change_percent: 2.0,
+            }],
             created_at: chrono::Utc::now(),
         })
     }
@@ -387,7 +390,7 @@ impl AIServiceLogic {
     fn extract_value_from_text(&self, text: &str) -> Option<f64> {
         // Simple regex to find dollar amounts or numbers
         use regex::Regex;
-        
+
         if let Ok(re) = Regex::new(r"\$?([0-9,]+(?:\.[0-9]{2})?)") {
             if let Some(captures) = re.captures(text) {
                 if let Some(value_str) = captures.get(1) {
@@ -396,7 +399,7 @@ impl AIServiceLogic {
                 }
             }
         }
-        
+
         None
     }
 }
@@ -407,21 +410,43 @@ mod tests {
 
     #[tokio::test]
     async fn test_ai_service_logic_creation() {
-        let config = AppConfig::default();
+        let config = Config {
+            server: crate::ServerConfig {
+                host: "127.0.0.1".to_string(),
+                port: 8080,
+                workers: 1,
+            },
+            ai: crate::AIConfig {
+                openai_api_key: "test_key".to_string(),
+                model: "gpt-3.5-turbo".to_string(),
+                max_tokens: 1000,
+            },
+        };
         let service = AIServiceLogic::new(config, None);
-        
+
         // Test that service can be created
         assert!(true);
     }
 
     #[tokio::test]
     async fn test_mock_completion() {
-        let config = AppConfig::default();
+        let config = Config {
+            server: crate::ServerConfig {
+                host: "127.0.0.1".to_string(),
+                port: 8080,
+                workers: 1,
+            },
+            ai: crate::AIConfig {
+                openai_api_key: "test_key".to_string(),
+                model: "gpt-3.5-turbo".to_string(),
+                max_tokens: 1000,
+            },
+        };
         let mut service = AIServiceLogic::new(config, None);
-        
+
         let request = CompletionRequest::new("Test prompt".to_string());
         let result = service.process_completion(request).await;
-        
+
         assert!(result.is_ok());
         let response = result.unwrap();
         assert!(response.content.contains("Mock AI response"));
@@ -429,24 +454,46 @@ mod tests {
 
     #[test]
     fn test_cache_key_generation() {
-        let config = AppConfig::default();
+        let config = Config {
+            server: crate::ServerConfig {
+                host: "127.0.0.1".to_string(),
+                port: 8080,
+                workers: 1,
+            },
+            ai: crate::AIConfig {
+                openai_api_key: "test_key".to_string(),
+                model: "gpt-3.5-turbo".to_string(),
+                max_tokens: 1000,
+            },
+        };
         let service = AIServiceLogic::new(config, None);
-        
+
         let request = CompletionRequest::new("Test prompt".to_string());
         let key = service.generate_cache_key(&request);
-        
+
         assert!(key.starts_with("ai_completion_"));
         assert!(key.len() > 15);
     }
 
     #[test]
     fn test_value_extraction() {
-        let config = AppConfig::default();
+        let config = Config {
+            server: crate::ServerConfig {
+                host: "127.0.0.1".to_string(),
+                port: 8080,
+                workers: 1,
+            },
+            ai: crate::AIConfig {
+                openai_api_key: "test_key".to_string(),
+                model: "gpt-3.5-turbo".to_string(),
+                max_tokens: 1000,
+            },
+        };
         let service = AIServiceLogic::new(config, None);
-        
+
         let text = "The estimated value is $1,250,000.00 based on current market conditions.";
         let value = service.extract_value_from_text(text);
-        
+
         assert_eq!(value, Some(1250000.0));
     }
 }

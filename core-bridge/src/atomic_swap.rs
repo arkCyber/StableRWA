@@ -5,11 +5,11 @@
 // =====================================================================================
 
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc, Duration};
-use uuid::Uuid;
+use chrono::{DateTime, Duration, Utc};
 use rust_decimal::Decimal;
-use sha2::{Sha256, Digest};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use uuid::Uuid;
 
 use crate::{
     error::{BridgeError, BridgeResult},
@@ -49,8 +49,8 @@ impl Default for AtomicSwapConfig {
             auto_refund: true,
             refund_check_interval_minutes: 30,
             max_swap_amount: Decimal::new(100000000, 2), // $1,000,000
-            min_swap_amount: Decimal::new(1000, 2), // $10
-            swap_fee_percentage: Decimal::new(25, 4), // 0.25%
+            min_swap_amount: Decimal::new(1000, 2),      // $10
+            swap_fee_percentage: Decimal::new(25, 4),    // 0.25%
         }
     }
 }
@@ -132,14 +132,20 @@ impl SwapRequest {
         if timelock_hours < config.min_timelock_hours {
             return Err(BridgeError::validation_error(
                 "timelock",
-                format!("Timelock {} hours is below minimum {}", timelock_hours, config.min_timelock_hours),
+                format!(
+                    "Timelock {} hours is below minimum {}",
+                    timelock_hours, config.min_timelock_hours
+                ),
             ));
         }
 
         if timelock_hours > config.max_timelock_hours {
             return Err(BridgeError::validation_error(
                 "timelock",
-                format!("Timelock {} hours exceeds maximum {}", timelock_hours, config.max_timelock_hours),
+                format!(
+                    "Timelock {} hours exceeds maximum {}",
+                    timelock_hours, config.max_timelock_hours
+                ),
             ));
         }
 
@@ -222,32 +228,32 @@ pub struct SwapContract {
 pub trait AtomicSwapService: Send + Sync {
     /// Initiate an atomic swap
     async fn initiate_swap(&self, request: SwapRequest) -> BridgeResult<SwapContract>;
-    
+
     /// Participate in an atomic swap
     async fn participate_swap(
         &self,
         swap_id: Uuid,
         participant_contract: SwapContract,
     ) -> BridgeResult<SwapContract>;
-    
+
     /// Redeem from atomic swap using secret
     async fn redeem_swap(&self, swap_id: Uuid, secret: String) -> BridgeResult<RedeemResult>;
-    
+
     /// Refund expired atomic swap
     async fn refund_swap(&self, swap_id: Uuid) -> BridgeResult<RefundResult>;
-    
+
     /// Get swap status
     async fn get_swap_status(&self, swap_id: Uuid) -> BridgeResult<Option<SwapStatus>>;
-    
+
     /// Get swap details
     async fn get_swap_details(&self, swap_id: Uuid) -> BridgeResult<Option<SwapDetails>>;
-    
+
     /// Get user's swap history
     async fn get_user_swaps(&self, user_id: &str) -> BridgeResult<Vec<SwapDetails>>;
-    
+
     /// Verify hash lock and secret
     async fn verify_secret(&self, hash_lock: &str, secret: &str) -> BridgeResult<bool>;
-    
+
     /// Health check
     async fn health_check(&self) -> BridgeResult<AtomicSwapHealthStatus>;
 }
@@ -335,11 +341,12 @@ mod tests {
             "ETH".to_string(),
             "BTC".to_string(),
             Decimal::new(1, 18), // 1 ETH
-            Decimal::new(5, 8), // 0.05 BTC
+            Decimal::new(5, 8),  // 0.05 BTC
             "0x1234567890123456789012345678901234567890".to_string(),
             "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh".to_string(),
             24,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(request.initiator_id, "user1");
         assert_eq!(request.participant_id, "user2");
@@ -353,7 +360,7 @@ mod tests {
     fn test_hash_lock_verification() {
         let secret = generate_secret();
         let hash_lock = generate_hash_lock(&secret);
-        
+
         assert!(verify_hash_lock(&hash_lock, &secret));
         assert!(!verify_hash_lock(&hash_lock, "wrong_secret"));
     }
@@ -372,7 +379,8 @@ mod tests {
             "0x1234567890123456789012345678901234567890".to_string(),
             "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh".to_string(),
             24,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert!(!request.is_expired());
         assert!(request.time_remaining().is_some());

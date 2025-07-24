@@ -4,21 +4,19 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-pub mod testing;
 pub mod fixtures;
 pub mod helpers;
+pub mod testing;
 pub mod validation;
 
-pub use testing::*;
 pub use fixtures::*;
 pub use helpers::*;
+pub use testing::*;
 pub use validation::*;
 
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use thiserror::Error;
-use tracing::{info, error};
+use tracing::error;
 
 /// Utility error types
 #[derive(Error, Debug)]
@@ -86,10 +84,7 @@ impl Default for RetryConfig {
 }
 
 /// Retry a function with exponential backoff
-pub async fn retry_with_backoff<F, T, E>(
-    mut operation: F,
-    config: RetryConfig,
-) -> Result<T, E>
+pub async fn retry_with_backoff<F, T, E>(mut operation: F, config: RetryConfig) -> Result<T, E>
 where
     F: FnMut() -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, E>> + Send>>,
     E: std::fmt::Display,
@@ -115,7 +110,7 @@ where
                 tokio::time::sleep(delay).await;
                 delay = std::cmp::min(
                     std::time::Duration::from_millis(
-                        (delay.as_millis() as f64 * config.backoff_multiplier) as u64
+                        (delay.as_millis() as f64 * config.backoff_multiplier) as u64,
                     ),
                     config.max_delay,
                 );

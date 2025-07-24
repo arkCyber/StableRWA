@@ -12,6 +12,7 @@ use rust_decimal::Decimal;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use std::collections::HashMap;
+use rand;
 
 use crate::{
     error::{DeFiError, DeFiResult},
@@ -338,16 +339,152 @@ impl AMMService for MockAMMService {
         })
     }
     
-    async fn remove_liquidity(&self, _request: crate::amm::RemoveLiquidityRequest) -> DeFiResult<LiquidityResult> {
-        unimplemented!()
+    async fn remove_liquidity(&self, request: crate::amm::RemoveLiquidityRequest) -> DeFiResult<LiquidityResult> {
+        // Validate request
+        if request.liquidity_tokens <= Decimal::ZERO {
+            return Err(DeFiError::validation_error("liquidity_tokens", "Must be greater than zero"));
+        }
+
+        if request.min_amount_a < Decimal::ZERO || request.min_amount_b < Decimal::ZERO {
+            return Err(DeFiError::validation_error("min_amounts", "Cannot be negative"));
+        }
+
+        // Simulate liquidity removal calculation
+        // In a real implementation, this would interact with the actual AMM contract
+        let pool_total_liquidity = Decimal::from(1000000); // Mock total liquidity
+        let user_share = request.liquidity_tokens / pool_total_liquidity;
+
+        // Calculate amounts to receive based on pool reserves
+        let pool_reserve_a = Decimal::from(500000); // Mock reserve A
+        let pool_reserve_b = Decimal::from(500000); // Mock reserve B
+
+        let amount_a = pool_reserve_a * user_share;
+        let amount_b = pool_reserve_b * user_share;
+
+        // Check minimum amounts
+        if amount_a < request.min_amount_a {
+            return Err(DeFiError::slippage_exceeded(
+                format!("min_amount_a: {}", request.min_amount_a),
+                format!("actual_amount_a: {}", amount_a)
+            ));
+        }
+
+        if amount_b < request.min_amount_b {
+            return Err(DeFiError::slippage_exceeded(
+                format!("min_amount_b: {}", request.min_amount_b),
+                format!("actual_amount_b: {}", amount_b)
+            ));
+        }
+
+        // Simulate transaction execution
+        let transaction_hash = format!("0x{:x}", rand::random::<u64>());
+
+        Ok(LiquidityResult {
+            request_id: request.id,
+            transaction_hash,
+            liquidity_tokens: request.liquidity_tokens,
+            amount_a,
+            amount_b,
+            pool_address: request.pool_address,
+            executed_at: Utc::now(),
+        })
     }
     
-    async fn get_pool(&self, _pool_address: &str) -> DeFiResult<Option<crate::types::LiquidityPool>> {
-        Ok(None)
+    async fn get_pool(&self, pool_address: &str) -> DeFiResult<Option<crate::types::LiquidityPool>> {
+        // Validate pool address format
+        if pool_address.is_empty() || !pool_address.starts_with("0x") {
+            return Err(DeFiError::validation_error("pool_address", "Invalid address format"));
+        }
+
+        // In a real implementation, this would query the blockchain or database
+        // For now, return a mock pool for demonstration
+        if pool_address == "0x789" {
+            let pool = crate::types::LiquidityPool {
+                id: Uuid::new_v4(),
+                address: pool_address.to_string(),
+                protocol: crate::types::AMMProtocol::UniswapV2,
+                token_pair: crate::types::TokenPair {
+                    token_a: crate::types::Token {
+                        address: "0xA0b86a33E6441e6e80D0c4C96C60C42C".to_string(),
+                        symbol: "USDC".to_string(),
+                        name: "USD Coin".to_string(),
+                        decimals: 6,
+                        chain_id: 1,
+                    },
+                    token_b: crate::types::Token {
+                        address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".to_string(),
+                        symbol: "WETH".to_string(),
+                        name: "Wrapped Ether".to_string(),
+                        decimals: 18,
+                        chain_id: 1,
+                    },
+                },
+                reserve_a: Decimal::from(1000000), // 1M USDC
+                reserve_b: Decimal::from(500),     // 500 WETH
+                total_supply: Decimal::from(22360), // sqrt(1000000 * 500)
+                fee_rate: Decimal::new(3, 3),      // 0.3%
+                volume_24h: Decimal::from(5000000), // 5M USD
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+                is_active: true,
+            };
+            Ok(Some(pool))
+        } else {
+            Ok(None)
+        }
     }
     
-    async fn get_pools_for_pair(&self, _token_a: &Token, _token_b: &Token) -> DeFiResult<Vec<crate::types::LiquidityPool>> {
-        Ok(vec![])
+    async fn get_pools_for_pair(&self, token_a: &Token, token_b: &Token) -> DeFiResult<Vec<crate::types::LiquidityPool>> {
+        // Validate tokens
+        if token_a.address == token_b.address {
+            return Err(DeFiError::validation_error("tokens", "Cannot get pools for same token"));
+        }
+
+        // In a real implementation, this would query multiple DEXs and databases
+        // For now, return mock pools for demonstration
+        let mut pools = Vec::new();
+
+        // Mock UniswapV2 pool
+        let uniswap_pool = crate::types::LiquidityPool {
+            id: Uuid::new_v4(),
+            address: "0x789".to_string(),
+            protocol: crate::types::AMMProtocol::UniswapV2,
+            token_pair: crate::types::TokenPair {
+                token_a: token_a.clone(),
+                token_b: token_b.clone(),
+            },
+            reserve_a: Decimal::from(1000000),
+            reserve_b: Decimal::from(500),
+            total_supply: Decimal::from(22360),
+            fee_rate: Decimal::new(3, 3), // 0.3%
+            volume_24h: Decimal::from(5000000),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            is_active: true,
+        };
+        pools.push(uniswap_pool);
+
+        // Mock UniswapV3 pool with different fee tier
+        let uniswap_v3_pool = crate::types::LiquidityPool {
+            id: Uuid::new_v4(),
+            address: "0xabc".to_string(),
+            protocol: crate::types::AMMProtocol::UniswapV3,
+            token_pair: crate::types::TokenPair {
+                token_a: token_a.clone(),
+                token_b: token_b.clone(),
+            },
+            reserve_a: Decimal::from(800000),
+            reserve_b: Decimal::from(400),
+            total_supply: Decimal::from(17888),
+            fee_rate: Decimal::new(5, 4), // 0.05%
+            volume_24h: Decimal::from(3000000),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            is_active: true,
+        };
+        pools.push(uniswap_v3_pool);
+
+        Ok(pools)
     }
     
     async fn find_best_route(
@@ -416,5 +553,45 @@ mod tests {
         let result = service.execute_swap(request).await.unwrap();
         assert!(result.amount_out > Decimal::ZERO);
         assert!(!result.transaction_hash.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_remove_liquidity_success() {
+        let config = DeFiServiceConfig::default();
+        let amm_service = Arc::new(MockAMMService);
+        let service = DeFiService::new(config, amm_service);
+
+        let request = crate::amm::RemoveLiquidityRequest {
+            id: Uuid::new_v4(),
+            user_id: "test_user".to_string(),
+            pool_address: "0x789".to_string(),
+            liquidity_tokens: Decimal::from(1000),
+            min_amount_a: Decimal::from(400),
+            min_amount_b: Decimal::from(400),
+            deadline: Utc::now() + chrono::Duration::hours(1),
+        };
+
+        let result = service.amm_service.remove_liquidity(request.clone()).await;
+        assert!(result.is_ok());
+
+        let liquidity_result = result.unwrap();
+        assert_eq!(liquidity_result.request_id, request.id);
+        assert_eq!(liquidity_result.pool_address, request.pool_address);
+    }
+
+    #[tokio::test]
+    async fn test_get_pool_success() {
+        let config = DeFiServiceConfig::default();
+        let amm_service = Arc::new(MockAMMService);
+        let service = DeFiService::new(config, amm_service);
+
+        let result = service.amm_service.get_pool("0x789").await;
+        assert!(result.is_ok());
+
+        let pool = result.unwrap();
+        assert!(pool.is_some());
+
+        let pool = pool.unwrap();
+        assert_eq!(pool.address, "0x789");
     }
 }

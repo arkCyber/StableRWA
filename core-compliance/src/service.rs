@@ -4,20 +4,20 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
+use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::{
-    error::{ComplianceError, ComplianceResult},
-    types::{ComplianceLevel, RiskLevel, KycData, JurisdictionCode},
-    kyc::{KycService, KycResult},
-    aml::{AmlService, AmlScreeningResult, TransactionData},
-    reporting::ReportingService,
-    jurisdiction::JurisdictionService,
+    aml::{AmlScreeningResult, AmlService, TransactionData},
     audit::AuditService,
-    ComplianceConfig, ComplianceCheckResult,
+    error::{ComplianceError, ComplianceResult},
+    jurisdiction::JurisdictionService,
+    kyc::{KycService, KycResult},
+    reporting::ReportingService,
+    types::{ComplianceLevel, JurisdictionCode, KycData, RiskLevel},
+    ComplianceCheckResult, ComplianceConfig,
 };
 
 /// Main compliance service that orchestrates all compliance operations
@@ -81,7 +81,7 @@ impl ComplianceService {
         // 3. AML screening
         let aml_service = self.aml_service.read().await;
         let aml_result = aml_service.screen_user(kyc_data).await?;
-        result.aml_result = Some(aml_result.clone());
+        result.aml_result = Some(aml_result.overall_result);
 
         // 4. Determine overall compliance status
         result.status = self.determine_overall_status(&result)?;
@@ -204,7 +204,7 @@ impl ComplianceService {
 
         // Check AML status
         if let Some(aml_result) = &result.aml_result {
-            match aml_result.overall_result {
+            match aml_result {
                 crate::types::AmlResult::Block => {
                     return Ok(crate::types::ComplianceStatus::Rejected);
                 }
@@ -238,7 +238,13 @@ impl ComplianceService {
 
     fn determine_risk_level(&self, result: &ComplianceCheckResult) -> ComplianceResult<RiskLevel> {
         if let Some(aml_result) = &result.aml_result {
-            Ok(aml_result.risk_level)
+            let risk_level = match aml_result {
+                crate::types::AmlResult::Clear => RiskLevel::Low,
+                crate::types::AmlResult::Review => RiskLevel::Medium,
+                crate::types::AmlResult::Alert => RiskLevel::High,
+                crate::types::AmlResult::Block => RiskLevel::Critical,
+            };
+            Ok(risk_level)
         } else {
             Ok(RiskLevel::Unknown)
         }
@@ -246,7 +252,7 @@ impl ComplianceService {
 
     fn calculate_expiry_date(&self, result: &ComplianceCheckResult) -> DateTime<Utc> {
         let base_duration = match result.level {
-            ComplianceLevel::Basic => chrono::Duration::days(180),   // 6 months
+            ComplianceLevel::Basic => chrono::Duration::days(180), // 6 months
             ComplianceLevel::Standard => chrono::Duration::days(365), // 1 year
             ComplianceLevel::Enhanced => chrono::Duration::days(730), // 2 years
             ComplianceLevel::Premium => chrono::Duration::days(1095), // 3 years
@@ -278,7 +284,7 @@ pub struct ComplianceStatistics {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{Address, IdentityDocument, DocumentType};
+    use crate::types::{Address, DocumentType, IdentityDocument};
 
     fn create_test_kyc_data() -> KycData {
         KycData {

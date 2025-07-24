@@ -5,15 +5,15 @@
 // =====================================================================================
 
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc, Duration};
-use uuid::Uuid;
+use chrono::{DateTime, Duration, Utc};
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 use crate::{
     error::{BridgeError, BridgeResult},
-    types::{ChainId, BridgeStatus},
+    types::{BridgeStatus, ChainId},
 };
 
 /// Relayer configuration
@@ -54,10 +54,10 @@ impl Default for RelayerConfig {
                 ChainId::Bitcoin,
             ],
             max_concurrent_relays: 100,
-            relay_timeout_seconds: 1800, // 30 minutes
+            relay_timeout_seconds: 1800,                // 30 minutes
             gas_price_multiplier: Decimal::new(110, 2), // 1.10x
-            min_relay_fee: Decimal::new(100, 2), // $1.00
-            max_relay_fee: Decimal::new(10000, 2), // $100.00
+            min_relay_fee: Decimal::new(100, 2),        // $1.00
+            max_relay_fee: Decimal::new(10000, 2),      // $100.00
             auto_retry: true,
             max_retry_attempts: 3,
             retry_delay_seconds: 60,
@@ -237,13 +237,13 @@ pub enum RelayerStatus {
 pub trait RelayerService: Send + Sync {
     /// Submit a relay request
     async fn submit_relay(&self, request: RelayRequest) -> BridgeResult<RelayResult>;
-    
+
     /// Get relay status
     async fn get_relay_status(&self, request_id: Uuid) -> BridgeResult<Option<RelayResult>>;
-    
+
     /// Cancel a pending relay
     async fn cancel_relay(&self, request_id: Uuid) -> BridgeResult<()>;
-    
+
     /// Get relay history
     async fn get_relay_history(
         &self,
@@ -251,19 +251,20 @@ pub trait RelayerService: Send + Sync {
         limit: Option<usize>,
         offset: Option<usize>,
     ) -> BridgeResult<Vec<RelayResult>>;
-    
+
     /// Estimate relay fee
     async fn estimate_relay_fee(&self, request: &RelayRequest) -> BridgeResult<Decimal>;
-    
+
     /// Get available relayers
     async fn get_available_relayers(&self, chain_id: ChainId) -> BridgeResult<Vec<RelayerNode>>;
-    
+
     /// Register as a relayer
     async fn register_relayer(&self, node: RelayerNode) -> BridgeResult<()>;
-    
+
     /// Update relayer status
-    async fn update_relayer_status(&self, node_id: &str, status: RelayerStatus) -> BridgeResult<()>;
-    
+    async fn update_relayer_status(&self, node_id: &str, status: RelayerStatus)
+        -> BridgeResult<()>;
+
     /// Health check
     async fn health_check(&self) -> BridgeResult<RelayerHealthStatus>;
 }

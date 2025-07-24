@@ -4,7 +4,8 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use crate::error::{BlockchainError, BlockchainResult};
+use crate::error::BlockchainResult;
+use ethers::abi::Abi;
 use crate::types::{Address, TransactionHash};
 use async_trait::async_trait;
 use ethers::prelude::*;
@@ -301,7 +302,7 @@ impl EthereumERC721Contract {
         
         Ok(NFTInfo {
             token_id,
-            contract_address: self.address,
+            contract_address: self.address.clone(),
             owner,
             approved,
             token_uri,

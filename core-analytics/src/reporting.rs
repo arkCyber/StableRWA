@@ -4,7 +4,7 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use crate::{AnalyticsError, AnalyticsResult, types::*};
+use crate::{types::*, AnalyticsError, AnalyticsResult};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -40,7 +40,7 @@ impl Default for ReportingConfig {
             cache_enabled: true,
             cache_ttl_seconds: 3600,
             max_concurrent_generations: 5,
-            default_format: ReportFormat::Json,
+            default_format: ReportFormat::JSON,
             compression_enabled: true,
             retention_days: 30,
         }
@@ -218,37 +218,43 @@ pub trait ReportGenerator: Send + Sync {
         report_type: ReportType,
         parameters: HashMap<String, serde_json::Value>,
     ) -> AnalyticsResult<AnalyticsReport>;
-    
+
     /// Generate report from template
     async fn generate_from_template(
         &self,
         template_id: Uuid,
         parameters: HashMap<String, serde_json::Value>,
     ) -> AnalyticsResult<AnalyticsReport>;
-    
+
     /// Submit report generation request
     async fn submit_generation_request(
         &self,
         request: ReportGenerationRequest,
     ) -> AnalyticsResult<Uuid>;
-    
+
     /// Get report generation status
-    async fn get_generation_status(&self, request_id: Uuid) -> AnalyticsResult<ReportGenerationStatus>;
-    
+    async fn get_generation_status(
+        &self,
+        request_id: Uuid,
+    ) -> AnalyticsResult<ReportGenerationStatus>;
+
     /// Cancel report generation
     async fn cancel_generation(&self, request_id: Uuid) -> AnalyticsResult<()>;
-    
+
     /// List report templates
     async fn list_templates(&self) -> AnalyticsResult<Vec<ReportTemplate>>;
-    
+
     /// Save report template
     async fn save_template(&self, template: ReportTemplate) -> AnalyticsResult<()>;
-    
+
     /// Delete report template
     async fn delete_template(&self, template_id: Uuid) -> AnalyticsResult<()>;
-    
+
     /// Get report history
-    async fn get_report_history(&self, limit: Option<usize>) -> AnalyticsResult<Vec<AnalyticsReport>>;
+    async fn get_report_history(
+        &self,
+        limit: Option<usize>,
+    ) -> AnalyticsResult<Vec<AnalyticsReport>>;
 }
 
 /// In-memory report generator implementation
@@ -268,93 +274,91 @@ impl InMemoryReportGenerator {
             report_history: tokio::sync::RwLock::new(Vec::new()),
         }
     }
-    
+
     /// Generate report data based on type
-    async fn generate_report_data(&self, report_type: ReportType, parameters: &HashMap<String, serde_json::Value>) -> AnalyticsResult<serde_json::Value> {
+    async fn generate_report_data(
+        &self,
+        report_type: ReportType,
+        parameters: &HashMap<String, serde_json::Value>,
+    ) -> AnalyticsResult<serde_json::Value> {
         match report_type {
-            ReportType::Summary => {
-                Ok(serde_json::json!({
-                    "summary": {
-                        "total_assets": 150,
-                        "total_value": 50000000,
-                        "active_tokens": 75,
-                        "pending_transactions": 12
+            ReportType::Summary => Ok(serde_json::json!({
+                "summary": {
+                    "total_assets": 150,
+                    "total_value": 50000000,
+                    "active_tokens": 75,
+                    "pending_transactions": 12
+                },
+                "generated_at": Utc::now()
+            })),
+            ReportType::Detailed => Ok(serde_json::json!({
+                "assets": [
+                    {
+                        "id": "asset_1",
+                        "name": "Commercial Property A",
+                        "value": 2500000,
+                        "status": "active"
                     },
-                    "generated_at": Utc::now()
-                }))
-            }
-            ReportType::Detailed => {
-                Ok(serde_json::json!({
-                    "assets": [
-                        {
-                            "id": "asset_1",
-                            "name": "Commercial Property A",
-                            "value": 2500000,
-                            "status": "active"
-                        },
-                        {
-                            "id": "asset_2",
-                            "name": "Residential Complex B",
-                            "value": 1800000,
-                            "status": "pending"
-                        }
-                    ],
-                    "transactions": [
-                        {
-                            "id": "tx_1",
-                            "asset_id": "asset_1",
-                            "amount": 100000,
-                            "timestamp": Utc::now()
-                        }
-                    ],
-                    "generated_at": Utc::now()
-                }))
-            }
-            ReportType::Performance => {
-                Ok(serde_json::json!({
-                    "performance_metrics": {
-                        "roi": 12.5,
-                        "total_return": 8.3,
-                        "volatility": 15.2,
-                        "sharpe_ratio": 0.85
-                    },
-                    "time_period": parameters.get("time_period").unwrap_or(&serde_json::json!("1Y")),
-                    "generated_at": Utc::now()
-                }))
-            }
-            ReportType::Compliance => {
-                Ok(serde_json::json!({
-                    "compliance_status": {
-                        "kyc_completion": 98.5,
-                        "aml_checks": 100.0,
-                        "regulatory_filings": 95.2,
-                        "audit_score": 92.8
-                    },
-                    "issues": [
-                        {
-                            "type": "documentation",
-                            "description": "Missing documentation for 3 assets",
-                            "severity": "medium"
-                        }
-                    ],
-                    "generated_at": Utc::now()
-                }))
-            }
-            _ => {
-                Ok(serde_json::json!({
-                    "message": "Custom report data",
-                    "parameters": parameters,
-                    "generated_at": Utc::now()
-                }))
-            }
+                    {
+                        "id": "asset_2",
+                        "name": "Residential Complex B",
+                        "value": 1800000,
+                        "status": "pending"
+                    }
+                ],
+                "transactions": [
+                    {
+                        "id": "tx_1",
+                        "asset_id": "asset_1",
+                        "amount": 100000,
+                        "timestamp": Utc::now()
+                    }
+                ],
+                "generated_at": Utc::now()
+            })),
+            ReportType::Performance => Ok(serde_json::json!({
+                "performance_metrics": {
+                    "roi": 12.5,
+                    "total_return": 8.3,
+                    "volatility": 15.2,
+                    "sharpe_ratio": 0.85
+                },
+                "time_period": parameters.get("time_period").unwrap_or(&serde_json::json!("1Y")),
+                "generated_at": Utc::now()
+            })),
+            ReportType::Compliance => Ok(serde_json::json!({
+                "compliance_status": {
+                    "kyc_completion": 98.5,
+                    "aml_checks": 100.0,
+                    "regulatory_filings": 95.2,
+                    "audit_score": 92.8
+                },
+                "issues": [
+                    {
+                        "type": "documentation",
+                        "description": "Missing documentation for 3 assets",
+                        "severity": "medium"
+                    }
+                ],
+                "generated_at": Utc::now()
+            })),
+            _ => Ok(serde_json::json!({
+                "message": "Custom report data",
+                "parameters": parameters,
+                "generated_at": Utc::now()
+            })),
         }
     }
-    
+
     /// Format report data according to specified format
-    fn format_report_data(&self, data: serde_json::Value, format: ReportFormat) -> AnalyticsResult<serde_json::Value> {
+    fn format_report_data(
+        &self,
+        data: serde_json::Value,
+        format: ReportFormat,
+    ) -> AnalyticsResult<serde_json::Value> {
         match format {
-            ReportFormat::Json => Ok(data),
-            ReportFormat::Csv => {
+            ReportFormat::JSON => Ok(data),
+            ReportFormat::CSV => {
                 // Convert JSON to CSV format (simplified)
                 Ok(serde_json::json!({
                     "format": "csv",
@@ -362,7 +366,7 @@ impl InMemoryReportGenerator {
                     "mime_type": "text/csv"
                 }))
             }
-            ReportFormat::Html => {
+            ReportFormat::HTML => {
                 // Convert JSON to HTML format (simplified)
                 Ok(serde_json::json!({
                     "format": "html",
@@ -370,7 +374,7 @@ impl InMemoryReportGenerator {
                     "mime_type": "text/html"
                 }))
             }
-            ReportFormat::Pdf => {
+            ReportFormat::PDF => {
                 // Convert JSON to PDF format (simplified)
                 Ok(serde_json::json!({
                     "format": "pdf",
@@ -378,13 +382,11 @@ impl InMemoryReportGenerator {
                     "mime_type": "application/pdf"
                 }))
             }
-            _ => {
-                Ok(serde_json::json!({
-                    "format": format!("{:?}", format).to_lowercase(),
-                    "data": data,
-                    "mime_type": "application/octet-stream"
-                }))
-            }
+            _ => Ok(serde_json::json!({
+                "format": format!("{:?}", format).to_lowercase(),
+                "data": data,
+                "mime_type": "application/octet-stream"
+            })),
         }
     }
 }
@@ -397,76 +399,81 @@ impl ReportGenerator for InMemoryReportGenerator {
         parameters: HashMap<String, serde_json::Value>,
     ) -> AnalyticsResult<AnalyticsReport> {
         let start_time = std::time::Instant::now();
-        
+
         // Generate report data
         let raw_data = self.generate_report_data(report_type, &parameters).await?;
-        
+
         // Format the data
         let formatted_data = self.format_report_data(raw_data, self.config.default_format)?;
-        
+
         let generation_time_ms = start_time.elapsed().as_millis() as u64;
-        
+
         let report = AnalyticsReport {
             id: Uuid::new_v4(),
-            name: format!("{:?} Report", report_type),
+            title: format!("{:?} Report", report_type),
             description: format!("Generated {:?} report", report_type),
             report_type,
             format: self.config.default_format,
-            data: formatted_data,
-            metadata: ReportMetadata {
-                author: "system".to_string(),
-                version: "1.0.0".to_string(),
-                tags: vec![format!("{:?}", report_type).to_lowercase()],
-                parameters,
-                data_sources: vec!["analytics_db".to_string()],
-                generation_time_ms,
-                record_count: 1, // Simplified
-            },
-            created_at: Utc::now(),
+            sections: vec![crate::types::ReportSection {
+                id: "data_section".to_string(),
+                title: "Data".to_string(),
+                section_type: crate::types::SectionType::Data,
+                content: crate::types::SectionContent::Json(formatted_data.to_string()),
+                order: 1,
+                visible: true,
+            }],
+            parameters,
             generated_at: Utc::now(),
-            expires_at: Some(Utc::now() + chrono::Duration::days(self.config.retention_days as i64)),
+            generated_by: "Analytics Service".to_string(),
+            valid_until: Some(
+                Utc::now() + chrono::Duration::days(self.config.retention_days as i64),
+            ),
+            file_path: None,
+            file_size: None,
         };
-        
+
         // Add to history
         let mut history = self.report_history.write().await;
         history.push(report.clone());
-        
+
         // Apply retention policy
-        if history.len() > 1000 {
-            history.drain(0..history.len() - 1000);
+        let history_len = history.len();
+        if history_len > 1000 {
+            history.drain(0..history_len - 1000);
         }
-        
+
         Ok(report)
     }
-    
+
     async fn generate_from_template(
         &self,
         template_id: Uuid,
         parameters: HashMap<String, serde_json::Value>,
     ) -> AnalyticsResult<AnalyticsReport> {
         let templates = self.templates.read().await;
-        let template = templates.get(&template_id)
+        let template = templates
+            .get(&template_id)
             .ok_or_else(|| AnalyticsError::template_not_found(template_id.to_string()))?;
-        
+
         // Validate parameters against template
         for param in &template.parameters {
             if param.required && !parameters.contains_key(&param.name) {
                 return Err(AnalyticsError::validation_error(
-                    &param.name,
+                    param.name.clone(),
                     "Required parameter missing".to_string(),
                 ));
             }
         }
-        
+
         self.generate_report(template.report_type, parameters).await
     }
-    
+
     async fn submit_generation_request(
         &self,
         request: ReportGenerationRequest,
     ) -> AnalyticsResult<Uuid> {
         let request_id = request.id;
-        
+
         let status = ReportGenerationStatus {
             request_id,
             status: GenerationStatus::Queued,
@@ -474,25 +481,32 @@ impl ReportGenerator for InMemoryReportGenerator {
             started_at: Utc::now(),
             completed_at: None,
             error_message: None,
-            estimated_completion: Some(Utc::now() + chrono::Duration::seconds(self.config.generation_timeout_seconds as i64)),
+            estimated_completion: Some(
+                Utc::now()
+                    + chrono::Duration::seconds(self.config.generation_timeout_seconds as i64),
+            ),
             result_size_bytes: None,
         };
-        
+
         let mut requests = self.generation_requests.write().await;
         requests.insert(request_id, status);
-        
+
         // In a real implementation, this would queue the request for background processing
-        
+
         Ok(request_id)
     }
-    
-    async fn get_generation_status(&self, request_id: Uuid) -> AnalyticsResult<ReportGenerationStatus> {
+
+    async fn get_generation_status(
+        &self,
+        request_id: Uuid,
+    ) -> AnalyticsResult<ReportGenerationStatus> {
         let requests = self.generation_requests.read().await;
-        requests.get(&request_id)
+        requests
+            .get(&request_id)
             .cloned()
             .ok_or_else(|| AnalyticsError::request_not_found(request_id.to_string()))
     }
-    
+
     async fn cancel_generation(&self, request_id: Uuid) -> AnalyticsResult<()> {
         let mut requests = self.generation_requests.write().await;
         if let Some(status) = requests.get_mut(&request_id) {
@@ -501,25 +515,28 @@ impl ReportGenerator for InMemoryReportGenerator {
         }
         Ok(())
     }
-    
+
     async fn list_templates(&self) -> AnalyticsResult<Vec<ReportTemplate>> {
         let templates = self.templates.read().await;
         Ok(templates.values().cloned().collect())
     }
-    
+
     async fn save_template(&self, template: ReportTemplate) -> AnalyticsResult<()> {
         let mut templates = self.templates.write().await;
         templates.insert(template.id, template);
         Ok(())
     }
-    
+
     async fn delete_template(&self, template_id: Uuid) -> AnalyticsResult<()> {
         let mut templates = self.templates.write().await;
         templates.remove(&template_id);
         Ok(())
     }
-    
-    async fn get_report_history(&self, limit: Option<usize>) -> AnalyticsResult<Vec<AnalyticsReport>> {
+
+    async fn get_report_history(
+        &self,
+        limit: Option<usize>,
+    ) -> AnalyticsResult<Vec<AnalyticsReport>> {
         let history = self.report_history.read().await;
         let reports = if let Some(limit) = limit {
             history.iter().rev().take(limit).cloned().collect()
@@ -533,25 +550,28 @@ impl ReportGenerator for InMemoryReportGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_report_generator() {
         let config = ReportingConfig::default();
         let generator = InMemoryReportGenerator::new(config);
-        
+
         let parameters = HashMap::new();
-        let report = generator.generate_report(ReportType::Summary, parameters).await.unwrap();
-        
+        let report = generator
+            .generate_report(ReportType::Summary, parameters)
+            .await
+            .unwrap();
+
         assert_eq!(report.report_type, ReportType::Summary);
         assert!(!report.data.is_null());
         assert!(report.metadata.generation_time_ms > 0);
     }
-    
+
     #[tokio::test]
     async fn test_template_management() {
         let config = ReportingConfig::default();
         let generator = InMemoryReportGenerator::new(config);
-        
+
         let template = ReportTemplate {
             id: Uuid::new_v4(),
             name: "Test Template".to_string(),
@@ -567,9 +587,9 @@ mod tests {
             version: "1.0.0".to_string(),
             enabled: true,
         };
-        
+
         generator.save_template(template.clone()).await.unwrap();
-        
+
         let templates = generator.list_templates().await.unwrap();
         assert_eq!(templates.len(), 1);
         assert_eq!(templates[0].name, "Test Template");

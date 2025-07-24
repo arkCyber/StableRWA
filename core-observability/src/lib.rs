@@ -4,15 +4,15 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
+pub mod health;
 pub mod logging;
 pub mod metrics;
 pub mod tracing_setup;
-pub mod health;
 
+pub use health::*;
 pub use logging::*;
 pub use metrics::*;
 pub use tracing_setup::*;
-pub use health::*;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -82,23 +82,23 @@ pub struct BusinessMetrics {
     pub assets_updated: prometheus::Counter,
     pub assets_deleted: prometheus::Counter,
     pub asset_value_total: prometheus::Gauge,
-    
+
     // User metrics
     pub users_registered: prometheus::Counter,
     pub users_active: prometheus::Gauge,
     pub user_sessions: prometheus::Gauge,
-    
+
     // Payment metrics
     pub payments_initiated: prometheus::Counter,
     pub payments_completed: prometheus::Counter,
     pub payments_failed: prometheus::Counter,
     pub payment_volume: prometheus::Counter,
-    
+
     // Blockchain metrics
     pub blockchain_transactions: prometheus::CounterVec,
     pub blockchain_balance_checks: prometheus::CounterVec,
     pub blockchain_connection_status: prometheus::GaugeVec,
-    
+
     // System metrics
     pub http_requests_total: prometheus::CounterVec,
     pub http_request_duration: prometheus::HistogramVec,
@@ -110,117 +110,174 @@ pub struct BusinessMetrics {
 impl BusinessMetrics {
     pub fn new() -> Result<Self, ObservabilityError> {
         let registry = prometheus::default_registry();
-        
+
         // Asset metrics
-        let assets_created = prometheus::Counter::new("rwa_assets_created_total", "Total number of assets created")
+        let assets_created =
+            prometheus::Counter::new("rwa_assets_created_total", "Total number of assets created")
+                .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
+        registry
+            .register(Box::new(assets_created.clone()))
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        registry.register(Box::new(assets_created.clone()))
+
+        let assets_updated =
+            prometheus::Counter::new("rwa_assets_updated_total", "Total number of assets updated")
+                .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
+        registry
+            .register(Box::new(assets_updated.clone()))
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-            
-        let assets_updated = prometheus::Counter::new("rwa_assets_updated_total", "Total number of assets updated")
+
+        let assets_deleted =
+            prometheus::Counter::new("rwa_assets_deleted_total", "Total number of assets deleted")
+                .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
+        registry
+            .register(Box::new(assets_deleted.clone()))
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        registry.register(Box::new(assets_updated.clone()))
+
+        let asset_value_total =
+            prometheus::Gauge::new("rwa_asset_value_total", "Total value of all assets")
+                .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
+        registry
+            .register(Box::new(asset_value_total.clone()))
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-            
-        let assets_deleted = prometheus::Counter::new("rwa_assets_deleted_total", "Total number of assets deleted")
-            .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        registry.register(Box::new(assets_deleted.clone()))
-            .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-            
-        let asset_value_total = prometheus::Gauge::new("rwa_asset_value_total", "Total value of all assets")
-            .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        registry.register(Box::new(asset_value_total.clone()))
-            .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        
+
         // User metrics
-        let users_registered = prometheus::Counter::new("rwa_users_registered_total", "Total number of registered users")
+        let users_registered = prometheus::Counter::new(
+            "rwa_users_registered_total",
+            "Total number of registered users",
+        )
+        .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
+        registry
+            .register(Box::new(users_registered.clone()))
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        registry.register(Box::new(users_registered.clone()))
-            .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-            
+
         let users_active = prometheus::Gauge::new("rwa_users_active", "Number of active users")
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        registry.register(Box::new(users_active.clone()))
+        registry
+            .register(Box::new(users_active.clone()))
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-            
-        let user_sessions = prometheus::Gauge::new("rwa_user_sessions", "Number of active user sessions")
+
+        let user_sessions =
+            prometheus::Gauge::new("rwa_user_sessions", "Number of active user sessions")
+                .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
+        registry
+            .register(Box::new(user_sessions.clone()))
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        registry.register(Box::new(user_sessions.clone()))
-            .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        
+
         // Payment metrics
-        let payments_initiated = prometheus::Counter::new("rwa_payments_initiated_total", "Total number of payments initiated")
+        let payments_initiated = prometheus::Counter::new(
+            "rwa_payments_initiated_total",
+            "Total number of payments initiated",
+        )
+        .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
+        registry
+            .register(Box::new(payments_initiated.clone()))
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        registry.register(Box::new(payments_initiated.clone()))
+
+        let payments_completed = prometheus::Counter::new(
+            "rwa_payments_completed_total",
+            "Total number of payments completed",
+        )
+        .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
+        registry
+            .register(Box::new(payments_completed.clone()))
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-            
-        let payments_completed = prometheus::Counter::new("rwa_payments_completed_total", "Total number of payments completed")
+
+        let payments_failed = prometheus::Counter::new(
+            "rwa_payments_failed_total",
+            "Total number of payments failed",
+        )
+        .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
+        registry
+            .register(Box::new(payments_failed.clone()))
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        registry.register(Box::new(payments_completed.clone()))
+
+        let payment_volume =
+            prometheus::Counter::new("rwa_payment_volume_total", "Total payment volume processed")
+                .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
+        registry
+            .register(Box::new(payment_volume.clone()))
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-            
-        let payments_failed = prometheus::Counter::new("rwa_payments_failed_total", "Total number of payments failed")
-            .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        registry.register(Box::new(payments_failed.clone()))
-            .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-            
-        let payment_volume = prometheus::Counter::new("rwa_payment_volume_total", "Total payment volume processed")
-            .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        registry.register(Box::new(payment_volume.clone()))
-            .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        
+
         // Blockchain metrics
         let blockchain_transactions = prometheus::CounterVec::new(
-            prometheus::Opts::new("rwa_blockchain_transactions_total", "Total blockchain transactions by chain"),
-            &["chain", "status"]
-        ).map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        registry.register(Box::new(blockchain_transactions.clone()))
+            prometheus::Opts::new(
+                "rwa_blockchain_transactions_total",
+                "Total blockchain transactions by chain",
+            ),
+            &["chain", "status"],
+        )
+        .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
+        registry
+            .register(Box::new(blockchain_transactions.clone()))
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-            
+
         let blockchain_balance_checks = prometheus::CounterVec::new(
-            prometheus::Opts::new("rwa_blockchain_balance_checks_total", "Total blockchain balance checks by chain"),
-            &["chain"]
-        ).map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        registry.register(Box::new(blockchain_balance_checks.clone()))
+            prometheus::Opts::new(
+                "rwa_blockchain_balance_checks_total",
+                "Total blockchain balance checks by chain",
+            ),
+            &["chain"],
+        )
+        .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
+        registry
+            .register(Box::new(blockchain_balance_checks.clone()))
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-            
+
         let blockchain_connection_status = prometheus::GaugeVec::new(
-            prometheus::Opts::new("rwa_blockchain_connection_status", "Blockchain connection status by chain"),
-            &["chain"]
-        ).map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        registry.register(Box::new(blockchain_connection_status.clone()))
+            prometheus::Opts::new(
+                "rwa_blockchain_connection_status",
+                "Blockchain connection status by chain",
+            ),
+            &["chain"],
+        )
+        .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
+        registry
+            .register(Box::new(blockchain_connection_status.clone()))
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        
+
         // System metrics
         let http_requests_total = prometheus::CounterVec::new(
             prometheus::Opts::new("rwa_http_requests_total", "Total HTTP requests"),
-            &["method", "endpoint", "status"]
-        ).map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        registry.register(Box::new(http_requests_total.clone()))
+            &["method", "endpoint", "status"],
+        )
+        .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
+        registry
+            .register(Box::new(http_requests_total.clone()))
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-            
+
         let http_request_duration = prometheus::HistogramVec::new(
-            prometheus::HistogramOpts::new("rwa_http_request_duration_seconds", "HTTP request duration"),
-            &["method", "endpoint"]
-        ).map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        registry.register(Box::new(http_request_duration.clone()))
+            prometheus::HistogramOpts::new(
+                "rwa_http_request_duration_seconds",
+                "HTTP request duration",
+            ),
+            &["method", "endpoint"],
+        )
+        .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
+        registry
+            .register(Box::new(http_request_duration.clone()))
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-            
-        let database_connections = prometheus::Gauge::new("rwa_database_connections", "Number of active database connections")
+
+        let database_connections = prometheus::Gauge::new(
+            "rwa_database_connections",
+            "Number of active database connections",
+        )
+        .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
+        registry
+            .register(Box::new(database_connections.clone()))
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        registry.register(Box::new(database_connections.clone()))
-            .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-            
+
         let cache_hits = prometheus::Counter::new("rwa_cache_hits_total", "Total cache hits")
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        registry.register(Box::new(cache_hits.clone()))
+        registry
+            .register(Box::new(cache_hits.clone()))
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-            
+
         let cache_misses = prometheus::Counter::new("rwa_cache_misses_total", "Total cache misses")
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        registry.register(Box::new(cache_misses.clone()))
+        registry
+            .register(Box::new(cache_misses.clone()))
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
-        
+
         Ok(Self {
             assets_created,
             assets_updated,
@@ -248,22 +305,40 @@ impl BusinessMetrics {
     pub fn increment_counter(&self, name: &str, labels: &[(&str, &str)]) {
         match name {
             "ai_requests_total" => {
-                if let Some(endpoint) = labels.iter().find(|(k, _)| *k == "endpoint").map(|(_, v)| *v) {
-                    self.http_requests_total.with_label_values(&["POST", &format!("/ai/{}", endpoint)]).inc();
+                if let Some(endpoint) = labels
+                    .iter()
+                    .find(|(k, _)| *k == "endpoint")
+                    .map(|(_, v)| *v)
+                {
+                    self.http_requests_total
+                        .with_label_values(&["POST", &format!("/ai/{}", endpoint)])
+                        .inc();
                 }
             }
             "ai_requests_success_total" => {
-                if let Some(endpoint) = labels.iter().find(|(k, _)| *k == "endpoint").map(|(_, v)| *v) {
+                if let Some(endpoint) = labels
+                    .iter()
+                    .find(|(k, _)| *k == "endpoint")
+                    .map(|(_, v)| *v)
+                {
                     // For now, we'll use the same counter as total requests
                     // In a real implementation, you'd want separate success/error counters
-                    self.http_requests_total.with_label_values(&["POST", &format!("/ai/{}", endpoint)]).inc();
+                    self.http_requests_total
+                        .with_label_values(&["POST", &format!("/ai/{}", endpoint)])
+                        .inc();
                 }
             }
             "ai_requests_error_total" => {
-                if let Some(endpoint) = labels.iter().find(|(k, _)| *k == "endpoint").map(|(_, v)| *v) {
+                if let Some(endpoint) = labels
+                    .iter()
+                    .find(|(k, _)| *k == "endpoint")
+                    .map(|(_, v)| *v)
+                {
                     // For now, we'll use the same counter as total requests
                     // In a real implementation, you'd want separate success/error counters
-                    self.http_requests_total.with_label_values(&["POST", &format!("/ai/{}", endpoint)]).inc();
+                    self.http_requests_total
+                        .with_label_values(&["POST", &format!("/ai/{}", endpoint)])
+                        .inc();
                 }
             }
             _ => {
@@ -277,13 +352,21 @@ impl BusinessMetrics {
     pub fn record_histogram(&self, name: &str, value: f64, labels: &[(&str, &str)]) {
         match name {
             "ai_request_duration_seconds" => {
-                if let Some(endpoint) = labels.iter().find(|(k, _)| *k == "endpoint").map(|(_, v)| *v) {
-                    self.http_request_duration.with_label_values(&["POST", &format!("/ai/{}", endpoint)]).observe(value);
+                if let Some(endpoint) = labels
+                    .iter()
+                    .find(|(k, _)| *k == "endpoint")
+                    .map(|(_, v)| *v)
+                {
+                    self.http_request_duration
+                        .with_label_values(&["POST", &format!("/ai/{}", endpoint)])
+                        .observe(value);
                 }
             }
             _ => {
                 // Default behavior - use the first available histogram
-                self.http_request_duration.with_label_values(&["GET", "/"]).observe(value);
+                self.http_request_duration
+                    .with_label_values(&["GET", "/"])
+                    .observe(value);
             }
         }
     }
@@ -295,7 +378,8 @@ impl BusinessMetrics {
         let encoder = TextEncoder::new();
         let metric_families = prometheus::gather();
 
-        encoder.encode_to_string(&metric_families)
+        encoder
+            .encode_to_string(&metric_families)
             .map_err(|e| ObservabilityError::Metrics(e.to_string()))
     }
 }
@@ -304,7 +388,6 @@ impl BusinessMetrics {
 mod tests {
     use super::*;
     use std::time::Duration;
-
 
     #[test]
     fn test_observability_error_display() {
@@ -437,7 +520,7 @@ impl TraceContext {
             baggage: HashMap::new(),
         }
     }
-    
+
     pub fn child_span(&self) -> Self {
         Self {
             trace_id: self.trace_id.clone(),

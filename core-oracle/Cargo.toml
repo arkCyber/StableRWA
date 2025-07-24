@@ -48,7 +48,7 @@ sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chron
 redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
 
 # Ethereum integration
-ethers = { version = "2.0", features = ["ws", "rustls", "contract"] }
+ethers = { version = "2.0", features = ["ws", "rustls"] }
 
 # Cryptography
 ring = "0.17"
@@ -88,6 +88,8 @@ core-security = { path = "../core-security" }
 tokio-test = "0.4"
 mockall = "0.12"
 tempfile = "3.8"
+criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
+proptest = "1.4"
 
 [features]
 default = ["chainlink", "band", "pyth", "uma"]
@@ -98,3 +100,7 @@ uma = []
 tellor = []
 api3 = []
 dia = []
+
+[[bench]]
+name = "oracle_benchmarks"
+harness = false

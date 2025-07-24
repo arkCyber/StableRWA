@@ -54,6 +54,9 @@ pub enum BlockchainError {
     #[error("Gas estimation failed: {message}")]
     GasEstimationFailed { message: String },
 
+    #[error("Invalid gas price: {0}")]
+    InvalidGasPrice(u64),
+
     #[error("Nonce error: {message}")]
     NonceError { message: String },
 
@@ -83,6 +86,12 @@ pub enum BlockchainError {
 
     #[error("Chain not supported: {chain_id}")]
     UnsupportedChain { chain_id: u64 },
+
+    #[error("Unsupported operation: {0}")]
+    UnsupportedOperation(String),
+
+    #[error("Transaction timeout: {0}")]
+    TransactionTimeout(String),
 
     #[error("Invalid input: field {field} - {message}")]
     InvalidInput { field: String, message: String },
@@ -126,6 +135,7 @@ impl BlockchainError {
             BlockchainError::ContractError { .. } => "contract",
             BlockchainError::AbiError { .. } => "abi",
             BlockchainError::GasEstimationFailed { .. } => "gas",
+            BlockchainError::InvalidGasPrice(_) => "gas",
             BlockchainError::NonceError { .. } => "nonce",
             BlockchainError::WalletError { .. } => "wallet",
             BlockchainError::EncryptionError { .. } => "encryption",
@@ -136,6 +146,8 @@ impl BlockchainError {
             BlockchainError::TimeoutError { .. } => "timeout",
             BlockchainError::RateLimitExceeded { .. } => "rate_limit",
             BlockchainError::UnsupportedChain { .. } => "chain",
+            BlockchainError::UnsupportedOperation(_) => "operation",
+            BlockchainError::TransactionTimeout(_) => "timeout",
             BlockchainError::InvalidInput { .. } => "input",
             BlockchainError::NotFound { .. } => "not_found",
             BlockchainError::PermissionDenied { .. } => "permission",
@@ -225,6 +237,23 @@ impl From<hex::FromHexError> for BlockchainError {
     fn from(err: hex::FromHexError) -> Self {
         BlockchainError::InvalidInput {
             field: "hex_string".to_string(),
+            message: err.to_string(),
+        }
+    }
+}
+
+impl From<ethers::types::ParseBytesError> for BlockchainError {
+    fn from(err: ethers::types::ParseBytesError) -> Self {
+        BlockchainError::InvalidInput {
+            field: "bytes".to_string(),
+            message: err.to_string(),
+        }
+    }
+}
+
+impl From<ethers::contract::AbiError> for BlockchainError {
+    fn from(err: ethers::contract::AbiError) -> Self {
+        BlockchainError::AbiError {
             message: err.to_string(),
         }
     }

@@ -7,21 +7,12 @@
 
 use crate::GatewayError;
 use actix_web::{dev::ServiceRequest, web, HttpMessage, HttpRequest};
-use core_security::{jwt::JwtManager, SecurityError};
+use core_security::{jwt::JwtManager, SecurityError, UserClaims};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use tracing::{debug, error, warn};
 
-/// User claims structure extracted from JWT token
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UserClaims {
-    pub user_id: String,
-    pub email: String,
-    pub roles: Vec<String>,
-    pub permissions: Vec<String>,
-    pub exp: i64,
-    pub iat: i64,
-}
+
 
 /// Authentication service component for the framework gateway
 pub struct AuthService {
@@ -32,7 +23,7 @@ pub struct AuthService {
 impl AuthService {
     pub fn new(jwt_manager: JwtManager) -> Self {
         let mut public_routes = HashSet::new();
-        
+
         // Add public routes that don't require authentication
         public_routes.insert("/health".to_string());
         public_routes.insert("/health/ready".to_string());
@@ -52,45 +43,55 @@ impl AuthService {
 
     /// Check if a route is public (doesn't require authentication)
     pub fn is_public_route(&self, path: &str) -> bool {
-        self.public_routes.contains(path) || 
-        path.starts_with("/docs/") ||
-        path.starts_with("/swagger-ui/") ||
-        path.starts_with("/static/")
+        self.public_routes.contains(path)
+            || path.starts_with("/docs/")
+            || path.starts_with("/swagger-ui/")
+            || path.starts_with("/static/")
     }
 
     /// Extract and validate JWT token from request
-    pub async fn authenticate_request(&self, req: &ServiceRequest) -> Result<UserClaims, GatewayError> {
+    pub async fn authenticate_request(
+        &self,
+        req: &ServiceRequest,
+    ) -> Result<UserClaims, GatewayError> {
         let path = req.path();
-        
+
         // Skip authentication for public routes
         if self.is_public_route(path) {
             debug!("Skipping authentication for public route: {}", path);
-            return Err(GatewayError::AuthenticationFailed("Public route".to_string()));
+            return Err(GatewayError::AuthenticationFailed(
+                "Public route".to_string(),
+            ));
         }
 
         // Extract token from Authorization header
         let token = self.extract_token_from_request(req)?;
-        
+
         // Validate and decode token
         match self.jwt_manager.validate_access_token(&token) {
             Ok(claims) => {
-                debug!("Successfully authenticated user: {}", claims.get("user_id").unwrap_or(&serde_json::Value::Null));
-                
-                // Convert claims to UserClaims
-                let user_claims = self.claims_to_user_claims(claims)?;
-                
+                debug!(
+                    "Successfully authenticated user: {}",
+                    claims.sub
+                );
+
                 // Store user claims in request extensions for downstream use
-                req.extensions_mut().insert(user_claims.clone());
-                
-                Ok(user_claims)
+                req.extensions_mut().insert(claims.clone());
+
+                Ok(claims)
             }
             Err(SecurityError::TokenExpired) => {
                 warn!("Token expired for request to: {}", path);
-                Err(GatewayError::AuthenticationFailed("Token expired".to_string()))
+                Err(GatewayError::AuthenticationFailed(
+                    "Token expired".to_string(),
+                ))
             }
             Err(SecurityError::InvalidToken(msg)) => {
                 warn!("Invalid token for request to {}: {}", path, msg);
-                Err(GatewayError::AuthenticationFailed(format!("Invalid token: {}", msg)))
+                Err(GatewayError::AuthenticationFailed(format!(
+                    "Invalid token: {}",
+                    msg
+                )))
             }
             Err(e) => {
                 error!("Authentication error for request to {}: {}", path, e);
@@ -101,82 +102,31 @@ impl AuthService {
 
     /// Extract JWT token from Authorization header
     fn extract_token_from_request(&self, req: &ServiceRequest) -> Result<String, GatewayError> {
-        let auth_header = req
-            .headers()
-            .get("Authorization")
-            .ok_or_else(|| GatewayError::AuthenticationFailed("Missing Authorization header".to_string()))?;
+        let auth_header = req.headers().get("Authorization").ok_or_else(|| {
+            GatewayError::AuthenticationFailed("Missing Authorization header".to_string())
+        })?;
 
-        let auth_str = auth_header
-            .to_str()
-            .map_err(|_| GatewayError::AuthenticationFailed("Invalid Authorization header format".to_string()))?;
+        let auth_str = auth_header.to_str().map_err(|_| {
+            GatewayError::AuthenticationFailed("Invalid Authorization header format".to_string())
+        })?;
 
         if !auth_str.starts_with("Bearer ") {
-            return Err(GatewayError::AuthenticationFailed("Invalid Authorization header format".to_string()));
+            return Err(GatewayError::AuthenticationFailed(
+                "Invalid Authorization header format".to_string(),
+            ));
         }
 
         let token = auth_str.trim_start_matches("Bearer ").trim();
         if token.is_empty() {
-            return Err(GatewayError::AuthenticationFailed("Empty token".to_string()));
+            return Err(GatewayError::AuthenticationFailed(
+                "Empty token".to_string(),
+            ));
         }
 
         Ok(token.to_string())
     }
 
-    /// Convert JWT claims to UserClaims struct
-    fn claims_to_user_claims(&self, claims: serde_json::Map<String, serde_json::Value>) -> Result<UserClaims, GatewayError> {
-        let user_id = claims
-            .get("user_id")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| GatewayError::AuthenticationFailed("Missing user_id in token".to_string()))?
-            .to_string();
 
-        let email = claims
-            .get("email")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| GatewayError::AuthenticationFailed("Missing email in token".to_string()))?
-            .to_string();
-
-        let roles = claims
-            .get("roles")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .collect()
-            })
-            .unwrap_or_default();
-
-        let permissions = claims
-            .get("permissions")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .collect()
-            })
-            .unwrap_or_default();
-
-        let exp = claims
-            .get("exp")
-            .and_then(|v| v.as_i64())
-            .ok_or_else(|| GatewayError::AuthenticationFailed("Missing exp in token".to_string()))?;
-
-        let iat = claims
-            .get("iat")
-            .and_then(|v| v.as_i64())
-            .ok_or_else(|| GatewayError::AuthenticationFailed("Missing iat in token".to_string()))?;
-
-        Ok(UserClaims {
-            user_id,
-            email,
-            roles,
-            permissions,
-            exp,
-            iat,
-        })
-    }
 
     /// Check if user has required permission
     pub fn check_permission(&self, user_claims: &UserClaims, required_permission: &str) -> bool {
@@ -186,7 +136,9 @@ impl AuthService {
         }
 
         // Check specific permission
-        user_claims.permissions.contains(&required_permission.to_string())
+        user_claims
+            .permissions
+            .contains(&required_permission.to_string())
     }
 
     /// Check if user has required role
@@ -253,31 +205,35 @@ impl AuthService {
     }
 
     /// Authorize request based on user claims and route requirements
-    pub fn authorize_request(&self, user_claims: &UserClaims, method: &str, path: &str) -> Result<(), GatewayError> {
+    pub fn authorize_request(
+        &self,
+        user_claims: &UserClaims,
+        method: &str,
+        path: &str,
+    ) -> Result<(), GatewayError> {
         let required_permissions = self.get_route_permissions(method, path);
 
         for permission in required_permissions {
             if !self.check_permission(user_claims, &permission) {
                 warn!(
                     "User {} lacks permission {} for {} {}",
-                    user_claims.user_id, permission, method, path
+                    user_claims.sub, permission, method, path
                 );
-                return Err(GatewayError::AuthenticationFailed(
-                    format!("Insufficient permissions: {}", permission)
-                ));
+                return Err(GatewayError::AuthenticationFailed(format!(
+                    "Insufficient permissions: {}",
+                    permission
+                )));
             }
         }
 
         debug!(
             "User {} authorized for {} {}",
-            user_claims.user_id, method, path
+            user_claims.sub, method, path
         );
 
         Ok(())
     }
 }
-
-
 
 /// Extract user claims from request extensions
 pub fn get_user_claims(req: &HttpRequest) -> Option<UserClaims> {
@@ -287,8 +243,8 @@ pub fn get_user_claims(req: &HttpRequest) -> Option<UserClaims> {
 /// Check if current user has specific permission
 pub fn has_permission(req: &HttpRequest, permission: &str) -> bool {
     if let Some(claims) = get_user_claims(req) {
-        claims.permissions.contains(&permission.to_string()) || 
-        claims.roles.contains(&"admin".to_string())
+        claims.permissions.contains(&permission.to_string())
+            || claims.roles.contains(&"admin".to_string())
     } else {
         false
     }
@@ -323,7 +279,7 @@ mod tests {
     #[test]
     fn test_is_public_route() {
         let auth_service = create_test_auth_service();
-        
+
         assert!(auth_service.is_public_route("/health"));
         assert!(auth_service.is_public_route("/auth/login"));
         assert!(auth_service.is_public_route("/docs/api"));
@@ -333,10 +289,10 @@ mod tests {
     #[test]
     fn test_get_route_permissions() {
         let auth_service = create_test_auth_service();
-        
+
         let permissions = auth_service.get_route_permissions("GET", "/api/v1/assets");
         assert!(permissions.contains(&"assets:read".to_string()));
-        
+
         let permissions = auth_service.get_route_permissions("POST", "/api/v1/payments");
         assert!(permissions.contains(&"payments:create".to_string()));
     }
@@ -344,7 +300,7 @@ mod tests {
     #[test]
     fn test_check_permission() {
         let auth_service = create_test_auth_service();
-        
+
         let user_claims = UserClaims {
             user_id: "test_user".to_string(),
             email: "test@example.com".to_string(),
@@ -353,10 +309,10 @@ mod tests {
             exp: 9999999999,
             iat: 1000000000,
         };
-        
+
         assert!(auth_service.check_permission(&user_claims, "assets:read"));
         assert!(!auth_service.check_permission(&user_claims, "assets:delete"));
-        
+
         // Test admin role
         let admin_claims = UserClaims {
             user_id: "admin_user".to_string(),
@@ -366,7 +322,7 @@ mod tests {
             exp: 9999999999,
             iat: 1000000000,
         };
-        
+
         assert!(auth_service.check_permission(&admin_claims, "assets:delete"));
     }
 }

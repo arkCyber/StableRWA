@@ -5,7 +5,7 @@
 // =====================================================================================
 
 use chrono::{DateTime, Utc};
-use fake::{Fake, Faker};
+use fake::Fake;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -34,7 +34,8 @@ impl UserFixture {
             email: fake::faker::internet::en::SafeEmail().fake(),
             first_name: fake::faker::name::en::FirstName().fake(),
             last_name: fake::faker::name::en::LastName().fake(),
-            password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/RK.s5uIoO".to_string(), // "password"
+            password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/RK.s5uIoO"
+                .to_string(), // "password"
             is_active: true,
             is_verified: fake::faker::boolean::en::Boolean(70).fake(), // 70% chance of being verified
             created_at: now,
@@ -90,13 +91,19 @@ impl AssetFixture {
         let asset_types = ["real_estate", "art", "collectible", "commodity", "vehicle"];
         let currencies = ["USD", "EUR", "GBP", "JPY"];
         let networks = ["ethereum", "solana", "polkadot"];
-        
+
         let mut rng = rand::thread_rng();
         let is_tokenized = rng.gen_bool(0.3); // 30% chance of being tokenized
-        
+
         let mut metadata = HashMap::new();
-        metadata.insert("category".to_string(), serde_json::Value::String("investment".to_string()));
-        metadata.insert("risk_level".to_string(), serde_json::Value::String("medium".to_string()));
+        metadata.insert(
+            "category".to_string(),
+            serde_json::Value::String("investment".to_string()),
+        );
+        metadata.insert(
+            "risk_level".to_string(),
+            serde_json::Value::String("medium".to_string()),
+        );
 
         Self {
             id: Uuid::new_v4().to_string(),
@@ -108,7 +115,10 @@ impl AssetFixture {
             owner_id: Uuid::new_v4().to_string(),
             is_tokenized,
             token_address: if is_tokenized {
-                Some(format!("0x{}", fake::faker::lorem::en::Word().fake::<String>().repeat(8)))
+                Some(format!(
+                    "0x{}",
+                    fake::faker::lorem::en::Word().fake::<String>().repeat(8)
+                ))
             } else {
                 None
             },
@@ -134,7 +144,10 @@ impl AssetFixture {
     pub fn tokenized() -> Self {
         let mut asset = Self::generate();
         asset.is_tokenized = true;
-        asset.token_address = Some(format!("0x{}", fake::faker::lorem::en::Word().fake::<String>().repeat(8)));
+        asset.token_address = Some(format!(
+            "0x{}",
+            fake::faker::lorem::en::Word().fake::<String>().repeat(8)
+        ));
         asset.blockchain_network = Some("ethereum".to_string());
         asset
     }
@@ -171,26 +184,54 @@ impl TransactionFixture {
         let now = Utc::now();
         let networks = ["ethereum", "solana", "polkadot"];
         let statuses = ["pending", "confirmed", "failed"];
-        
+
         let mut rng = rand::thread_rng();
         let status = statuses[rng.gen_range(0..statuses.len())];
-        
+
         let mut metadata = HashMap::new();
-        metadata.insert("gas_used".to_string(), serde_json::Value::Number(serde_json::Number::from(21000)));
+        metadata.insert(
+            "gas_used".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(21000)),
+        );
 
         Self {
             id: Uuid::new_v4().to_string(),
-            transaction_hash: format!("0x{}", fake::faker::lorem::en::Word().fake::<String>().repeat(16)),
+            transaction_hash: format!(
+                "0x{}",
+                fake::faker::lorem::en::Word().fake::<String>().repeat(16)
+            ),
             blockchain_network: networks[rng.gen_range(0..networks.len())].to_string(),
-            from_address: format!("0x{}", fake::faker::lorem::en::Word().fake::<String>().repeat(8)),
-            to_address: format!("0x{}", fake::faker::lorem::en::Word().fake::<String>().repeat(8)),
+            from_address: format!(
+                "0x{}",
+                fake::faker::lorem::en::Word().fake::<String>().repeat(8)
+            ),
+            to_address: format!(
+                "0x{}",
+                fake::faker::lorem::en::Word().fake::<String>().repeat(8)
+            ),
             amount: rng.gen_range(0.001..1000.0),
             fee: rng.gen_range(0.0001..0.1),
             status: status.to_string(),
-            block_number: if status == "confirmed" { Some(rng.gen_range(1000000..2000000)) } else { None },
-            confirmations: if status == "confirmed" { rng.gen_range(1..100) } else { 0 },
-            asset_id: if rng.gen_bool(0.5) { Some(Uuid::new_v4().to_string()) } else { None },
-            user_id: if rng.gen_bool(0.8) { Some(Uuid::new_v4().to_string()) } else { None },
+            block_number: if status == "confirmed" {
+                Some(rng.gen_range(1000000..2000000))
+            } else {
+                None
+            },
+            confirmations: if status == "confirmed" {
+                rng.gen_range(1..100)
+            } else {
+                0
+            },
+            asset_id: if rng.gen_bool(0.5) {
+                Some(Uuid::new_v4().to_string())
+            } else {
+                None
+            },
+            user_id: if rng.gen_bool(0.8) {
+                Some(Uuid::new_v4().to_string())
+            } else {
+                None
+            },
             metadata,
             created_at: now,
             updated_at: now,
@@ -244,12 +285,15 @@ impl PaymentFixture {
         let currencies = ["USD", "EUR", "GBP"];
         let methods = ["credit_card", "bank_transfer", "crypto"];
         let statuses = ["pending", "completed", "failed", "cancelled"];
-        
+
         let mut rng = rand::thread_rng();
         let status = statuses[rng.gen_range(0..statuses.len())];
-        
+
         let mut metadata = HashMap::new();
-        metadata.insert("processor".to_string(), serde_json::Value::String("stripe".to_string()));
+        metadata.insert(
+            "processor".to_string(),
+            serde_json::Value::String("stripe".to_string()),
+        );
 
         Self {
             id: Uuid::new_v4().to_string(),
@@ -260,7 +304,10 @@ impl PaymentFixture {
             payment_method: methods[rng.gen_range(0..methods.len())].to_string(),
             status: status.to_string(),
             transaction_id: if status == "completed" {
-                Some(format!("tx_{}", fake::faker::lorem::en::Word().fake::<String>()))
+                Some(format!(
+                    "tx_{}",
+                    fake::faker::lorem::en::Word().fake::<String>()
+                ))
             } else {
                 None
             },
@@ -274,7 +321,10 @@ impl PaymentFixture {
     pub fn completed() -> Self {
         let mut payment = Self::generate();
         payment.status = "completed".to_string();
-        payment.transaction_id = Some(format!("tx_{}", fake::faker::lorem::en::Word().fake::<String>()));
+        payment.transaction_id = Some(format!(
+            "tx_{}",
+            fake::faker::lorem::en::Word().fake::<String>()
+        ));
         payment
     }
 
@@ -334,18 +384,20 @@ impl FixtureBuilder {
     /// Add payments for existing users and assets
     pub fn with_payments_for_users(mut self, payments_per_user: usize) -> Self {
         for user in &self.users {
-            let user_assets: Vec<_> = self.assets.iter()
+            let user_assets: Vec<_> = self
+                .assets
+                .iter()
                 .filter(|a| a.owner_id == user.id)
                 .collect();
-            
+
             for _ in 0..payments_per_user {
                 let mut payment = PaymentFixture::generate();
                 payment.user_id = user.id.clone();
-                
+
                 if let Some(asset) = user_assets.first() {
                     payment.asset_id = asset.id.clone();
                 }
-                
+
                 self.payments.push(payment);
             }
         }
@@ -435,10 +487,10 @@ mod tests {
             .with_users(2)
             .with_assets_for_users(1)
             .build();
-        
+
         assert_eq!(fixtures.users.len(), 2);
         assert_eq!(fixtures.assets.len(), 2);
-        
+
         // Check that assets are owned by the generated users
         for asset in &fixtures.assets {
             assert!(fixtures.users.iter().any(|u| u.id == asset.owner_id));

@@ -1,37 +1,37 @@
 // =====================================================================================
 // Decentralized Identity (DID) System for RWA Platform
-// 
+//
 // This module provides W3C DID specification compliant decentralized identity
 // management including DID documents, verifiable credentials, and identity verification.
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
+pub mod credential;
 pub mod did;
 pub mod document;
-pub mod resolver;
-pub mod verifier;
-pub mod credential;
+pub mod error;
 pub mod key_manager;
 pub mod registry;
-pub mod error;
-pub mod utils;
+pub mod resolver;
 pub mod service;
+pub mod utils;
+pub mod verifier;
 
 // Re-export main types and traits
+pub use credential::*;
 pub use did::*;
 pub use document::*;
-pub use resolver::*;
-pub use verifier::*;
-pub use credential::*;
+pub use error::*;
 pub use key_manager::*;
 pub use registry::*;
-pub use error::*;
-pub use utils::*;
+pub use resolver::*;
 pub use service::*;
+pub use utils::*;
+pub use verifier::*;
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
 
 /// DID method identifier for RWA platform
 pub const DID_METHOD: &str = "rwa";
@@ -83,25 +83,34 @@ pub type DidResult<T> = Result<T, DidError>;
 pub trait DidService: Send + Sync {
     /// Create a new DID
     async fn create_did(&self, controller: Option<String>) -> DidResult<DidDocument>;
-    
+
     /// Resolve a DID to its document
     async fn resolve_did(&self, did: &str) -> DidResult<DidDocument>;
-    
+
     /// Update a DID document
     async fn update_did(&self, did: &str, document: DidDocument) -> DidResult<()>;
-    
+
     /// Deactivate a DID
     async fn deactivate_did(&self, did: &str) -> DidResult<()>;
-    
+
     /// Issue a verifiable credential
-    async fn issue_credential(&self, issuer_did: &str, subject_did: &str, claims: HashMap<String, serde_json::Value>) -> DidResult<VerifiableCredential>;
-    
+    async fn issue_credential(
+        &self,
+        issuer_did: &str,
+        subject_did: &str,
+        claims: HashMap<String, serde_json::Value>,
+    ) -> DidResult<VerifiableCredential>;
+
     /// Verify a verifiable credential
     async fn verify_credential(&self, credential: &VerifiableCredential) -> DidResult<bool>;
-    
+
     /// Create a verifiable presentation
-    async fn create_presentation(&self, holder_did: &str, credentials: Vec<VerifiableCredential>) -> DidResult<VerifiablePresentation>;
-    
+    async fn create_presentation(
+        &self,
+        holder_did: &str,
+        credentials: Vec<VerifiableCredential>,
+    ) -> DidResult<VerifiablePresentation>;
+
     /// Verify a verifiable presentation
     async fn verify_presentation(&self, presentation: &VerifiablePresentation) -> DidResult<bool>;
 }

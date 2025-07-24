@@ -1,0 +1,74 @@
+[package]
+name = "core-stablecoin"
+version = "0.1.0"
+edition = "2021"
+authors = ["arkSong <arksong2018@gmail.com>"]
+description = "Enterprise-grade stablecoin management system for StableRWA platform"
+license = "MIT"
+repository = "https://github.com/arkSong/StableRWA"
+keywords = ["stablecoin", "defi", "rwa", "blockchain", "rust"]
+categories = ["cryptography::cryptocurrencies", "finance"]
+
+[dependencies]
+# Async runtime
+tokio = { workspace = true }
+async-trait = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Decimal arithmetic
+rust_decimal = { workspace = true }
+rust_decimal_macros = "1.32"
+
+# Date and time
+chrono = { workspace = true }
+
+# UUID generation
+uuid = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# HTTP client
+reqwest = { workspace = true }
+
+# Database
+sqlx = { workspace = true, optional = true }
+
+# Blockchain integration
+ethers = { workspace = true, optional = true }
+
+# Internal dependencies
+core-utils = { path = "../core-utils" }
+core-security = { path = "../core-security" }
+core-compliance = { path = "../core-compliance" }
+# core-risk-management = { path = "../core-risk-management" }
+# core-defi = { path = "../core-defi" }
+# core-blockchain = { path = "../core-blockchain" }
+# core-analytics = { path = "../core-analytics" }
+
+[dev-dependencies]
+tokio-test = "0.4"
+mockall = "0.12"
+fake = { version = "2.9", features = ["derive", "chrono", "uuid"] }
+futures = "0.3"
+
+[features]
+default = ["database", "blockchain"]
+database = ["sqlx"]
+blockchain = ["ethers"]
+testing = []
+
+[[example]]
+name = "basic_stablecoin"
+path = "examples/basic_stablecoin.rs"
+
+[[example]]
+name = "rwa_backed_stablecoin"
+path = "examples/rwa_backed_stablecoin.rs"

@@ -5,21 +5,17 @@
 // Framework: StableRWA - AI-Powered Enterprise RWA Tokenization Technology Framework Platform
 // =====================================================================================
 
-use crate::{AppState, models::*};
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::Json,
-};
+use crate::{models::*, AppState};
+use axum::{extract::State, http::StatusCode, response::Json};
 use serde_json::{json, Value};
-use tracing::{info, error, instrument};
+use tracing::{error, info, instrument};
 use uuid::Uuid;
 
 /// Health check endpoint
 #[instrument(skip(state))]
 pub async fn health_check(State(state): State<AppState>) -> Result<Json<Value>, StatusCode> {
     info!("Health check requested");
-    
+
     match state.ai_service.health_check().await {
         Ok(_) => {
             let response = json!({
@@ -49,8 +45,11 @@ pub async fn ai_complete(
     State(state): State<AppState>,
     Json(request): Json<CompletionRequest>,
 ) -> Result<Json<CompletionResponse>, StatusCode> {
-    info!("AI completion requested for prompt: {}", &request.prompt[..50.min(request.prompt.len())]);
-    
+    info!(
+        "AI completion requested for prompt: {}",
+        &request.prompt[..50.min(request.prompt.len())]
+    );
+
     // Validate request
     if request.prompt.trim().is_empty() {
         error!("Empty prompt provided");
@@ -58,24 +57,36 @@ pub async fn ai_complete(
     }
 
     // Record metrics
-    state.metrics.increment_counter("ai_requests_total", &[("endpoint", "complete")]);
+    state
+        .metrics
+        .increment_counter("ai_requests_total", &[("endpoint", "complete")]);
     let start_time = std::time::Instant::now();
 
     // Process the AI request
     match process_ai_completion(&state, request).await {
         Ok(response) => {
             let duration = start_time.elapsed();
-            state.metrics.record_histogram("ai_request_duration_seconds", duration.as_secs_f64(), &[("endpoint", "complete")]);
-            state.metrics.increment_counter("ai_requests_success_total", &[("endpoint", "complete")]);
-            
+            state.metrics.record_histogram(
+                "ai_request_duration_seconds",
+                duration.as_secs_f64(),
+            );
+            state
+                .metrics
+                .increment_counter("ai_requests_success_total", &[("endpoint", "complete")]);
+
             info!("AI completion successful in {:?}", duration);
             Ok(Json(response))
         }
         Err(e) => {
             let duration = start_time.elapsed();
-            state.metrics.record_histogram("ai_request_duration_seconds", duration.as_secs_f64(), &[("endpoint", "complete")]);
-            state.metrics.increment_counter("ai_requests_error_total", &[("endpoint", "complete")]);
-            
+            state.metrics.record_histogram(
+                "ai_request_duration_seconds",
+                duration.as_secs_f64(),
+            );
+            state
+                .metrics
+                .increment_counter("ai_requests_error_total", &[("endpoint", "complete")]);
+
             error!("AI completion failed: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
@@ -86,7 +97,7 @@ pub async fn ai_complete(
 #[instrument(skip(state))]
 pub async fn ai_model(State(state): State<AppState>) -> Result<Json<Value>, StatusCode> {
     info!("AI model info requested");
-    
+
     let model_info = json!({
         "service": "StableRWA AI Service",
         "version": env!("CARGO_PKG_VERSION"),
@@ -110,7 +121,7 @@ pub async fn ai_model(State(state): State<AppState>) -> Result<Json<Value>, Stat
         ],
         "status": "available"
     });
-    
+
     Ok(Json(model_info))
 }
 
@@ -118,7 +129,7 @@ pub async fn ai_model(State(state): State<AppState>) -> Result<Json<Value>, Stat
 #[instrument(skip(state))]
 pub async fn metrics(State(state): State<AppState>) -> Result<String, StatusCode> {
     info!("Metrics requested");
-    
+
     match state.metrics.export_metrics() {
         Ok(metrics_text) => Ok(metrics_text),
         Err(e) => {
@@ -147,7 +158,7 @@ async fn process_ai_completion(
         };
 
         let openai_response = openai_client.complete(openai_request).await?;
-        
+
         Ok(CompletionResponse {
             id: request_id,
             content: openai_response.content,
@@ -217,7 +228,7 @@ mod tests {
             max_tokens: None,
             temperature: None,
         };
-        
+
         let result = ai_complete(State(state), Json(request)).await;
         assert!(result.is_err());
     }
@@ -231,7 +242,7 @@ mod tests {
             max_tokens: Some(100),
             temperature: Some(0.7),
         };
-        
+
         let result = ai_complete(State(state), Json(request)).await;
         assert!(result.is_ok());
     }
@@ -241,9 +252,12 @@ mod tests {
         let state = create_test_state();
         let result = ai_model(State(state)).await;
         assert!(result.is_ok());
-        
+
         if let Ok(Json(model_info)) = result {
-            assert!(model_info["service"].as_str().unwrap().contains("StableRWA"));
+            assert!(model_info["service"]
+                .as_str()
+                .unwrap()
+                .contains("StableRWA"));
             assert!(model_info["models"].is_array());
         }
     }

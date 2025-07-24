@@ -5,11 +5,11 @@
 // =====================================================================================
 
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 use crate::{
     error::{BridgeError, BridgeResult},
@@ -44,13 +44,13 @@ pub struct LiquidityConfig {
 impl Default for LiquidityConfig {
     fn default() -> Self {
         Self {
-            min_pool_size: Decimal::new(10000000, 2), // $100,000
-            max_pool_size: Decimal::new(10000000000, 2), // $100,000,000
-            lp_fee_percentage: Decimal::new(30, 4), // 0.30%
-            protocol_fee_percentage: Decimal::new(5, 4), // 0.05%
-            min_provision_amount: Decimal::new(100000, 2), // $1,000
+            min_pool_size: Decimal::new(10000000, 2),         // $100,000
+            max_pool_size: Decimal::new(10000000000, 2),      // $100,000,000
+            lp_fee_percentage: Decimal::new(30, 4),           // 0.30%
+            protocol_fee_percentage: Decimal::new(5, 4),      // 0.05%
+            min_provision_amount: Decimal::new(100000, 2),    // $1,000
             max_provision_amount: Decimal::new(100000000, 2), // $1,000,000
-            rebalancing_threshold: Decimal::new(500, 4), // 5.00%
+            rebalancing_threshold: Decimal::new(500, 4),      // 5.00%
             auto_rebalancing: true,
             impermanent_loss_protection: true,
             yield_farming_enabled: true,
@@ -176,25 +176,32 @@ pub struct PoolStatistics {
 pub trait LiquidityService: Send + Sync {
     /// Add liquidity to a pool
     async fn add_liquidity(&self, request: LiquidityRequest) -> BridgeResult<LiquidityPosition>;
-    
+
     /// Remove liquidity from a pool
     async fn remove_liquidity(&self, request: WithdrawalRequest) -> BridgeResult<WithdrawalResult>;
-    
+
     /// Get liquidity position
-    async fn get_position(&self, provider_id: &str, pool_id: Uuid) -> BridgeResult<Option<LiquidityPosition>>;
-    
+    async fn get_position(
+        &self,
+        provider_id: &str,
+        pool_id: Uuid,
+    ) -> BridgeResult<Option<LiquidityPosition>>;
+
     /// Get all positions for a provider
-    async fn get_provider_positions(&self, provider_id: &str) -> BridgeResult<Vec<LiquidityPosition>>;
-    
+    async fn get_provider_positions(
+        &self,
+        provider_id: &str,
+    ) -> BridgeResult<Vec<LiquidityPosition>>;
+
     /// Get pool information
     async fn get_pool(&self, pool_id: Uuid) -> BridgeResult<Option<LiquidityPool>>;
-    
+
     /// Get all available pools
     async fn get_pools(&self, chain_id: Option<ChainId>) -> BridgeResult<Vec<LiquidityPool>>;
-    
+
     /// Get pool statistics
     async fn get_pool_statistics(&self, pool_id: Uuid) -> BridgeResult<PoolStatistics>;
-    
+
     /// Calculate optimal liquidity amounts
     async fn calculate_optimal_amounts(
         &self,
@@ -202,7 +209,7 @@ pub trait LiquidityService: Send + Sync {
         desired_amount_a: Decimal,
         desired_amount_b: Decimal,
     ) -> BridgeResult<OptimalAmounts>;
-    
+
     /// Estimate liquidity provision returns
     async fn estimate_returns(
         &self,
@@ -211,10 +218,10 @@ pub trait LiquidityService: Send + Sync {
         amount_b: Decimal,
         duration_days: u32,
     ) -> BridgeResult<ReturnEstimate>;
-    
+
     /// Rebalance pool if needed
     async fn rebalance_pool(&self, pool_id: Uuid) -> BridgeResult<RebalanceResult>;
-    
+
     /// Health check
     async fn health_check(&self) -> BridgeResult<LiquidityHealthStatus>;
 }
@@ -291,7 +298,7 @@ mod tests {
             "USDC".to_string(),
             "ETH".to_string(),
             Decimal::new(100000, 6), // 100 USDC
-            Decimal::new(1, 18), // 1 ETH
+            Decimal::new(1, 18),     // 1 ETH
         )
         .with_min_amounts(Decimal::new(99000, 6), Decimal::new(99, 20))
         .with_slippage(Decimal::new(50, 4)); // 0.5%

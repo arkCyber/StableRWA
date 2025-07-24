@@ -5,59 +5,46 @@
 // =====================================================================================
 
 //! # Core Oracle Module
-//! 
+//!
 //! This module provides comprehensive oracle and price data services for the StableRWA
 //! platform, integrating with major oracle providers like Chainlink, Band Protocol,
 //! Pyth Network, and UMA.
 
-pub mod error;
-pub mod types;
-pub mod chainlink;
-pub mod band;
-pub mod pyth;
-pub mod uma;
-pub mod tellor;
-pub mod api3;
-pub mod dia;
 pub mod aggregator;
-pub mod validator;
-pub mod feed_manager;
-pub mod price_calculator;
+pub mod band;
+pub mod chainlink;
+pub mod error;
+pub mod pyth;
 pub mod service;
+pub mod types;
 
 // Re-export main types and traits
-pub use error::{OracleError, OracleResult};
-pub use types::{
-    PriceFeed, PriceData, OracleProvider, DataSource, FeedConfig,
-    PricePoint, TimeSeriesData, AggregationMethod, ValidationRule
-};
-pub use chainlink::{ChainlinkOracle, ChainlinkFeed, ChainlinkAggregator};
-pub use band::{BandOracle, BandFeed, BandRequest};
-pub use pyth::{PythOracle, PythFeed, PythPrice};
-pub use uma::{UMAOracle, UMARequest, UMAProposal};
 pub use aggregator::{
-    PriceAggregator, WeightedAggregator, MedianAggregator,
-    TWAPAggregator, VWAPAggregator
+    AggregationResult, ConsensusMethod, MultiSourceAggregator, OutlierDetectionResult,
+    PriceAggregator,
 };
-pub use validator::{
-    PriceValidator, DeviationValidator, FreshnessValidator,
-    CircuitBreakerValidator, SanityCheckValidator
+pub use band::{BandFeed, BandOracle, BandOracleScript, BandPriceResponse, BandRequest};
+pub use chainlink::{
+    ChainlinkAggregator, ChainlinkFeed, ChainlinkNetwork, ChainlinkOracle, ChainlinkPriceResponse,
+    ChainlinkRoundData,
 };
-pub use feed_manager::{
-    FeedManager, FeedSubscription, FeedUpdate,
-    RealTimeFeed, HistoricalFeed
+pub use error::{OracleError, OracleResult};
+pub use pyth::{PythFeed, PythOracle, PythPrice, PythPriceData, PythPriceFeedResponse};
+pub use service::{
+    HistoricalQuery, MockProviderClient, OracleService, OracleServiceImpl, PriceQuery,
+    ProviderClient,
 };
-pub use price_calculator::{
-    PriceCalculator, VolatilityCalculator, CorrelationCalculator,
-    TechnicalIndicators, RiskMetrics
+pub use types::{
+    AggregationMethod, AlertSeverity, AlertType, DataSource, FeedConfig, OracleConfig,
+    OracleHealthStatus, OracleProvider, PriceData, PriceFeed, PricePoint, ProviderConfig,
+    TimeSeriesData, ValidationRule,
 };
-pub use service::OracleService;
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 /// Main Oracle service configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -123,7 +110,7 @@ pub struct GlobalOracleSettings {
 impl Default for GlobalOracleSettings {
     fn default() -> Self {
         Self {
-            default_staleness_threshold: 3600, // 1 hour
+            default_staleness_threshold: 3600,          // 1 hour
             max_price_deviation: Decimal::new(1000, 4), // 10%
             min_sources_for_aggregation: 3,
             enable_circuit_breaker: true,
@@ -177,212 +164,6 @@ pub struct OracleHealthStatus {
     pub feed_manager_status: String,
     pub provider_statuses: HashMap<String, String>,
     pub last_check: DateTime<Utc>,
-}
-
-// Stub modules for compilation
-pub mod chainlink {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct ChainlinkConfig {
-        pub node_url: String,
-        pub api_key: String,
-        pub supported_feeds: Vec<String>,
-    }
-    
-    impl Default for ChainlinkConfig {
-        fn default() -> Self {
-            Self {
-                node_url: "https://api.chain.link".to_string(),
-                api_key: "".to_string(),
-                supported_feeds: vec![
-                    "ETH/USD".to_string(),
-                    "BTC/USD".to_string(),
-                    "USDC/USD".to_string(),
-                ],
-            }
-        }
-    }
-    
-    pub struct ChainlinkOracle;
-    pub struct ChainlinkFeed;
-    pub struct ChainlinkAggregator;
-}
-
-pub mod band {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct BandConfig {
-        pub api_url: String,
-        pub chain_id: String,
-        pub supported_symbols: Vec<String>,
-    }
-    
-    impl Default for BandConfig {
-        fn default() -> Self {
-            Self {
-                api_url: "https://api.bandprotocol.com".to_string(),
-                chain_id: "band-laozi-mainnet".to_string(),
-                supported_symbols: vec![
-                    "BTC".to_string(),
-                    "ETH".to_string(),
-                    "USDT".to_string(),
-                ],
-            }
-        }
-    }
-    
-    pub struct BandOracle;
-    pub struct BandFeed;
-    pub struct BandRequest;
-}
-
-pub mod pyth {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct PythConfig {
-        pub network_url: String,
-        pub program_id: String,
-        pub supported_products: Vec<String>,
-    }
-    
-    impl Default for PythConfig {
-        fn default() -> Self {
-            Self {
-                network_url: "https://api.pythnetwork.com".to_string(),
-                program_id: "FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH".to_string(),
-                supported_products: vec![
-                    "Crypto.BTC/USD".to_string(),
-                    "Crypto.ETH/USD".to_string(),
-                    "Crypto.SOL/USD".to_string(),
-                ],
-            }
-        }
-    }
-    
-    pub struct PythOracle;
-    pub struct PythFeed;
-    pub struct PythPrice;
-}
-
-pub mod uma {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct UMAConfig {
-        pub optimistic_oracle_address: String,
-        pub voting_token_address: String,
-        pub minimum_bond: Decimal,
-    }
-    
-    impl Default for UMAConfig {
-        fn default() -> Self {
-            Self {
-                optimistic_oracle_address: "0x...".to_string(),
-                voting_token_address: "0x...".to_string(),
-                minimum_bond: Decimal::new(1000, 2), // $10
-            }
-        }
-    }
-    
-    pub struct UMAOracle;
-    pub struct UMARequest;
-    pub struct UMAProposal;
-}
-
-pub mod aggregator {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct AggregationConfig {
-        pub default_method: AggregationMethod,
-        pub outlier_detection: bool,
-        pub weight_by_reliability: bool,
-    }
-    
-    impl Default for AggregationConfig {
-        fn default() -> Self {
-            Self {
-                default_method: AggregationMethod::WeightedAverage,
-                outlier_detection: true,
-                weight_by_reliability: true,
-            }
-        }
-    }
-    
-    pub struct PriceAggregator;
-    pub struct WeightedAggregator;
-    pub struct MedianAggregator;
-    pub struct TWAPAggregator;
-    pub struct VWAPAggregator;
-}
-
-pub mod validator {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct ValidationConfig {
-        pub enable_deviation_check: bool,
-        pub enable_freshness_check: bool,
-        pub enable_sanity_check: bool,
-        pub max_deviation_percentage: Decimal,
-    }
-    
-    impl Default for ValidationConfig {
-        fn default() -> Self {
-            Self {
-                enable_deviation_check: true,
-                enable_freshness_check: true,
-                enable_sanity_check: true,
-                max_deviation_percentage: Decimal::new(500, 4), // 5%
-            }
-        }
-    }
-    
-    pub struct PriceValidator;
-    pub struct DeviationValidator;
-    pub struct FreshnessValidator;
-    pub struct CircuitBreakerValidator;
-    pub struct SanityCheckValidator;
-}
-
-pub mod feed_manager {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct FeedConfig {
-        pub max_concurrent_feeds: u32,
-        pub update_batch_size: u32,
-        pub retry_attempts: u32,
-    }
-    
-    impl Default for FeedConfig {
-        fn default() -> Self {
-            Self {
-                max_concurrent_feeds: 100,
-                update_batch_size: 10,
-                retry_attempts: 3,
-            }
-        }
-    }
-    
-    pub struct FeedManager;
-    pub struct FeedSubscription;
-    pub struct FeedUpdate;
-    pub struct RealTimeFeed;
-    pub struct HistoricalFeed;
-}
-
-pub mod price_calculator {
-    use super::*;
-    
-    pub struct PriceCalculator;
-    pub struct VolatilityCalculator;
-    pub struct CorrelationCalculator;
-    pub struct TechnicalIndicators;
-    pub struct RiskMetrics;
 }
 
 #[cfg(test)]

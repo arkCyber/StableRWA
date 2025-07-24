@@ -6,18 +6,53 @@
 // =====================================================================================
 
 pub mod auth;
+pub mod health;
 pub mod middleware;
 pub mod proxy;
 pub mod rate_limit;
 pub mod routing;
-pub mod health;
 
 use actix_web::{web, App, HttpServer, Result as ActixResult};
-use core_utils::config::Config;
 use core_security::SecurityError;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use thiserror::Error;
-use tracing::{info, error};
+use tracing::{error, info};
+
+/// Gateway configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Config {
+    pub server: ServerConfig,
+    pub services: Vec<ServiceConfig>,
+    pub rate_limiting: RateLimitConfig,
+    pub auth: AuthConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServerConfig {
+    pub host: String,
+    pub port: u16,
+    pub workers: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServiceConfig {
+    pub name: String,
+    pub upstream_url: String,
+    pub health_check_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RateLimitConfig {
+    pub requests_per_minute: u32,
+    pub burst_size: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthConfig {
+    pub jwt_secret: String,
+    pub token_expiry_hours: u64,
+}
 
 /// Gateway-specific errors
 #[derive(Error, Debug)]
@@ -51,16 +86,46 @@ pub struct GatewayState {
     pub config: Config,
     pub service_registry: Arc<routing::ServiceRegistry>,
     pub rate_limiter: Arc<rate_limit::RateLimiter>,
+    pub metrics: Arc<GatewayMetrics>,
+}
+
+/// Gateway metrics collector
+pub struct GatewayMetrics {
+    pub http_requests_total: prometheus::IntCounterVec,
+    pub http_request_duration: prometheus::HistogramVec,
+}
+
+impl GatewayMetrics {
+    pub fn new() -> prometheus::Result<Self> {
+        let http_requests_total = prometheus::IntCounterVec::new(
+            prometheus::Opts::new("gateway_http_requests_total", "Total HTTP requests"),
+            &["method", "endpoint", "status"]
+        )?;
+
+        let http_request_duration = prometheus::HistogramVec::new(
+            prometheus::HistogramOpts::new("gateway_http_request_duration_seconds", "HTTP request duration"),
+            &["method", "endpoint"]
+        )?;
+
+        Ok(Self {
+            http_requests_total,
+            http_request_duration,
+        })
+    }
 }
 
 /// Create and configure the gateway application
-pub fn create_app(state: web::Data<GatewayState>) -> App<impl actix_web::dev::ServiceFactory<
-    actix_web::dev::ServiceRequest,
-    Config = (),
-    Response = actix_web::dev::ServiceResponse,
-    Error = actix_web::Error,
-    InitError = (),
->> {
+pub fn create_app(
+    state: web::Data<GatewayState>,
+) -> App<
+    impl actix_web::dev::ServiceFactory<
+        actix_web::dev::ServiceRequest,
+        Config = (),
+        Response = actix_web::dev::ServiceResponse,
+        Error = actix_web::Error,
+        InitError = (),
+    >,
+> {
     App::new()
         .app_data(state)
         .wrap(middleware::RequestLogging)
@@ -76,7 +141,7 @@ pub fn create_app(state: web::Data<GatewayState>) -> App<impl actix_web::dev::Se
                         .route("", web::post().to(proxy::proxy_to_asset_service))
                         .route("/{id}", web::get().to(proxy::proxy_to_asset_service))
                         .route("/{id}", web::put().to(proxy::proxy_to_asset_service))
-                        .route("/{id}", web::delete().to(proxy::proxy_to_asset_service))
+                        .route("/{id}", web::delete().to(proxy::proxy_to_asset_service)),
                 )
                 .service(
                     web::scope("/users")
@@ -84,33 +149,45 @@ pub fn create_app(state: web::Data<GatewayState>) -> App<impl actix_web::dev::Se
                         .route("", web::post().to(proxy::proxy_to_user_service))
                         .route("/{id}", web::get().to(proxy::proxy_to_user_service))
                         .route("/{id}", web::put().to(proxy::proxy_to_user_service))
-                        .route("/{id}", web::delete().to(proxy::proxy_to_user_service))
+                        .route("/{id}", web::delete().to(proxy::proxy_to_user_service)),
                 )
                 .service(
                     web::scope("/payments")
                         .route("", web::get().to(proxy::proxy_to_payment_service))
                         .route("", web::post().to(proxy::proxy_to_payment_service))
                         .route("/{id}", web::get().to(proxy::proxy_to_payment_service))
-                        .route("/{id}/status", web::get().to(proxy::proxy_to_payment_service))
+                        .route(
+                            "/{id}/status",
+                            web::get().to(proxy::proxy_to_payment_service),
+                        ),
                 )
                 .service(
                     web::scope("/blockchain")
-                        .route("/ethereum/balance/{address}", web::get().to(proxy::proxy_to_asset_service))
-                        .route("/solana/balance/{address}", web::get().to(proxy::proxy_to_asset_service))
-                        .route("/polkadot/balance/{address}", web::get().to(proxy::proxy_to_asset_service))
-                )
+                        .route(
+                            "/ethereum/balance/{address}",
+                            web::get().to(proxy::proxy_to_asset_service),
+                        )
+                        .route(
+                            "/solana/balance/{address}",
+                            web::get().to(proxy::proxy_to_asset_service),
+                        )
+                        .route(
+                            "/polkadot/balance/{address}",
+                            web::get().to(proxy::proxy_to_asset_service),
+                        ),
+                ),
         )
         .service(
             web::scope("/auth")
                 .route("/login", web::post().to(proxy::proxy_to_auth_service))
                 .route("/logout", web::post().to(proxy::proxy_to_auth_service))
-                .route("/refresh", web::post().to(proxy::proxy_to_auth_service))
+                .route("/refresh", web::post().to(proxy::proxy_to_auth_service)),
         )
         .service(
             web::scope("/health")
                 .route("", web::get().to(health::health_check))
                 .route("/ready", web::get().to(health::readiness_check))
-                .route("/live", web::get().to(health::liveness_check))
+                .route("/live", web::get().to(health::liveness_check)),
         )
         .route("/metrics", web::get().to(health::metrics_endpoint))
 }

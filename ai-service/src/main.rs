@@ -5,9 +5,8 @@
 // Framework: StableRWA - AI-Powered Enterprise RWA Tokenization Technology Framework Platform
 // =====================================================================================
 
-use ai_service::{AIServiceWrapper, AppState, create_app};
-use core_config::AppConfig;
-use core_observability::{init_logging, BusinessMetrics};
+use ai_service::{create_app, AIServiceWrapper, AppState};
+use ai_service::{Config, AIMetrics};
 use std::sync::Arc;
 use tokio::signal;
 use tracing::info;
@@ -15,14 +14,25 @@ use tracing::info;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize configuration
-    let config = AppConfig::default();
+    let config = Config {
+        server: ai_service::ServerConfig {
+            host: "127.0.0.1".to_string(),
+            port: 8080,
+            workers: 4,
+        },
+        ai: ai_service::AIConfig {
+            openai_api_key: std::env::var("OPENAI_API_KEY").unwrap_or_default(),
+            model: "gpt-3.5-turbo".to_string(),
+            max_tokens: 1000,
+        },
+    };
 
-    // Initialize observability
-    init_logging(&config.observability.tracing)?;
+    // Initialize simple logging
+    tracing_subscriber::fmt::init();
     info!("Starting StableRWA AI Service");
 
     // Initialize metrics
-    let metrics = Arc::new(BusinessMetrics::new()?);
+    let metrics = Arc::new(AIMetrics::new());
 
     // Initialize AI service
     let ai_service = AIServiceWrapper::new(&config).await?;
@@ -107,9 +117,7 @@ mod tests {
     fn test_main_function_exists() {
         // Test that main function exists and has correct signature
         // This is a compile-time check to ensure the function signature is correct
-        let _main_fn: fn() -> Result<(), Box<dyn std::error::Error>> = || {
-            Ok(())
-        };
+        let _main_fn: fn() -> Result<(), Box<dyn std::error::Error>> = || Ok(());
 
         // Verify the function type size is reasonable
         assert!(std::mem::size_of::<fn() -> Result<(), Box<dyn std::error::Error>>>() > 0);

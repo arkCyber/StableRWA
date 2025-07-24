@@ -5,83 +5,59 @@
 // =====================================================================================
 
 //! # Core AI Risk Module
-//! 
+//!
 //! This module provides comprehensive AI-driven risk assessment and fraud detection
 //! capabilities for the StableRWA platform, including machine learning models for
 //! credit scoring, fraud detection, market risk analysis, and operational risk assessment.
 
-pub mod error;
-pub mod types;
-pub mod fraud_detection;
 pub mod credit_scoring;
-pub mod market_risk;
-pub mod operational_risk;
-pub mod model_training;
-pub mod feature_engineering;
-pub mod ensemble;
-pub mod real_time_scoring;
-pub mod model_registry;
-pub mod explainability;
-pub mod monitoring;
+pub mod error;
+pub mod fraud_detection;
 pub mod service;
+pub mod types;
+
+// Placeholder modules - to be implemented later
+// pub mod market_risk;
+// pub mod operational_risk;
+// pub mod model_training;
+// pub mod feature_engineering;
+// pub mod ensemble;
+// pub mod real_time_scoring;
+// pub mod model_registry;
+// pub mod explainability;
+// pub mod monitoring;
 
 // Re-export main types and traits
-pub use error::{AIRiskError, AIRiskResult};
-pub use types::{
-    RiskScore, RiskModel, RiskFeatures, RiskPrediction, ModelMetrics,
-    FraudScore, CreditScore, MarketRiskScore, OperationalRiskScore
-};
-pub use fraud_detection::{
-    FraudDetector, FraudConfig, FraudModel, FraudFeatures,
-    AnomalyDetector, PatternMatcher, BehaviorAnalyzer
-};
 pub use credit_scoring::{
-    CreditScorer, CreditConfig, CreditModel, CreditFeatures,
-    DefaultProbability, CreditRating, PortfolioRisk
+    CreditConfig, CreditFeatures, CreditModel, CreditRating, CreditScorer, DefaultProbability,
+    PortfolioRisk,
 };
-pub use market_risk::{
-    MarketRiskAnalyzer, MarketRiskConfig, MarketRiskModel,
-    VaRCalculator, StressTestEngine, CorrelationAnalyzer
+pub use error::{AIRiskError, AIRiskResult};
+pub use fraud_detection::{
+    AnomalyDetector, BehaviorAnalyzer, FraudConfig, FraudDetector, FraudFeatures, FraudModel,
+    PatternMatcher,
 };
-pub use operational_risk::{
-    OperationalRiskAssessor, OperationalRiskConfig, OperationalRiskModel,
-    ProcessRiskAnalyzer, SystemRiskMonitor, ComplianceRiskTracker
+pub use types::{
+    CreditScore, FraudScore, MarketRiskScore, ModelMetrics, OperationalRiskScore, RiskFeatures,
+    RiskModel, RiskPrediction, RiskScore,
 };
-pub use model_training::{
-    ModelTrainer, TrainingConfig, TrainingPipeline,
-    HyperparameterTuner, CrossValidator, ModelEvaluator
-};
-pub use feature_engineering::{
-    FeatureEngineer, FeatureConfig, FeatureExtractor,
-    FeatureSelector, FeatureTransformer, FeatureStore
-};
-pub use ensemble::{
-    EnsembleModel, EnsembleConfig, ModelCombiner,
-    VotingClassifier, StackingRegressor, BoostingEnsemble
-};
-pub use real_time_scoring::{
-    RealTimeScorer, ScoringConfig, ScoringEngine,
-    StreamProcessor, BatchProcessor, ModelCache
-};
-pub use model_registry::{
-    ModelRegistry, RegistryConfig, ModelVersion,
-    ModelMetadata, ModelDeployment, ModelLifecycle
-};
-pub use explainability::{
-    ModelExplainer, ExplainabilityConfig, FeatureImportance,
-    SHAPValues, LIMEExplainer, CounterfactualExplainer
-};
-pub use monitoring::{
-    ModelMonitor, MonitoringConfig, ModelDrift,
-    PerformanceTracker, DataDrift, ConceptDrift
-};
-pub use service::AIRiskService;
+// Placeholder exports - to be implemented later
+// pub use market_risk::{...};
+// pub use operational_risk::{...};
+// pub use model_training::{...};
+// pub use feature_engineering::{...};
+// pub use ensemble::{...};
+// pub use real_time_scoring::{...};
+// pub use model_registry::{...};
+// pub use explainability::{...};
+// pub use monitoring::{...};
+pub use service::{AIRiskHealthStatus, AIRiskService, AIRiskServiceConfig, AIRiskServiceImpl};
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 /// Main AI Risk service configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -200,7 +176,7 @@ pub struct AIRiskHealthStatus {
 // Stub modules for compilation
 pub mod fraud_detection {
     use super::*;
-    
+
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct FraudConfig {
         pub anomaly_threshold: f64,
@@ -208,7 +184,7 @@ pub mod fraud_detection {
         pub enable_behavioral_analysis: bool,
         pub model_ensemble_size: u32,
     }
-    
+
     impl Default for FraudConfig {
         fn default() -> Self {
             Self {
@@ -219,7 +195,7 @@ pub mod fraud_detection {
             }
         }
     }
-    
+
     pub struct FraudDetector;
     pub struct FraudModel;
     pub struct FraudFeatures;
@@ -230,7 +206,7 @@ pub mod fraud_detection {
 
 pub mod credit_scoring {
     use super::*;
-    
+
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct CreditConfig {
         pub score_range_min: u32,
@@ -238,7 +214,7 @@ pub mod credit_scoring {
         pub default_threshold: f64,
         pub enable_portfolio_analysis: bool,
     }
-    
+
     impl Default for CreditConfig {
         fn default() -> Self {
             Self {
@@ -249,7 +225,7 @@ pub mod credit_scoring {
             }
         }
     }
-    
+
     pub struct CreditScorer;
     pub struct CreditModel;
     pub struct CreditFeatures;
@@ -260,7 +236,7 @@ pub mod credit_scoring {
 
 pub mod market_risk {
     use super::*;
-    
+
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct MarketRiskConfig {
         pub var_confidence_level: f64,
@@ -268,7 +244,7 @@ pub mod market_risk {
         pub correlation_window_days: u32,
         pub enable_monte_carlo: bool,
     }
-    
+
     impl Default for MarketRiskConfig {
         fn default() -> Self {
             Self {
@@ -283,7 +259,7 @@ pub mod market_risk {
             }
         }
     }
-    
+
     pub struct MarketRiskAnalyzer;
     pub struct MarketRiskModel;
     pub struct VaRCalculator;
@@ -293,14 +269,14 @@ pub mod market_risk {
 
 pub mod operational_risk {
     use super::*;
-    
+
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct OperationalRiskConfig {
         pub risk_categories: Vec<String>,
         pub assessment_frequency_hours: u32,
         pub enable_process_mining: bool,
     }
-    
+
     impl Default for OperationalRiskConfig {
         fn default() -> Self {
             Self {
@@ -315,7 +291,7 @@ pub mod operational_risk {
             }
         }
     }
-    
+
     pub struct OperationalRiskAssessor;
     pub struct OperationalRiskModel;
     pub struct ProcessRiskAnalyzer;
@@ -325,7 +301,7 @@ pub mod operational_risk {
 
 pub mod model_training {
     use super::*;
-    
+
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct TrainingConfig {
         pub training_data_split: f64,
@@ -333,7 +309,7 @@ pub mod model_training {
         pub cross_validation_folds: u32,
         pub max_training_epochs: u32,
     }
-    
+
     impl Default for TrainingConfig {
         fn default() -> Self {
             Self {
@@ -344,7 +320,7 @@ pub mod model_training {
             }
         }
     }
-    
+
     pub struct ModelTrainer;
     pub struct TrainingPipeline;
     pub struct HyperparameterTuner;
@@ -354,7 +330,7 @@ pub mod model_training {
 
 pub mod feature_engineering {
     use super::*;
-    
+
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct FeatureConfig {
         pub max_features: u32,
@@ -362,7 +338,7 @@ pub mod feature_engineering {
         pub enable_feature_scaling: bool,
         pub enable_feature_interaction: bool,
     }
-    
+
     impl Default for FeatureConfig {
         fn default() -> Self {
             Self {
@@ -373,7 +349,7 @@ pub mod feature_engineering {
             }
         }
     }
-    
+
     pub struct FeatureEngineer;
     pub struct FeatureExtractor;
     pub struct FeatureSelector;
@@ -383,7 +359,7 @@ pub mod feature_engineering {
 
 pub mod real_time_scoring {
     use super::*;
-    
+
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct ScoringConfig {
         pub max_latency_ms: u32,
@@ -391,7 +367,7 @@ pub mod real_time_scoring {
         pub enable_caching: bool,
         pub cache_ttl_seconds: u64,
     }
-    
+
     impl Default for ScoringConfig {
         fn default() -> Self {
             Self {
@@ -402,7 +378,7 @@ pub mod real_time_scoring {
             }
         }
     }
-    
+
     pub struct RealTimeScorer;
     pub struct ScoringEngine;
     pub struct StreamProcessor;
@@ -412,7 +388,7 @@ pub mod real_time_scoring {
 
 pub mod monitoring {
     use super::*;
-    
+
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct MonitoringConfig {
         pub drift_detection_window: u32,
@@ -420,7 +396,7 @@ pub mod monitoring {
         pub alert_on_drift: bool,
         pub monitoring_frequency_minutes: u32,
     }
-    
+
     impl Default for MonitoringConfig {
         fn default() -> Self {
             Self {
@@ -431,7 +407,7 @@ pub mod monitoring {
             }
         }
     }
-    
+
     pub struct ModelMonitor;
     pub struct ModelDrift;
     pub struct PerformanceTracker;
@@ -442,7 +418,7 @@ pub mod monitoring {
 // Additional stub modules
 pub mod ensemble {
     use super::*;
-    
+
     pub struct EnsembleModel;
     pub struct EnsembleConfig;
     pub struct ModelCombiner;
@@ -453,7 +429,7 @@ pub mod ensemble {
 
 pub mod model_registry {
     use super::*;
-    
+
     pub struct ModelRegistry;
     pub struct RegistryConfig;
     pub struct ModelVersion;
@@ -464,7 +440,7 @@ pub mod model_registry {
 
 pub mod explainability {
     use super::*;
-    
+
     pub struct ModelExplainer;
     pub struct ExplainabilityConfig;
     pub struct FeatureImportance;

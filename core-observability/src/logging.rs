@@ -4,9 +4,19 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use crate::{LogEntry, LogLevel, ErrorInfo, ObservabilityError};
+use crate::{ErrorInfo, LogEntry, LogLevel, ObservabilityError};
 use chrono::{DateTime, Utc};
-use core_config::TracingConfig;
+// use core_config::TracingConfig; // Disabled until core_config is available
+
+/// Simple tracing configuration
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TracingConfig {
+    pub level: String,
+    pub format: String,
+    pub output: String,
+    pub service_name: String,
+    pub jaeger_endpoint: Option<String>,
+}
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -58,7 +68,10 @@ pub fn init_logging(config: &TracingConfig) -> Result<(), ObservabilityError> {
         .try_init()
         .map_err(|e| ObservabilityError::Tracing(format!("Failed to init tracing: {}", e)))?;
 
-    tracing::info!("Structured logging initialized for service: {}", config.service_name);
+    tracing::info!(
+        "Structured logging initialized for service: {}",
+        config.service_name
+    );
     Ok(())
 }
 
@@ -87,12 +100,15 @@ where
         event: &Event<'_>,
     ) -> std::fmt::Result {
         let metadata = event.metadata();
-        
+
         // Extract span context
         let (trace_id, span_id) = if let Some(span) = ctx.lookup_current() {
             let extensions = span.extensions();
             // In a real implementation, you'd extract actual trace/span IDs from OpenTelemetry
-            (Some(Uuid::new_v4().to_string()), Some(Uuid::new_v4().to_string()))
+            (
+                Some(Uuid::new_v4().to_string()),
+                Some(Uuid::new_v4().to_string()),
+            )
         } else {
             (None, None)
         };
@@ -112,24 +128,28 @@ where
         event.record(&mut visitor);
 
         // Extract message
-        let message = fields.remove("message")
+        let message = fields
+            .remove("message")
             .and_then(|v| v.as_str().map(|s| s.to_string()))
             .unwrap_or_else(|| "".to_string());
 
         // Check for error information
         let error = if level == LogLevel::Error {
-            fields.get("error").and_then(|v| v.as_str()).map(|error_msg| {
-                ErrorInfo {
-                    error_type: fields.get("error_type")
+            fields
+                .get("error")
+                .and_then(|v| v.as_str())
+                .map(|error_msg| ErrorInfo {
+                    error_type: fields
+                        .get("error_type")
                         .and_then(|v| v.as_str())
                         .unwrap_or("UnknownError")
                         .to_string(),
                     error_message: error_msg.to_string(),
-                    stack_trace: fields.get("stack_trace")
+                    stack_trace: fields
+                        .get("stack_trace")
                         .and_then(|v| v.as_str())
                         .map(|s| s.to_string()),
-                }
-            })
+                })
         } else {
             None
         };
@@ -145,8 +165,7 @@ where
             error,
         };
 
-        let json = serde_json::to_string(&log_entry)
-            .map_err(|_| std::fmt::Error)?;
+        let json = serde_json::to_string(&log_entry).map_err(|_| std::fmt::Error)?;
 
         writeln!(writer, "{}", json)
     }
@@ -172,10 +191,8 @@ impl<'a> tracing::field::Visit for FieldVisitor<'a> {
     }
 
     fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
-        self.fields.insert(
-            field.name().to_string(),
-            Value::String(value.to_string()),
-        );
+        self.fields
+            .insert(field.name().to_string(), Value::String(value.to_string()));
     }
 
     fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
@@ -193,10 +210,8 @@ impl<'a> tracing::field::Visit for FieldVisitor<'a> {
     }
 
     fn record_bool(&mut self, field: &tracing::field::Field, value: bool) {
-        self.fields.insert(
-            field.name().to_string(),
-            Value::Bool(value),
-        );
+        self.fields
+            .insert(field.name().to_string(), Value::Bool(value));
     }
 }
 
@@ -254,14 +269,23 @@ impl BusinessEventLogger {
         metadata: Option<HashMap<String, Value>>,
     ) {
         let mut fields = HashMap::new();
-        fields.insert("event_type".to_string(), Value::String("user_action".to_string()));
+        fields.insert(
+            "event_type".to_string(),
+            Value::String("user_action".to_string()),
+        );
         fields.insert("user_id".to_string(), Value::String(user_id.to_string()));
         fields.insert("action".to_string(), Value::String(action.to_string()));
-        fields.insert("resource_type".to_string(), Value::String(resource_type.to_string()));
+        fields.insert(
+            "resource_type".to_string(),
+            Value::String(resource_type.to_string()),
+        );
         fields.insert("success".to_string(), Value::Bool(success));
 
         if let Some(resource_id) = resource_id {
-            fields.insert("resource_id".to_string(), Value::String(resource_id.to_string()));
+            fields.insert(
+                "resource_id".to_string(),
+                Value::String(resource_id.to_string()),
+            );
         }
 
         if let Some(metadata) = metadata {
@@ -391,7 +415,7 @@ mod tests {
     fn test_correlation_id() {
         let id1 = CorrelationId::new();
         let id2 = CorrelationId::new();
-        
+
         assert_ne!(id1.as_str(), id2.as_str());
         assert_eq!(id1.as_str().len(), 36); // UUID length
     }
@@ -399,11 +423,18 @@ mod tests {
     #[test]
     fn test_business_event_logger() {
         let logger = BusinessEventLogger::new("test-service".to_string());
-        
+
         // Test that methods don't panic
         logger.log_user_action("user123", "create", "asset", Some("asset123"), true, None);
         logger.log_system_event("startup", "main", "Service started", None);
-        logger.log_security_event("login", Some("user123"), Some("192.168.1.1"), None, true, "User logged in");
+        logger.log_security_event(
+            "login",
+            Some("user123"),
+            Some("192.168.1.1"),
+            None,
+            true,
+            "User logged in",
+        );
         logger.log_performance("database_query", 150, true, None);
     }
 

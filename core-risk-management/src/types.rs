@@ -21,10 +21,12 @@ pub enum RiskLevel {
     Medium = 3,
     /// High risk
     High = 4,
+    /// Critical risk
+    Critical = 5,
     /// Very high risk
-    VeryHigh = 5,
+    VeryHigh = 6,
     /// Extreme risk
-    Extreme = 6,
+    Extreme = 7,
 }
 
 impl RiskLevel {
@@ -35,8 +37,9 @@ impl RiskLevel {
             RiskLevel::Low => 2.0,
             RiskLevel::Medium => 3.0,
             RiskLevel::High => 4.0,
-            RiskLevel::VeryHigh => 5.0,
-            RiskLevel::Extreme => 6.0,
+            RiskLevel::Critical => 5.0,
+            RiskLevel::VeryHigh => 6.0,
+            RiskLevel::Extreme => 7.0,
         }
     }
 
@@ -47,6 +50,7 @@ impl RiskLevel {
             RiskLevel::Low => "Low Risk",
             RiskLevel::Medium => "Medium Risk",
             RiskLevel::High => "High Risk",
+            RiskLevel::Critical => "Critical Risk",
             RiskLevel::VeryHigh => "Very High Risk",
             RiskLevel::Extreme => "Extreme Risk",
         }
@@ -59,8 +63,22 @@ impl RiskLevel {
             RiskLevel::Low => "#90EE90",     // Light Green
             RiskLevel::Medium => "#FFFF00",  // Yellow
             RiskLevel::High => "#FFA500",    // Orange
+            RiskLevel::Critical => "#FF4500", // Red Orange
             RiskLevel::VeryHigh => "#FF0000", // Red
             RiskLevel::Extreme => "#8B0000", // Dark Red
+        }
+    }
+
+    /// Convert risk level to numeric value
+    pub fn to_numeric(&self) -> f64 {
+        match self {
+            RiskLevel::VeryLow => 0.1,
+            RiskLevel::Low => 0.3,
+            RiskLevel::Medium => 0.5,
+            RiskLevel::High => 0.7,
+            RiskLevel::Critical => 0.85,
+            RiskLevel::VeryHigh => 0.9,
+            RiskLevel::Extreme => 1.0,
         }
     }
 }
@@ -131,6 +149,21 @@ impl RiskType {
             _ => vec!["Qualitative Assessment", "Expert Judgment"],
         }
     }
+}
+
+/// Risk category enumeration
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RiskCategory {
+    Market,
+    Credit,
+    Liquidity,
+    Operational,
+    Regulatory,
+    Reputational,
+    Strategic,
+    Environmental,
+    Cyber,
+    Legal,
 }
 
 /// Risk factor structure
@@ -205,6 +238,7 @@ pub enum AssessmentType {
     PreTransaction,
     PostTransaction,
     StressTest,
+    Comprehensive,
 }
 
 /// Risk metrics structure
@@ -438,6 +472,7 @@ pub enum PolicyStatus {
     Cancelled,
     Suspended,
     UnderReview,
+    PendingRenewal,
 }
 
 /// Insurance claim structure
@@ -475,8 +510,11 @@ pub enum ClaimType {
 /// Claim status enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ClaimStatus {
+    Submitted,
     Reported,
+    UnderReview,
     UnderInvestigation,
+    Investigating,
     Approved,
     Denied,
     Settled,
@@ -631,4 +669,127 @@ mod tests {
         assert_eq!(policy.status, PolicyStatus::Active);
         assert_eq!(policy.covered_risks.len(), 2);
     }
+}
+
+/// Emergency response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmergencyResponse {
+    pub id: Uuid,
+    pub incident_id: Uuid,
+    pub response_level: ResponseLevel,
+    pub activated_procedures: Vec<String>,
+    pub response_team: Vec<String>,
+    pub estimated_resolution_time: Option<DateTime<Utc>>,
+    pub status: EmergencyStatus,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Response levels
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ResponseLevel {
+    Standard,
+    Elevated,
+    High,
+    Emergency,
+    Crisis,
+}
+
+/// Emergency status
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EmergencyStatus {
+    Active,
+    Monitoring,
+    Resolved,
+    Escalated,
+    Cancelled,
+}
+
+/// Hedge strategy
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HedgeStrategy {
+    pub id: Uuid,
+    pub name: String,
+    pub strategy_type: String, // Using String to avoid circular dependency
+    pub instruments: Vec<String>, // Using String to avoid circular dependency
+    pub target_hedge_ratio: f64,
+    pub rebalancing_frequency_days: u32,
+    pub cost_budget: f64,
+    pub effectiveness_target: f64,
+    pub implementation_date: DateTime<Utc>,
+    pub expiry_date: DateTime<Utc>,
+    pub status: HedgeStatus,
+    pub metadata: HashMap<String, serde_json::Value>,
+}
+
+/// Hedge status
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HedgeStatus {
+    Proposed,
+    Approved,
+    Active,
+    Expired,
+    Cancelled,
+}
+
+/// Hedge position
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HedgePosition {
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub strategy_id: Uuid,
+    pub instrument: String, // Using String to avoid circular dependency
+    pub notional_amount: f64,
+    pub hedge_ratio: f64,
+    pub entry_price: f64,
+    pub current_price: f64,
+    pub unrealized_pnl: f64,
+    pub realized_pnl: f64,
+    pub inception_date: DateTime<Utc>,
+    pub maturity_date: DateTime<Utc>,
+    pub status: PositionStatus,
+    pub counterparty: String,
+    pub margin_requirement: f64,
+    pub last_rebalance_date: DateTime<Utc>,
+    pub effectiveness_metrics: HashMap<String, f64>,
+}
+
+/// Position status
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PositionStatus {
+    Active,
+    Closed,
+    Expired,
+    Suspended,
+}
+
+// Remove duplicate definitions - these are already defined earlier in the file
+
+/// Risk alert
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RiskAlert {
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub alert_type: String,
+    pub severity: AlertSeverity,
+    pub message: String,
+    pub risk_category: RiskCategory,
+    pub current_value: f64,
+    pub threshold_value: f64,
+    pub triggered_at: DateTime<Utc>,
+    pub acknowledged_at: Option<DateTime<Utc>>,
+    pub acknowledged_by: Option<String>,
+    pub resolved_at: Option<DateTime<Utc>>,
+    pub escalated: bool,
+    pub actions_taken: Vec<String>,
+    pub metadata: HashMap<String, serde_json::Value>,
+}
+
+/// Alert severity levels
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AlertSeverity {
+    Info,
+    Warning,
+    Critical,
+    Emergency,
 }

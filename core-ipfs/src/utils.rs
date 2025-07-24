@@ -1,13 +1,13 @@
 // =====================================================================================
 // IPFS Utilities
-// 
+//
 // Utility functions and helpers for IPFS operations
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use crate::{IpfsError, IpfsResult, IpfsHash};
+use crate::{IpfsError, IpfsHash, IpfsResult};
 use serde::{Deserialize, Serialize};
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 use std::path::Path;
 use tracing::{debug, instrument};
 
@@ -30,20 +30,21 @@ impl FileTypeInfo {
         let is_image = mime_type.starts_with("image/");
         let is_video = mime_type.starts_with("video/");
         let is_audio = mime_type.starts_with("audio/");
-        let is_document = matches!(mime_type.as_str(), 
-            "application/pdf" | 
-            "application/msword" | 
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document" |
-            "application/vnd.ms-excel" |
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" |
-            "application/vnd.ms-powerpoint" |
-            "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        let is_document = matches!(
+            mime_type.as_str(),
+            "application/pdf"
+                | "application/msword"
+                | "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                | "application/vnd.ms-excel"
+                | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                | "application/vnd.ms-powerpoint"
+                | "application/vnd.openxmlformats-officedocument.presentationml.presentation"
         );
-        
+
         let extension = mime_guess::get_mime_extensions_str(&mime_type)
             .and_then(|exts| exts.first())
             .map(|ext| ext.to_string());
-        
+
         Self {
             mime_type,
             extension,
@@ -79,18 +80,18 @@ impl ValidationResult {
             hash: None,
         }
     }
-    
+
     /// Add error to validation result
     pub fn add_error(&mut self, error: String) {
         self.errors.push(error);
         self.is_valid = false;
     }
-    
+
     /// Add warning to validation result
     pub fn add_warning(&mut self, warning: String) {
         self.warnings.push(warning);
     }
-    
+
     /// Check if validation passed
     pub fn is_valid(&self) -> bool {
         self.is_valid && self.errors.is_empty()
@@ -114,7 +115,7 @@ impl IpfsUtils {
         hasher.update(data);
         hex::encode(hasher.finalize())
     }
-    
+
     /// Generate IPFS-like hash (simplified for testing)
     #[instrument(skip(data))]
     pub fn generate_ipfs_hash(data: &[u8]) -> IpfsResult<IpfsHash> {
@@ -123,7 +124,7 @@ impl IpfsUtils {
         let ipfs_hash = format!("Qm{}", &hash[..44]);
         IpfsHash::new(ipfs_hash)
     }
-    
+
     /// Detect file type from content
     #[instrument(skip(data))]
     pub fn detect_file_type(data: &[u8], filename: Option<&str>) -> FileTypeInfo {
@@ -139,10 +140,10 @@ impl IpfsUtils {
         } else {
             "application/octet-stream".to_string()
         };
-        
+
         FileTypeInfo::new(mime_type)
     }
-    
+
     /// Detect file type from path
     #[instrument(skip(path))]
     pub fn detect_file_type_from_path<P: AsRef<Path>>(path: P) -> FileTypeInfo {
@@ -151,10 +152,10 @@ impl IpfsUtils {
             .first()
             .map(|m| m.to_string())
             .unwrap_or_else(|| "application/octet-stream".to_string());
-        
+
         FileTypeInfo::new(mime_type)
     }
-    
+
     /// Validate content for IPFS storage
     #[instrument(skip(data))]
     pub fn validate_content(
@@ -165,7 +166,7 @@ impl IpfsUtils {
     ) -> ValidationResult {
         let mut result = ValidationResult::new();
         result.size = data.len() as u64;
-        
+
         // Check size limit
         if let Some(max_size) = max_size {
             if result.size > max_size {
@@ -175,16 +176,16 @@ impl IpfsUtils {
                 ));
             }
         }
-        
+
         // Check if data is empty
         if data.is_empty() {
             result.add_error("Content is empty".to_string());
             return result;
         }
-        
+
         // Detect file type
         let file_type = Self::detect_file_type(data, filename);
-        
+
         // Check allowed MIME types
         if let Some(allowed_types) = allowed_types {
             if !allowed_types.is_empty() && !allowed_types.contains(&file_type.mime_type) {
@@ -194,45 +195,45 @@ impl IpfsUtils {
                 ));
             }
         }
-        
+
         // Generate hash
         if let Ok(hash) = Self::generate_ipfs_hash(data) {
             result.hash = Some(hash);
         } else {
             result.add_warning("Failed to generate content hash".to_string());
         }
-        
+
         result.file_type = Some(file_type);
         result
     }
-    
+
     /// Format file size in human-readable format
     pub fn format_file_size(size: u64) -> String {
         const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB", "PB"];
         const THRESHOLD: f64 = 1024.0;
-        
+
         if size == 0 {
             return "0 B".to_string();
         }
-        
+
         let size_f = size as f64;
         let unit_index = (size_f.log10() / THRESHOLD.log10()).floor() as usize;
         let unit_index = unit_index.min(UNITS.len() - 1);
-        
+
         let size_in_unit = size_f / THRESHOLD.powi(unit_index as i32);
-        
+
         if unit_index == 0 {
             format!("{} {}", size, UNITS[unit_index])
         } else {
             format!("{:.2} {}", size_in_unit, UNITS[unit_index])
         }
     }
-    
+
     /// Check if hash is valid IPFS hash
     pub fn is_valid_ipfs_hash(hash: &str) -> bool {
         IpfsHash::is_valid(hash)
     }
-    
+
     /// Extract file extension from filename
     pub fn extract_file_extension(filename: &str) -> Option<String> {
         Path::new(filename)
@@ -240,7 +241,7 @@ impl IpfsUtils {
             .and_then(|ext| ext.to_str())
             .map(|ext| ext.to_lowercase())
     }
-    
+
     /// Generate content fingerprint (for deduplication)
     #[instrument(skip(data))]
     pub fn generate_fingerprint(data: &[u8]) -> String {
@@ -248,27 +249,28 @@ impl IpfsUtils {
         let size = data.len();
         format!("{}:{}", hash, size)
     }
-    
+
     /// Check if content is likely to be text
     pub fn is_text_content(data: &[u8]) -> bool {
         if data.is_empty() {
             return false;
         }
-        
+
         // Check for null bytes (binary indicator)
         if data.contains(&0) {
             return false;
         }
-        
+
         // Check if most bytes are printable ASCII or common UTF-8
-        let printable_count = data.iter()
+        let printable_count = data
+            .iter()
             .filter(|&&b| b.is_ascii_graphic() || b.is_ascii_whitespace())
             .count();
-        
+
         let ratio = printable_count as f64 / data.len() as f64;
         ratio > 0.95 // 95% of bytes should be printable
     }
-    
+
     /// Sanitize filename for safe storage
     pub fn sanitize_filename(filename: &str) -> String {
         filename
@@ -285,12 +287,12 @@ impl IpfsUtils {
             .trim_matches('.')
             .to_string()
     }
-    
+
     /// Generate unique filename with timestamp
     pub fn generate_unique_filename(original: &str) -> String {
         let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
         let sanitized = Self::sanitize_filename(original);
-        
+
         if let Some(extension) = Self::extract_file_extension(&sanitized) {
             let name_without_ext = sanitized.trim_end_matches(&format!(".{}", extension));
             format!("{}_{}.{}", name_without_ext, timestamp, extension)
@@ -312,61 +314,62 @@ impl ContentAnalyzer {
         analysis.hash = IpfsUtils::calculate_hash(data);
         analysis.file_type = IpfsUtils::detect_file_type(data, filename);
         analysis.is_text = IpfsUtils::is_text_content(data);
-        
+
         // Calculate entropy (measure of randomness)
         analysis.entropy = Self::calculate_entropy(data);
-        
+
         // Detect compression
         analysis.is_compressed = Self::is_compressed(data);
-        
+
         // Count unique bytes
         let mut byte_counts = [0u32; 256];
         for &byte in data {
             byte_counts[byte as usize] += 1;
         }
         analysis.unique_bytes = byte_counts.iter().filter(|&&count| count > 0).count() as u32;
-        
+
         analysis
     }
-    
+
     /// Calculate Shannon entropy of data
     fn calculate_entropy(data: &[u8]) -> f64 {
         if data.is_empty() {
             return 0.0;
         }
-        
+
         let mut counts = [0u32; 256];
         for &byte in data {
             counts[byte as usize] += 1;
         }
-        
+
         let len = data.len() as f64;
         let mut entropy = 0.0;
-        
+
         for &count in &counts {
             if count > 0 {
                 let p = count as f64 / len;
                 entropy -= p * p.log2();
             }
         }
-        
+
         entropy
     }
-    
+
     /// Check if data appears to be compressed
     fn is_compressed(data: &[u8]) -> bool {
         if data.len() < 4 {
             return false;
         }
-        
+
         // Check for common compression signatures
-        matches!(data[..4], 
+        matches!(
+            data[..4],
             [0x1f, 0x8b, _, _] |  // gzip
             [0x50, 0x4b, 0x03, 0x04] | // zip
             [0x50, 0x4b, 0x05, 0x06] | // zip (empty)
             [0x50, 0x4b, 0x07, 0x08] | // zip (spanned)
             [0x42, 0x5a, 0x68, _] |    // bzip2
-            [0xfd, 0x37, 0x7a, 0x58]   // xz
+            [0xfd, 0x37, 0x7a, 0x58] // xz
         )
     }
 }
@@ -481,7 +484,10 @@ mod tests {
         let text_data = b"This is plain text content";
         let file_type = IpfsUtils::detect_file_type(text_data, Some("test.txt"));
         // Note: infer crate might not detect this as text, so we check filename fallback
-        assert!(file_type.mime_type.contains("text") || file_type.mime_type == "application/octet-stream");
+        assert!(
+            file_type.mime_type.contains("text")
+                || file_type.mime_type == "application/octet-stream"
+        );
 
         // Test with no filename
         let file_type = IpfsUtils::detect_file_type(b"unknown", None);
@@ -523,7 +529,8 @@ mod tests {
 
         // Test allowed types
         let allowed_types = vec!["text/plain".to_string()];
-        let result = IpfsUtils::validate_content(data, Some("test.txt"), None, Some(&allowed_types));
+        let result =
+            IpfsUtils::validate_content(data, Some("test.txt"), None, Some(&allowed_types));
         // This might pass or fail depending on file type detection
         assert!(result.file_type.is_some());
     }
@@ -540,17 +547,30 @@ mod tests {
 
     #[test]
     fn test_is_valid_ipfs_hash() {
-        assert!(IpfsUtils::is_valid_ipfs_hash("QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG"));
-        assert!(IpfsUtils::is_valid_ipfs_hash("bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"));
+        assert!(IpfsUtils::is_valid_ipfs_hash(
+            "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG"
+        ));
+        assert!(IpfsUtils::is_valid_ipfs_hash(
+            "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+        ));
         assert!(!IpfsUtils::is_valid_ipfs_hash("invalid-hash"));
         assert!(!IpfsUtils::is_valid_ipfs_hash(""));
     }
 
     #[test]
     fn test_extract_file_extension() {
-        assert_eq!(IpfsUtils::extract_file_extension("test.txt"), Some("txt".to_string()));
-        assert_eq!(IpfsUtils::extract_file_extension("image.JPEG"), Some("jpeg".to_string()));
-        assert_eq!(IpfsUtils::extract_file_extension("document.tar.gz"), Some("gz".to_string()));
+        assert_eq!(
+            IpfsUtils::extract_file_extension("test.txt"),
+            Some("txt".to_string())
+        );
+        assert_eq!(
+            IpfsUtils::extract_file_extension("image.JPEG"),
+            Some("jpeg".to_string())
+        );
+        assert_eq!(
+            IpfsUtils::extract_file_extension("document.tar.gz"),
+            Some("gz".to_string())
+        );
         assert_eq!(IpfsUtils::extract_file_extension("no_extension"), None);
         assert_eq!(IpfsUtils::extract_file_extension(".hidden"), None); // Hidden files have no extension
     }
@@ -572,7 +592,9 @@ mod tests {
     #[test]
     fn test_is_text_content() {
         assert!(IpfsUtils::is_text_content(b"This is plain text"));
-        assert!(IpfsUtils::is_text_content(b"Text with numbers 123 and symbols !@#"));
+        assert!(IpfsUtils::is_text_content(
+            b"Text with numbers 123 and symbols !@#"
+        ));
         assert!(IpfsUtils::is_text_content(b"Multi\nline\ntext\ncontent"));
 
         assert!(!IpfsUtils::is_text_content(b"")); // Empty
@@ -585,12 +607,24 @@ mod tests {
 
     #[test]
     fn test_sanitize_filename() {
-        assert_eq!(IpfsUtils::sanitize_filename("normal_file.txt"), "normal_file.txt");
-        assert_eq!(IpfsUtils::sanitize_filename("file with spaces.txt"), "file_with_spaces.txt");
-        assert_eq!(IpfsUtils::sanitize_filename("unsafe/\\:*?\"<>|chars.txt"), "unsafe_________chars.txt");
+        assert_eq!(
+            IpfsUtils::sanitize_filename("normal_file.txt"),
+            "normal_file.txt"
+        );
+        assert_eq!(
+            IpfsUtils::sanitize_filename("file with spaces.txt"),
+            "file_with_spaces.txt"
+        );
+        assert_eq!(
+            IpfsUtils::sanitize_filename("unsafe/\\:*?\"<>|chars.txt"),
+            "unsafe_________chars.txt"
+        );
         assert_eq!(IpfsUtils::sanitize_filename("..hidden.file"), "hidden.file");
         assert_eq!(IpfsUtils::sanitize_filename("file."), "file");
-        assert_eq!(IpfsUtils::sanitize_filename("unicode_文件.txt"), "unicode___.txt"); // Each Chinese character becomes one underscore
+        assert_eq!(
+            IpfsUtils::sanitize_filename("unicode_文件.txt"),
+            "unicode___.txt"
+        ); // Each Chinese character becomes one underscore
     }
 
     #[test]

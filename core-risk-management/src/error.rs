@@ -38,8 +38,8 @@ pub enum RiskError {
     ModelError { model_type: String, message: String },
 
     /// Data quality errors
-    #[error("Data quality error: {source} - {message}")]
-    DataQualityError { source: String, message: String },
+    #[error("Data quality error: {message}")]
+    DataQualityError { message: String },
 
     /// Risk limit breach
     #[error("Risk limit breach: {limit_type} - current: {current_value}, limit: {limit_value}")]

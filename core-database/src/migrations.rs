@@ -11,24 +11,27 @@ use tracing::{info, warn};
 /// Run all database migrations
 pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<(), DatabaseError> {
     info!("Running database migrations");
-    
+
     // Create migrations table if it doesn't exist
     create_migrations_table(pool).await?;
-    
+
     // Get current migration version
     let current_version = get_current_migration_version(pool).await?;
     info!("Current migration version: {}", current_version);
-    
+
     // Run migrations in order
     let migrations = get_migrations();
-    
+
     for migration in migrations {
         if migration.version > current_version {
-            info!("Running migration {}: {}", migration.version, migration.name);
-            
+            info!(
+                "Running migration {}: {}",
+                migration.version, migration.name
+            );
+
             // Start transaction
             let mut tx = pool.begin().await.map_err(DatabaseError::from)?;
-            
+
             // Execute migration
             for statement in &migration.up_sql {
                 sqlx::query(statement)
@@ -36,24 +39,24 @@ pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<(), DatabaseError> 
                     .await
                     .map_err(DatabaseError::from)?;
             }
-            
+
             // Update migration version
             sqlx::query(
-                "INSERT INTO migrations (version, name, applied_at) VALUES ($1, $2, NOW())"
+                "INSERT INTO migrations (version, name, applied_at) VALUES ($1, $2, NOW())",
             )
             .bind(migration.version)
             .bind(&migration.name)
             .execute(&mut *tx)
             .await
             .map_err(DatabaseError::from)?;
-            
+
             // Commit transaction
             tx.commit().await.map_err(DatabaseError::from)?;
-            
+
             info!("Migration {} completed successfully", migration.version);
         }
     }
-    
+
     info!("All migrations completed");
     Ok(())
 }
@@ -67,12 +70,12 @@ async fn create_migrations_table(pool: &Pool<Postgres>) -> Result<(), DatabaseEr
             name VARCHAR(255) NOT NULL,
             applied_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         )
-        "#
+        "#,
     )
     .execute(pool)
     .await
     .map_err(DatabaseError::from)?;
-    
+
     Ok(())
 }
 
@@ -82,7 +85,7 @@ async fn get_current_migration_version(pool: &Pool<Postgres>) -> Result<i32, Dat
         .fetch_one(pool)
         .await
         .map_err(DatabaseError::from)?;
-    
+
     Ok(row.get("version"))
 }
 
@@ -114,16 +117,16 @@ fn get_migrations() -> Vec<Migration> {
                     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
                     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
                 )
-                "#.to_string(),
+                "#
+                .to_string(),
                 r#"
                 CREATE INDEX idx_users_email ON users(email);
                 CREATE INDEX idx_users_active ON users(is_active);
                 CREATE INDEX idx_users_created_at ON users(created_at);
-                "#.to_string(),
+                "#
+                .to_string(),
             ],
-            down_sql: vec![
-                "DROP TABLE users".to_string(),
-            ],
+            down_sql: vec!["DROP TABLE users".to_string()],
         },
         Migration {
             version: 2,
@@ -145,18 +148,18 @@ fn get_migrations() -> Vec<Migration> {
                     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
                     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
                 )
-                "#.to_string(),
+                "#
+                .to_string(),
                 r#"
                 CREATE INDEX idx_assets_owner_id ON assets(owner_id);
                 CREATE INDEX idx_assets_type ON assets(asset_type);
                 CREATE INDEX idx_assets_tokenized ON assets(is_tokenized);
                 CREATE INDEX idx_assets_blockchain ON assets(blockchain_network);
                 CREATE INDEX idx_assets_created_at ON assets(created_at);
-                "#.to_string(),
+                "#
+                .to_string(),
             ],
-            down_sql: vec![
-                "DROP TABLE assets".to_string(),
-            ],
+            down_sql: vec!["DROP TABLE assets".to_string()],
         },
         Migration {
             version: 3,
@@ -180,7 +183,8 @@ fn get_migrations() -> Vec<Migration> {
                     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
                     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
                 )
-                "#.to_string(),
+                "#
+                .to_string(),
                 r#"
                 CREATE INDEX idx_transactions_hash ON transactions(transaction_hash);
                 CREATE INDEX idx_transactions_network ON transactions(blockchain_network);
@@ -188,11 +192,10 @@ fn get_migrations() -> Vec<Migration> {
                 CREATE INDEX idx_transactions_user_id ON transactions(user_id);
                 CREATE INDEX idx_transactions_asset_id ON transactions(asset_id);
                 CREATE INDEX idx_transactions_created_at ON transactions(created_at);
-                "#.to_string(),
+                "#
+                .to_string(),
             ],
-            down_sql: vec![
-                "DROP TABLE transactions".to_string(),
-            ],
+            down_sql: vec!["DROP TABLE transactions".to_string()],
         },
         Migration {
             version: 4,
@@ -210,17 +213,17 @@ fn get_migrations() -> Vec<Migration> {
                     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
                     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
                 )
-                "#.to_string(),
+                "#
+                .to_string(),
                 r#"
                 CREATE INDEX idx_sessions_user_id ON user_sessions(user_id);
                 CREATE INDEX idx_sessions_token ON user_sessions(session_token);
                 CREATE INDEX idx_sessions_active ON user_sessions(is_active);
                 CREATE INDEX idx_sessions_expires_at ON user_sessions(expires_at);
-                "#.to_string(),
+                "#
+                .to_string(),
             ],
-            down_sql: vec![
-                "DROP TABLE user_sessions".to_string(),
-            ],
+            down_sql: vec!["DROP TABLE user_sessions".to_string()],
         },
         Migration {
             version: 5,
@@ -239,17 +242,17 @@ fn get_migrations() -> Vec<Migration> {
                     user_agent TEXT,
                     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
                 )
-                "#.to_string(),
+                "#
+                .to_string(),
                 r#"
                 CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
                 CREATE INDEX idx_audit_logs_action ON audit_logs(action);
                 CREATE INDEX idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
                 CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
-                "#.to_string(),
+                "#
+                .to_string(),
             ],
-            down_sql: vec![
-                "DROP TABLE audit_logs".to_string(),
-            ],
+            down_sql: vec!["DROP TABLE audit_logs".to_string()],
         },
         Migration {
             version: 6,
@@ -268,42 +271,51 @@ fn get_migrations() -> Vec<Migration> {
                     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
                     UNIQUE(user_id, blockchain_network, address)
                 )
-                "#.to_string(),
+                "#
+                .to_string(),
                 r#"
                 CREATE INDEX idx_wallets_user_id ON blockchain_wallets(user_id);
                 CREATE INDEX idx_wallets_network ON blockchain_wallets(blockchain_network);
                 CREATE INDEX idx_wallets_address ON blockchain_wallets(address);
                 CREATE INDEX idx_wallets_primary ON blockchain_wallets(user_id, is_primary);
-                "#.to_string(),
+                "#
+                .to_string(),
             ],
-            down_sql: vec![
-                "DROP TABLE blockchain_wallets".to_string(),
-            ],
+            down_sql: vec!["DROP TABLE blockchain_wallets".to_string()],
         },
     ]
 }
 
 /// Rollback migrations to a specific version
-pub async fn rollback_to_version(pool: &Pool<Postgres>, target_version: i32) -> Result<(), DatabaseError> {
+pub async fn rollback_to_version(
+    pool: &Pool<Postgres>,
+    target_version: i32,
+) -> Result<(), DatabaseError> {
     info!("Rolling back migrations to version {}", target_version);
-    
+
     let current_version = get_current_migration_version(pool).await?;
-    
+
     if target_version >= current_version {
-        warn!("Target version {} is not less than current version {}", target_version, current_version);
+        warn!(
+            "Target version {} is not less than current version {}",
+            target_version, current_version
+        );
         return Ok(());
     }
-    
+
     let migrations = get_migrations();
-    
+
     // Run rollbacks in reverse order
     for migration in migrations.iter().rev() {
         if migration.version > target_version && migration.version <= current_version {
-            info!("Rolling back migration {}: {}", migration.version, migration.name);
-            
+            info!(
+                "Rolling back migration {}: {}",
+                migration.version, migration.name
+            );
+
             // Start transaction
             let mut tx = pool.begin().await.map_err(DatabaseError::from)?;
-            
+
             // Execute rollback
             for statement in &migration.down_sql {
                 sqlx::query(statement)
@@ -311,21 +323,21 @@ pub async fn rollback_to_version(pool: &Pool<Postgres>, target_version: i32) -> 
                     .await
                     .map_err(DatabaseError::from)?;
             }
-            
+
             // Remove migration record
             sqlx::query("DELETE FROM migrations WHERE version = $1")
                 .bind(migration.version)
                 .execute(&mut *tx)
                 .await
                 .map_err(DatabaseError::from)?;
-            
+
             // Commit transaction
             tx.commit().await.map_err(DatabaseError::from)?;
-            
+
             info!("Migration {} rolled back successfully", migration.version);
         }
     }
-    
+
     info!("Rollback completed");
     Ok(())
 }
@@ -333,16 +345,16 @@ pub async fn rollback_to_version(pool: &Pool<Postgres>, target_version: i32) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_migrations_order() {
         let migrations = get_migrations();
-        
+
         // Check that migrations are in order
         for i in 1..migrations.len() {
-            assert!(migrations[i].version > migrations[i-1].version);
+            assert!(migrations[i].version > migrations[i - 1].version);
         }
-        
+
         // Check that all migrations have required fields
         for migration in migrations {
             assert!(!migration.name.is_empty());

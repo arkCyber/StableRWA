@@ -1,0 +1,92 @@
+# =====================================================================================
+# RWA Tokenization Platform - Oracle Service Cargo Configuration
+# 
+# Author: arkSong (arksong2018@gmail.com)
+# =====================================================================================
+
+[build]
+# Use all available CPU cores for compilation
+# jobs = 0  # Commented out as it causes issues in workspace
+
+[target.x86_64-unknown-linux-gnu]
+# Linux-specific configuration
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[target.x86_64-apple-darwin]
+# macOS-specific configuration
+rustflags = ["-C", "link-arg=-Wl,-ld_classic"]
+
+[env]
+# Test environment variables
+TEST_DATABASE_URL = { value = "postgresql://postgres:postgres@localhost:5432/oracle_test", force = false }
+TEST_REDIS_URL = { value = "redis://localhost:6379/1", force = false }
+RUST_LOG = { value = "debug", force = false }
+RUST_BACKTRACE = { value = "1", force = false }
+
+# Performance optimizations for tests
+CARGO_INCREMENTAL = { value = "0", force = false }
+RUSTFLAGS = { value = "-C debuginfo=0", force = false }
+
+[alias]
+# Custom cargo commands for testing
+test-unit = "test --lib"
+test-integration = "test --test integration_tests"
+test-all = "test --workspace"
+test-coverage = "tarpaulin --out Html --output-dir coverage"
+test-watch = "watch -x test"
+
+# Quality assurance commands
+qa = "clippy --all-targets --all-features -- -D warnings"
+fmt-check = "fmt -- --check"
+audit = "audit"
+
+# Development commands
+dev = "run"
+dev-watch = "watch -x run"
+build-release = "build --release"
+build-debug = "build"
+
+[profile.test]
+# Optimize test builds for faster execution
+opt-level = 1
+debug = true
+debug-assertions = true
+overflow-checks = true
+lto = false
+panic = 'unwind'
+incremental = true
+codegen-units = 256
+
+[profile.dev]
+# Development profile optimizations
+opt-level = 0
+debug = true
+debug-assertions = true
+overflow-checks = true
+lto = false
+panic = 'unwind'
+incremental = true
+codegen-units = 256
+
+[profile.release]
+# Production release optimizations
+opt-level = 3
+debug = false
+debug-assertions = false
+overflow-checks = false
+lto = true
+panic = 'abort'
+incremental = false
+codegen-units = 1
+
+[profile.bench]
+# Benchmark profile
+opt-level = 3
+debug = false
+debug-assertions = false
+overflow-checks = false
+lto = true
+panic = 'abort'
+incremental = false
+codegen-units = 1

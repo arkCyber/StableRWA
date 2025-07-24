@@ -1,0 +1,69 @@
+# =====================================================================================
+# File: clippy.toml
+# Description: Enterprise-grade Clippy configuration for StableRWA Platform
+# Author: arkSong (arksong2018@gmail.com)
+# Framework: StableRWA - Enterprise RWA Tokenization Technology Framework Platform
+# =====================================================================================
+
+# Cognitive complexity threshold - enterprise standard
+cognitive-complexity-threshold = 15
+
+# Documentation requirements
+missing-docs-in-crate-items = true
+
+# Naming conventions
+enum-variant-name-threshold = 3
+struct-excessive-bools = 3
+too-many-arguments-threshold = 7
+type-complexity-threshold = 250
+single-char-binding-names-threshold = 4
+
+# Performance and efficiency
+trivial-copy-size-limit = 128
+pass-by-value-size-limit = 256
+large-type-threshold = 200
+
+# Security and safety
+allow-expect-in-tests = true
+allow-unwrap-in-tests = true
+allow-dbg-in-tests = true
+allow-print-in-tests = true
+
+# Code style preferences
+avoid-breaking-exported-api = true
+msrv = "1.70.0"  # Minimum supported Rust version
+
+# Specific lint configurations
+disallowed-names = [
+    "foo", "bar", "baz", "qux",
+    "test", "temp", "tmp",
+    "data", "info", "item"
+]
+
+# Allowed methods that might otherwise trigger warnings
+allowed-scripts = ["Latin", "Cyrillic"]
+
+# Enterprise-specific configurations
+max-suggested-slice-pattern-length = 3
+max-fn-params-bools = 2
+literal-representation-threshold = 10
+
+# Documentation standards
+doc-valid-idents = [
+    "StableRWA", "RWA", "DeFi", "NFT", "API", "HTTP", "HTTPS", "JSON", "XML",
+    "SQL", "PostgreSQL", "Redis", "Docker", "Kubernetes", "AWS", "GCP", "Azure",
+    "OAuth", "JWT", "TLS", "SSL", "AES", "RSA", "SHA", "HMAC",
+    "Ethereum", "Solana", "Polkadot", "Bitcoin", "ERC20", "ERC721", "ERC1155",
+    "WebSocket", "gRPC", "REST", "GraphQL", "OpenAPI", "Swagger",
+    "CI", "CD", "DevOps", "SRE", "MLOps", "GitOps"
+]
+
+# Suppress certain lints for enterprise patterns
+suppress-restriction-lint-in-const = true
+
+# Performance-related settings
+vec-box-size-threshold = 4096
+trivial-copy-size-limit = 128
+
+# Complexity thresholds
+cyclomatic-complexity-threshold = 25

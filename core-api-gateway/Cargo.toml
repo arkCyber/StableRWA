@@ -17,7 +17,7 @@ async-trait = "0.1"
 # Web framework
 axum = { version = "0.7", features = ["ws", "multipart", "macros"] }
 tower = { version = "0.4", features = ["full"] }
-tower-http = { version = "0.5", features = ["full"] }
+tower-http = { version = "0.5", features = ["full", "cors"] }
 hyper = { version = "1.0", features = ["full"] }
 
 # Serialization
@@ -51,8 +51,8 @@ sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chron
 redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
 
 # GraphQL
-async-graphql = { version = "7.0", features = ["chrono", "uuid", "decimal"] }
-async-graphql-axum = "7.0"
+async-graphql = { version = "7.0", features = ["chrono", "uuid", "decimal"], optional = true }
+async-graphql-axum = { version = "7.0", optional = true }
 
 # WebSocket
 tokio-tungstenite = { version = "0.20", features = ["rustls-tls-webpki-roots"] }
@@ -75,7 +75,7 @@ metrics-exporter-prometheus = "0.12"
 
 # Rate limiting
 governor = "0.6"
-tower-governor = "0.1"
+tower_governor = "0.1"
 
 # Validation
 validator = { version = "0.16", features = ["derive"] }
@@ -86,11 +86,9 @@ rayon = "1.8"
 # Fast hashing
 fxhash = "0.2"
 
-# CORS
-tower-cors = "0.1"
+# CORS (already included in tower-http above)
 
-# Compression
-tower-compression = "0.1"
+# Compression (using tower-http compression instead)
 
 # Request ID
 tower-request-id = "0.3"
@@ -98,8 +96,7 @@ tower-request-id = "0.3"
 # Load balancing
 tower-load-shed = "0.1"
 
-# Circuit breaker
-tower-circuit-breaker = "0.1"
+# Circuit breaker (placeholder for future implementation)
 
 # Timeout
 tower-timeout = "0.1"
@@ -107,11 +104,10 @@ tower-timeout = "0.1"
 # Retry
 tower-retry = "0.1"
 
-# Tracing
-tower-tracing = "0.1"
+# Tracing (using tracing and tower-http tracing instead)
+# tower-tracing = "0.1"
 
-# SDK generation
-openapi-generator = { version = "1.0", optional = true }
+# SDK generation (placeholder for future implementation)
 
 # Internal dependencies
 core-utils = { path = "../core-utils" }
@@ -130,7 +126,7 @@ rest = []
 graphql = ["async-graphql", "async-graphql-axum"]
 websocket = []
 grpc = []
-sdk-generation = ["openapi-generator"]
+sdk-generation = []
 load-balancing = []
 circuit-breaker = []
 distributed-tracing = []

@@ -1,11 +1,11 @@
 // =====================================================================================
 // IPFS Metadata Management
-// 
+//
 // Advanced metadata operations for content stored in IPFS
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use crate::{IpfsError, IpfsResult, IpfsHash, ContentMetadata};
+use crate::{ContentMetadata, IpfsError, IpfsHash, IpfsResult};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -72,25 +72,25 @@ impl MetadataQuery {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     /// Add tag filter
     pub fn with_tag(mut self, tag: String) -> Self {
         self.tags.push(tag);
         self
     }
-    
+
     /// Add MIME type filter
     pub fn with_mime_type(mut self, mime_type: String) -> Self {
         self.mime_types.push(mime_type);
         self
     }
-    
+
     /// Add size range filter
     pub fn with_size_range(mut self, min: u64, max: u64) -> Self {
         self.size_range = Some((min, max));
         self
     }
-    
+
     /// Add date range filter
     pub fn with_date_range(
         mut self,
@@ -100,13 +100,13 @@ impl MetadataQuery {
         self.date_range = Some((start, end));
         self
     }
-    
+
     /// Add custom field filter
     pub fn with_custom_filter(mut self, key: String, value: serde_json::Value) -> Self {
         self.custom_filters.insert(key, value);
         self
     }
-    
+
     /// Set pagination
     pub fn with_pagination(mut self, limit: usize, offset: usize) -> Self {
         self.limit = Some(limit);
@@ -120,25 +120,32 @@ impl MetadataQuery {
 pub trait MetadataManagerTrait {
     /// Create metadata schema
     async fn create_schema(&self, schema: MetadataSchema) -> IpfsResult<()>;
-    
+
     /// Get metadata schema
     async fn get_schema(&self, name: &str) -> IpfsResult<MetadataSchema>;
-    
+
     /// Validate metadata against schema
-    async fn validate_metadata(&self, metadata: &ContentMetadata, schema_name: &str) -> IpfsResult<()>;
-    
+    async fn validate_metadata(
+        &self,
+        metadata: &ContentMetadata,
+        schema_name: &str,
+    ) -> IpfsResult<()>;
+
     /// Query metadata with complex filters
     async fn query_metadata(&self, query: MetadataQuery) -> IpfsResult<Vec<ContentMetadata>>;
-    
+
     /// Bulk update metadata
-    async fn bulk_update_metadata(&self, updates: HashMap<IpfsHash, ContentMetadata>) -> IpfsResult<()>;
-    
+    async fn bulk_update_metadata(
+        &self,
+        updates: HashMap<IpfsHash, ContentMetadata>,
+    ) -> IpfsResult<()>;
+
     /// Export metadata to JSON
     async fn export_metadata(&self, hashes: Option<Vec<IpfsHash>>) -> IpfsResult<String>;
-    
+
     /// Import metadata from JSON
     async fn import_metadata(&self, json_data: &str) -> IpfsResult<Vec<IpfsHash>>;
-    
+
     /// Get metadata statistics
     async fn get_metadata_stats(&self) -> IpfsResult<MetadataStats>;
 }
@@ -178,22 +185,25 @@ impl InMemoryMetadataManager {
             schema_store: std::sync::Arc::new(tokio::sync::RwLock::new(HashMap::new())),
         }
     }
-    
+
     /// Add metadata to store
     pub async fn add_metadata(&self, metadata: ContentMetadata) {
-        self.metadata_store.write().await.insert(metadata.hash.as_str().to_string(), metadata);
+        self.metadata_store
+            .write()
+            .await
+            .insert(metadata.hash.as_str().to_string(), metadata);
     }
-    
+
     /// Remove metadata from store
     pub async fn remove_metadata(&self, hash: &IpfsHash) {
         self.metadata_store.write().await.remove(hash.as_str());
     }
-    
+
     /// Get all metadata
     pub async fn get_all_metadata(&self) -> Vec<ContentMetadata> {
         self.metadata_store.read().await.values().cloned().collect()
     }
-    
+
     /// Validate field value against definition
     fn validate_field_value(
         &self,
@@ -204,7 +214,9 @@ impl InMemoryMetadataManager {
             match rule {
                 ValidationRule::Required => {
                     if value.is_null() {
-                        return Err(IpfsError::ValidationError("Required field is missing".to_string()));
+                        return Err(IpfsError::ValidationError(
+                            "Required field is missing".to_string(),
+                        ));
                     }
                 }
                 ValidationRule::MinLength(min) => {
@@ -212,7 +224,8 @@ impl InMemoryMetadataManager {
                         if s.len() < *min {
                             return Err(IpfsError::ValidationError(format!(
                                 "String length {} is less than minimum {}",
-                                s.len(), min
+                                s.len(),
+                                min
                             )));
                         }
                     }
@@ -222,15 +235,17 @@ impl InMemoryMetadataManager {
                         if s.len() > *max {
                             return Err(IpfsError::ValidationError(format!(
                                 "String length {} exceeds maximum {}",
-                                s.len(), max
+                                s.len(),
+                                max
                             )));
                         }
                     }
                 }
                 ValidationRule::Pattern(pattern) => {
                     if let Some(s) = value.as_str() {
-                        let regex = regex::Regex::new(pattern)
-                            .map_err(|e| IpfsError::ValidationError(format!("Invalid regex pattern: {}", e)))?;
+                        let regex = regex::Regex::new(pattern).map_err(|e| {
+                            IpfsError::ValidationError(format!("Invalid regex pattern: {}", e))
+                        })?;
                         if !regex.is_match(s) {
                             return Err(IpfsError::ValidationError(format!(
                                 "String '{}' does not match pattern '{}'",
@@ -261,7 +276,7 @@ impl InMemoryMetadataManager {
         }
         Ok(())
     }
-    
+
     /// Check if metadata matches query
     fn matches_query(&self, metadata: &ContentMetadata, query: &MetadataQuery) -> bool {
         // Check tags
@@ -271,26 +286,26 @@ impl InMemoryMetadataManager {
                 return false;
             }
         }
-        
+
         // Check MIME types
         if !query.mime_types.is_empty() && !query.mime_types.contains(&metadata.mime_type) {
             return false;
         }
-        
+
         // Check size range
         if let Some((min, max)) = query.size_range {
             if metadata.size < min || metadata.size > max {
                 return false;
             }
         }
-        
+
         // Check date range
         if let Some((start, end)) = query.date_range {
             if metadata.created_at < start || metadata.created_at > end {
                 return false;
             }
         }
-        
+
         // Check custom filters
         for (key, expected_value) in &query.custom_filters {
             if let Some(actual_value) = metadata.custom_fields.get(key) {
@@ -301,7 +316,7 @@ impl InMemoryMetadataManager {
                 return false;
             }
         }
-        
+
         true
     }
 }
@@ -312,7 +327,10 @@ impl MetadataManagerTrait for InMemoryMetadataManager {
     async fn create_schema(&self, schema: MetadataSchema) -> IpfsResult<()> {
         debug!("Creating metadata schema: {}", schema.name);
 
-        self.schema_store.write().await.insert(schema.name.clone(), schema);
+        self.schema_store
+            .write()
+            .await
+            .insert(schema.name.clone(), schema);
 
         info!("Successfully created metadata schema");
         Ok(())
@@ -322,14 +340,20 @@ impl MetadataManagerTrait for InMemoryMetadataManager {
     async fn get_schema(&self, name: &str) -> IpfsResult<MetadataSchema> {
         debug!("Getting metadata schema: {}", name);
 
-        self.schema_store.read().await
+        self.schema_store
+            .read()
+            .await
             .get(name)
             .cloned()
             .ok_or_else(|| IpfsError::MetadataError(format!("Schema not found: {}", name)))
     }
 
     #[instrument(skip(self, metadata))]
-    async fn validate_metadata(&self, metadata: &ContentMetadata, schema_name: &str) -> IpfsResult<()> {
+    async fn validate_metadata(
+        &self,
+        metadata: &ContentMetadata,
+        schema_name: &str,
+    ) -> IpfsResult<()> {
         debug!("Validating metadata against schema: {}", schema_name);
 
         let schema = self.get_schema(schema_name).await?;
@@ -384,7 +408,10 @@ impl MetadataManagerTrait for InMemoryMetadataManager {
     }
 
     #[instrument(skip(self, updates))]
-    async fn bulk_update_metadata(&self, updates: HashMap<IpfsHash, ContentMetadata>) -> IpfsResult<()> {
+    async fn bulk_update_metadata(
+        &self,
+        updates: HashMap<IpfsHash, ContentMetadata>,
+    ) -> IpfsResult<()> {
         debug!("Bulk updating {} metadata items", updates.len());
 
         let mut metadata_store = self.metadata_store.write().await;
@@ -392,7 +419,10 @@ impl MetadataManagerTrait for InMemoryMetadataManager {
             metadata_store.insert(hash.as_str().to_string(), metadata);
         }
 
-        info!("Successfully updated metadata for {} items", metadata_store.len());
+        info!(
+            "Successfully updated metadata for {} items",
+            metadata_store.len()
+        );
         Ok(())
     }
 
@@ -402,18 +432,21 @@ impl MetadataManagerTrait for InMemoryMetadataManager {
 
         let metadata_store = self.metadata_store.read().await;
         let metadata_to_export: Vec<ContentMetadata> = match hashes {
-            Some(hash_list) => {
-                hash_list.iter()
-                    .filter_map(|hash| metadata_store.get(hash.as_str()).cloned())
-                    .collect()
-            }
+            Some(hash_list) => hash_list
+                .iter()
+                .filter_map(|hash| metadata_store.get(hash.as_str()).cloned())
+                .collect(),
             None => metadata_store.values().cloned().collect(),
         };
 
-        let json = serde_json::to_string_pretty(&metadata_to_export)
-            .map_err(|e| IpfsError::SerializationError(format!("Failed to serialize metadata: {}", e)))?;
+        let json = serde_json::to_string_pretty(&metadata_to_export).map_err(|e| {
+            IpfsError::SerializationError(format!("Failed to serialize metadata: {}", e))
+        })?;
 
-        info!("Exported {} metadata items to JSON", metadata_to_export.len());
+        info!(
+            "Exported {} metadata items to JSON",
+            metadata_to_export.len()
+        );
         Ok(json)
     }
 
@@ -421,8 +454,9 @@ impl MetadataManagerTrait for InMemoryMetadataManager {
     async fn import_metadata(&self, json_data: &str) -> IpfsResult<Vec<IpfsHash>> {
         debug!("Importing metadata from JSON");
 
-        let metadata_list: Vec<ContentMetadata> = serde_json::from_str(json_data)
-            .map_err(|e| IpfsError::SerializationError(format!("Failed to deserialize metadata: {}", e)))?;
+        let metadata_list: Vec<ContentMetadata> = serde_json::from_str(json_data).map_err(|e| {
+            IpfsError::SerializationError(format!("Failed to deserialize metadata: {}", e))
+        })?;
 
         let mut imported_hashes = Vec::new();
         let mut metadata_store = self.metadata_store.write().await;
@@ -433,7 +467,10 @@ impl MetadataManagerTrait for InMemoryMetadataManager {
             imported_hashes.push(hash);
         }
 
-        info!("Imported {} metadata items from JSON", imported_hashes.len());
+        info!(
+            "Imported {} metadata items from JSON",
+            imported_hashes.len()
+        );
         Ok(imported_hashes)
     }
 
@@ -458,7 +495,9 @@ impl MetadataManagerTrait for InMemoryMetadataManager {
         // Calculate MIME type distribution
         let mut mime_types_distribution = HashMap::new();
         for metadata in metadata_store.values() {
-            *mime_types_distribution.entry(metadata.mime_type.clone()).or_insert(0) += 1;
+            *mime_types_distribution
+                .entry(metadata.mime_type.clone())
+                .or_insert(0) += 1;
         }
 
         // Calculate size distribution
@@ -470,9 +509,9 @@ impl MetadataManagerTrait for InMemoryMetadataManager {
         for metadata in metadata_store.values() {
             total_size += metadata.size;
             match metadata.size {
-                0..=1_048_576 => small_files += 1,      // < 1MB
+                0..=1_048_576 => small_files += 1,           // < 1MB
                 1_048_577..=10_485_760 => medium_files += 1, // 1MB - 10MB
-                _ => large_files += 1,                   // > 10MB
+                _ => large_files += 1,                       // > 10MB
             }
         }
 
@@ -499,7 +538,10 @@ impl MetadataManagerTrait for InMemoryMetadataManager {
             last_updated: chrono::Utc::now(),
         };
 
-        info!("Generated metadata statistics: {} items, {} schemas", total_items, schemas_count);
+        info!(
+            "Generated metadata statistics: {} items, {} schemas",
+            total_items, schemas_count
+        );
         Ok(stats)
     }
 }
@@ -515,7 +557,8 @@ mod tests {
     use super::*;
 
     fn create_test_metadata() -> ContentMetadata {
-        let hash = IpfsHash::new("QmTestMetadata123456789012345678901234567890".to_string()).unwrap();
+        let hash =
+            IpfsHash::new("QmTestMetadata123456789012345678901234567890".to_string()).unwrap();
         let mut metadata = ContentMetadata::new(
             hash,
             "test_file.txt".to_string(),
@@ -524,33 +567,43 @@ mod tests {
         );
         metadata.add_tag("test".to_string());
         metadata.add_tag("metadata".to_string());
-        metadata.add_custom_field("author".to_string(), serde_json::Value::String("test_user".to_string()));
-        metadata.add_custom_field("version".to_string(), serde_json::Value::Number(serde_json::Number::from(1)));
+        metadata.add_custom_field(
+            "author".to_string(),
+            serde_json::Value::String("test_user".to_string()),
+        );
+        metadata.add_custom_field(
+            "version".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(1)),
+        );
         metadata
     }
 
     fn create_test_schema() -> MetadataSchema {
         let mut fields = HashMap::new();
 
-        fields.insert("author".to_string(), FieldDefinition {
-            field_type: FieldType::String,
-            description: "Author of the content".to_string(),
-            validation_rules: vec![
-                ValidationRule::Required,
-                ValidationRule::MinLength(1),
-                ValidationRule::MaxLength(100),
-            ],
-            default_value: None,
-        });
+        fields.insert(
+            "author".to_string(),
+            FieldDefinition {
+                field_type: FieldType::String,
+                description: "Author of the content".to_string(),
+                validation_rules: vec![
+                    ValidationRule::Required,
+                    ValidationRule::MinLength(1),
+                    ValidationRule::MaxLength(100),
+                ],
+                default_value: None,
+            },
+        );
 
-        fields.insert("version".to_string(), FieldDefinition {
-            field_type: FieldType::Number,
-            description: "Version number".to_string(),
-            validation_rules: vec![
-                ValidationRule::Range(1.0, 100.0),
-            ],
-            default_value: Some(serde_json::Value::Number(serde_json::Number::from(1))),
-        });
+        fields.insert(
+            "version".to_string(),
+            FieldDefinition {
+                field_type: FieldType::Number,
+                description: "Version number".to_string(),
+                validation_rules: vec![ValidationRule::Range(1.0, 100.0)],
+                default_value: Some(serde_json::Value::Number(serde_json::Number::from(1))),
+            },
+        );
 
         MetadataSchema {
             name: "test_schema".to_string(),
@@ -567,7 +620,10 @@ mod tests {
             .with_tag("test".to_string())
             .with_mime_type("text/plain".to_string())
             .with_size_range(100, 2000)
-            .with_custom_filter("author".to_string(), serde_json::Value::String("test_user".to_string()))
+            .with_custom_filter(
+                "author".to_string(),
+                serde_json::Value::String("test_user".to_string()),
+            )
             .with_pagination(10, 0);
 
         assert_eq!(query.tags.len(), 1);
@@ -604,10 +660,14 @@ mod tests {
         let metadata = create_test_metadata();
 
         // Valid metadata should pass
-        assert!(manager.validate_metadata(&metadata, "test_schema").await.is_ok());
+        assert!(manager
+            .validate_metadata(&metadata, "test_schema")
+            .await
+            .is_ok());
 
         // Create invalid metadata (missing required field)
-        let hash = IpfsHash::new("QmInvalidMetadata123456789012345678901234567".to_string()).unwrap();
+        let hash =
+            IpfsHash::new("QmInvalidMetadata123456789012345678901234567".to_string()).unwrap();
         let invalid_metadata = ContentMetadata::new(
             hash,
             "invalid.txt".to_string(),
@@ -616,7 +676,10 @@ mod tests {
         );
 
         // Should fail validation
-        assert!(manager.validate_metadata(&invalid_metadata, "test_schema").await.is_err());
+        assert!(manager
+            .validate_metadata(&invalid_metadata, "test_schema")
+            .await
+            .is_err());
     }
 
     #[tokio::test]
@@ -626,7 +689,8 @@ mod tests {
         // Add test metadata
         let metadata1 = create_test_metadata();
         let mut metadata2 = create_test_metadata();
-        metadata2.hash = IpfsHash::new("QmTestMetadata234567890123456789012345678901".to_string()).unwrap();
+        metadata2.hash =
+            IpfsHash::new("QmTestMetadata234567890123456789012345678901".to_string()).unwrap();
         metadata2.name = "another_file.txt".to_string();
         metadata2.mime_type = "application/json".to_string();
         metadata2.tags = vec!["json".to_string(), "data".to_string()];
@@ -718,13 +782,15 @@ mod tests {
         metadata1.mime_type = "image/jpeg".to_string();
 
         let mut metadata2 = create_test_metadata();
-        metadata2.hash = IpfsHash::new("QmStats234567890123456789012345678901234567".to_string()).unwrap();
+        metadata2.hash =
+            IpfsHash::new("QmStats234567890123456789012345678901234567".to_string()).unwrap();
         metadata2.size = 5_000_000; // Medium file
         metadata2.mime_type = "image/jpeg".to_string();
         metadata2.tags = vec!["image".to_string(), "photo".to_string()];
 
         let mut metadata3 = create_test_metadata();
-        metadata3.hash = IpfsHash::new("QmStats345678901234567890123456789012345678".to_string()).unwrap();
+        metadata3.hash =
+            IpfsHash::new("QmStats345678901234567890123456789012345678".to_string()).unwrap();
         metadata3.size = 50_000_000; // Large file
         metadata3.mime_type = "video/mp4".to_string();
         metadata3.tags = vec!["video".to_string(), "media".to_string()];

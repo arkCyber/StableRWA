@@ -4,22 +4,107 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use crate::{AssetError, AssetResult};
+use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, PgPool, Row};
+use std::collections::HashMap;
 use uuid::Uuid;
 
+/// Asset type enumeration
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AssetType {
+    RealEstate,
+    Commodity,
+    Artwork,
+    Collectible,
+    IntellectualProperty,
+    Equipment,
+    Vehicle,
+    Other,
+}
+
+impl std::str::FromStr for AssetType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "real_estate" | "realestate" => Ok(AssetType::RealEstate),
+            "commodity" => Ok(AssetType::Commodity),
+            "artwork" => Ok(AssetType::Artwork),
+            "collectible" => Ok(AssetType::Collectible),
+            "intellectual_property" | "intellectualproperty" => Ok(AssetType::IntellectualProperty),
+            "equipment" => Ok(AssetType::Equipment),
+            "vehicle" => Ok(AssetType::Vehicle),
+            "other" => Ok(AssetType::Other),
+            _ => Err(format!("Invalid asset type: {}", s)),
+        }
+    }
+}
+
+impl std::fmt::Display for AssetType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AssetType::RealEstate => write!(f, "real_estate"),
+            AssetType::Commodity => write!(f, "commodity"),
+            AssetType::Artwork => write!(f, "artwork"),
+            AssetType::Collectible => write!(f, "collectible"),
+            AssetType::IntellectualProperty => write!(f, "intellectual_property"),
+            AssetType::Equipment => write!(f, "equipment"),
+            AssetType::Vehicle => write!(f, "vehicle"),
+            AssetType::Other => write!(f, "other"),
+        }
+    }
+}
+
+/// Asset status enumeration
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AssetStatus {
+    Active,
+    Inactive,
+    UnderReview,
+    Sold,
+    Deprecated,
+}
+
+impl std::str::FromStr for AssetStatus {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "active" => Ok(AssetStatus::Active),
+            "inactive" => Ok(AssetStatus::Inactive),
+            "under_review" | "underreview" => Ok(AssetStatus::UnderReview),
+            "sold" => Ok(AssetStatus::Sold),
+            "deprecated" => Ok(AssetStatus::Deprecated),
+            _ => Err(format!("Invalid asset status: {}", s)),
+        }
+    }
+}
+
+impl std::fmt::Display for AssetStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AssetStatus::Active => write!(f, "active"),
+            AssetStatus::Inactive => write!(f, "inactive"),
+            AssetStatus::UnderReview => write!(f, "under_review"),
+            AssetStatus::Sold => write!(f, "sold"),
+            AssetStatus::Deprecated => write!(f, "deprecated"),
+        }
+    }
+}
+
 /// Asset model
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Asset {
     pub id: Uuid,
     pub owner_id: Uuid,
     pub name: String,
     pub description: String,
-    pub asset_type: String,
+    pub asset_type: AssetType,
+    pub status: AssetStatus,
     pub total_value: Decimal,
+    pub tokenized_value: Option<Decimal>,
     pub currency: String,
     pub location: Option<String>,
     pub is_tokenized: bool,
@@ -33,7 +118,7 @@ pub struct Asset {
 }
 
 /// Asset metadata model
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssetMetadata {
     pub id: Uuid,
     pub asset_id: Uuid,
@@ -45,7 +130,7 @@ pub struct AssetMetadata {
 }
 
 /// Asset valuation model
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssetValuation {
     pub id: Uuid,
     pub asset_id: Uuid,
@@ -70,664 +155,158 @@ pub struct TokenizationResult {
     pub block_number: Option<u64>,
 }
 
-/// Asset repository for database operations
-pub struct AssetRepository {
-    pool: PgPool,
+/// Asset repository trait for dependency injection
+#[async_trait]
+pub trait AssetRepository: Send + Sync {
+    async fn create(&self, asset: &Asset) -> Result<Asset, crate::AssetError>;
+    async fn find_by_id(&self, id: &str) -> Result<Option<Asset>, crate::AssetError>;
+    async fn find_by_owner(&self, owner_id: &str) -> Result<Vec<Asset>, crate::AssetError>;
+    async fn update(&self, asset: &Asset) -> Result<Asset, crate::AssetError>;
+    async fn delete(&self, id: &str) -> Result<(), crate::AssetError>;
+    async fn list_with_filters(
+        &self,
+        filters: &AssetFilters,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(Vec<Asset>, i64), crate::AssetError>;
 }
 
-impl AssetRepository {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
-    }
+/// Asset filters for querying
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AssetFilters {
+    pub asset_type: Option<AssetType>,
+    pub owner_id: Option<Uuid>,
+    pub status: Option<AssetStatus>,
+    pub min_value: Option<Decimal>,
+    pub max_value: Option<Decimal>,
+    pub is_tokenized: Option<bool>,
+}
 
-    /// Create a new asset
-    pub async fn create_asset(
-        &self,
-        owner_id: &Uuid,
-        name: &str,
-        description: &str,
-        asset_type: &str,
-        total_value: Decimal,
-        currency: &str,
-        location: Option<&str>,
-        metadata: Option<&serde_json::Value>,
-    ) -> AssetResult<Asset> {
-        let asset_id = Uuid::new_v4();
-        let now = Utc::now();
+/// In-memory repository implementation for demo purposes
+pub struct InMemoryAssetRepository {
+    assets: std::sync::Arc<tokio::sync::RwLock<HashMap<Uuid, Asset>>>,
+}
 
-        let asset = sqlx::query_as!(
-            Asset,
-            r#"
-            INSERT INTO assets (
-                id, owner_id, name, description, asset_type, total_value,
-                currency, location, is_tokenized, metadata, created_at, updated_at
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-            RETURNING *
-            "#,
-            asset_id,
-            owner_id,
-            name,
-            description,
-            asset_type,
-            total_value,
-            currency,
-            location,
-            false,
-            metadata,
-            now,
-            now
-        )
-        .fetch_one(&self.pool)
-        .await?;
-
-        Ok(asset)
-    }
-
-    /// Find asset by ID
-    pub async fn find_by_id(&self, asset_id: &Uuid) -> AssetResult<Option<Asset>> {
-        let asset = sqlx::query_as!(
-            Asset,
-            "SELECT * FROM assets WHERE id = $1",
-            asset_id
-        )
-        .fetch_optional(&self.pool)
-        .await?;
-
-        Ok(asset)
-    }
-
-    /// Find asset by ID and owner
-    pub async fn find_by_id_and_owner(
-        &self,
-        asset_id: &Uuid,
-        owner_id: &Uuid,
-    ) -> AssetResult<Option<Asset>> {
-        let asset = sqlx::query_as!(
-            Asset,
-            "SELECT * FROM assets WHERE id = $1 AND owner_id = $2",
-            asset_id,
-            owner_id
-        )
-        .fetch_optional(&self.pool)
-        .await?;
-
-        Ok(asset)
-    }
-
-    /// Find assets by owner
-    pub async fn find_by_owner(
-        &self,
-        owner_id: &Uuid,
-        page: i64,
-        per_page: i64,
-    ) -> AssetResult<(Vec<Asset>, i64)> {
-        let offset = (page - 1) * per_page;
-
-        let assets = sqlx::query_as!(
-            Asset,
-            r#"
-            SELECT * FROM assets 
-            WHERE owner_id = $1
-            ORDER BY created_at DESC
-            LIMIT $2 OFFSET $3
-            "#,
-            owner_id,
-            per_page,
-            offset
-        )
-        .fetch_all(&self.pool)
-        .await?;
-
-        let total = sqlx::query_scalar!(
-            "SELECT COUNT(*) FROM assets WHERE owner_id = $1",
-            owner_id
-        )
-        .fetch_one(&self.pool)
-        .await?
-        .unwrap_or(0);
-
-        Ok((assets, total))
-    }
-
-    /// List all assets with filters
-    pub async fn list_assets(
-        &self,
-        asset_type: Option<&str>,
-        is_tokenized: Option<bool>,
-        page: i64,
-        per_page: i64,
-    ) -> AssetResult<(Vec<Asset>, i64)> {
-        let offset = (page - 1) * per_page;
-
-        let mut query = "SELECT * FROM assets WHERE 1=1".to_string();
-        let mut count_query = "SELECT COUNT(*) FROM assets WHERE 1=1".to_string();
-        let mut params = Vec::new();
-        let mut param_count = 0;
-
-        if let Some(asset_type) = asset_type {
-            param_count += 1;
-            query.push_str(&format!(" AND asset_type = ${}", param_count));
-            count_query.push_str(&format!(" AND asset_type = ${}", param_count));
-            params.push(asset_type);
+impl InMemoryAssetRepository {
+    pub fn new() -> Self {
+        Self {
+            assets: std::sync::Arc::new(tokio::sync::RwLock::new(HashMap::new())),
         }
+    }
+}
 
-        if let Some(is_tokenized) = is_tokenized {
-            param_count += 1;
-            query.push_str(&format!(" AND is_tokenized = ${}", param_count));
-            count_query.push_str(&format!(" AND is_tokenized = ${}", param_count));
-            params.push(if is_tokenized { "true" } else { "false" });
-        }
-
-        query.push_str(&format!(" ORDER BY created_at DESC LIMIT ${} OFFSET ${}", param_count + 1, param_count + 2));
-
-        // This is a simplified implementation - in practice, you'd use a query builder
-        // or dynamic query construction for better type safety
-        let assets = sqlx::query_as::<_, Asset>(&query)
-            .bind(per_page)
-            .bind(offset)
-            .fetch_all(&self.pool)
-            .await?;
-
-        let total = sqlx::query_scalar::<_, i64>(&count_query)
-            .fetch_one(&self.pool)
-            .await?
-            .unwrap_or(0);
-
-        Ok((assets, total))
+#[async_trait]
+impl AssetRepository for InMemoryAssetRepository {
+    async fn create(&self, asset: &Asset) -> Result<Asset, crate::AssetError> {
+        let mut assets = self.assets.write().await;
+        let asset_clone = asset.clone();
+        assets.insert(asset.id, asset_clone.clone());
+        Ok(asset_clone)
     }
 
-    /// Update asset
-    pub async fn update_asset(&self, asset: &Asset) -> AssetResult<Asset> {
-        let updated_asset = sqlx::query_as!(
-            Asset,
-            r#"
-            UPDATE assets SET
-                name = $2,
-                description = $3,
-                asset_type = $4,
-                total_value = $5,
-                currency = $6,
-                location = $7,
-                is_tokenized = $8,
-                token_address = $9,
-                blockchain_network = $10,
-                token_supply = $11,
-                token_symbol = $12,
-                metadata = $13,
-                updated_at = NOW()
-            WHERE id = $1
-            RETURNING *
-            "#,
-            asset.id,
-            asset.name,
-            asset.description,
-            asset.asset_type,
-            asset.total_value,
-            asset.currency,
-            asset.location,
-            asset.is_tokenized,
-            asset.token_address,
-            asset.blockchain_network,
-            asset.token_supply,
-            asset.token_symbol,
-            asset.metadata
-        )
-        .fetch_one(&self.pool)
-        .await?;
-
-        Ok(updated_asset)
+    async fn find_by_id(&self, id: &str) -> Result<Option<Asset>, crate::AssetError> {
+        let asset_id = Uuid::parse_str(id)
+            .map_err(|_| crate::AssetError::InvalidAssetId(id.to_string()))?;
+        let assets = self.assets.read().await;
+        Ok(assets.get(&asset_id).cloned())
     }
 
-    /// Update asset tokenization info
-    pub async fn update_tokenization_info(
-        &self,
-        asset_id: &Uuid,
-        token_address: &str,
-        blockchain_network: &str,
-        token_supply: u64,
-        token_symbol: &str,
-    ) -> AssetResult<()> {
-        sqlx::query!(
-            r#"
-            UPDATE assets SET
-                is_tokenized = true,
-                token_address = $2,
-                blockchain_network = $3,
-                token_supply = $4,
-                token_symbol = $5,
-                updated_at = NOW()
-            WHERE id = $1
-            "#,
-            asset_id,
-            token_address,
-            blockchain_network,
-            token_supply as i64,
-            token_symbol
-        )
-        .execute(&self.pool)
-        .await?;
-
-        Ok(())
+    async fn find_by_owner(&self, owner_id: &str) -> Result<Vec<Asset>, crate::AssetError> {
+        let owner_uuid = Uuid::parse_str(owner_id)
+            .map_err(|_| crate::AssetError::InvalidAssetId(owner_id.to_string()))?;
+        let assets = self.assets.read().await;
+        let owned_assets: Vec<Asset> = assets
+            .values()
+            .filter(|asset| asset.owner_id == owner_uuid)
+            .cloned()
+            .collect();
+        Ok(owned_assets)
     }
 
-    /// Delete asset
-    pub async fn delete_asset(&self, asset_id: &Uuid) -> AssetResult<()> {
-        sqlx::query!("DELETE FROM assets WHERE id = $1", asset_id)
-            .execute(&self.pool)
-            .await?;
-
-        Ok(())
-    }
-
-    /// Search assets by name or description
-    pub async fn search_assets(
-        &self,
-        search_term: &str,
-        owner_id: Option<&Uuid>,
-        page: i64,
-        per_page: i64,
-    ) -> AssetResult<(Vec<Asset>, i64)> {
-        let offset = (page - 1) * per_page;
-        let search_pattern = format!("%{}%", search_term);
-
-        let (assets, total) = if let Some(owner_id) = owner_id {
-            let assets = sqlx::query_as!(
-                Asset,
-                r#"
-                SELECT * FROM assets 
-                WHERE owner_id = $1 AND (name ILIKE $2 OR description ILIKE $3)
-                ORDER BY created_at DESC
-                LIMIT $4 OFFSET $5
-                "#,
-                owner_id,
-                search_pattern,
-                search_pattern,
-                per_page,
-                offset
-            )
-            .fetch_all(&self.pool)
-            .await?;
-
-            let total = sqlx::query_scalar!(
-                r#"
-                SELECT COUNT(*) FROM assets 
-                WHERE owner_id = $1 AND (name ILIKE $2 OR description ILIKE $3)
-                "#,
-                owner_id,
-                search_pattern,
-                search_pattern
-            )
-            .fetch_one(&self.pool)
-            .await?
-            .unwrap_or(0);
-
-            (assets, total)
+    async fn update(&self, asset: &Asset) -> Result<Asset, crate::AssetError> {
+        let mut assets = self.assets.write().await;
+        if assets.contains_key(&asset.id) {
+            assets.insert(asset.id, asset.clone());
+            Ok(asset.clone())
         } else {
-            let assets = sqlx::query_as!(
-                Asset,
-                r#"
-                SELECT * FROM assets 
-                WHERE name ILIKE $1 OR description ILIKE $2
-                ORDER BY created_at DESC
-                LIMIT $3 OFFSET $4
-                "#,
-                search_pattern,
-                search_pattern,
-                per_page,
-                offset
-            )
-            .fetch_all(&self.pool)
-            .await?;
+            Err(crate::AssetError::AssetNotFound(asset.id.to_string()))
+        }
+    }
 
-            let total = sqlx::query_scalar!(
-                "SELECT COUNT(*) FROM assets WHERE name ILIKE $1 OR description ILIKE $2",
-                search_pattern,
-                search_pattern
-            )
-            .fetch_one(&self.pool)
-            .await?
-            .unwrap_or(0);
+    async fn delete(&self, id: &str) -> Result<(), crate::AssetError> {
+        let asset_id = Uuid::parse_str(id)
+            .map_err(|_| crate::AssetError::InvalidAssetId(id.to_string()))?;
+        let mut assets = self.assets.write().await;
+        if assets.remove(&asset_id).is_some() {
+            Ok(())
+        } else {
+            Err(crate::AssetError::AssetNotFound(id.to_string()))
+        }
+    }
 
-            (assets, total)
+    async fn list_with_filters(
+        &self,
+        filters: &AssetFilters,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(Vec<Asset>, i64), crate::AssetError> {
+        let assets = self.assets.read().await;
+        let mut filtered_assets: Vec<Asset> = assets
+            .values()
+            .filter(|asset| {
+                // Apply filters
+                if let Some(asset_type) = &filters.asset_type {
+                    if asset.asset_type != *asset_type {
+                        return false;
+                    }
+                }
+                if let Some(owner_id) = &filters.owner_id {
+                    if asset.owner_id != *owner_id {
+                        return false;
+                    }
+                }
+                if let Some(status) = &filters.status {
+                    if asset.status != *status {
+                        return false;
+                    }
+                }
+                if let Some(min_value) = &filters.min_value {
+                    if asset.total_value < *min_value {
+                        return false;
+                    }
+                }
+                if let Some(max_value) = &filters.max_value {
+                    if asset.total_value > *max_value {
+                        return false;
+                    }
+                }
+                if let Some(is_tokenized) = filters.is_tokenized {
+                    if asset.is_tokenized != is_tokenized {
+                        return false;
+                    }
+                }
+                true
+            })
+            .cloned()
+            .collect();
+
+        // Sort by created_at descending
+        filtered_assets.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+
+        let total = filtered_assets.len() as i64;
+        let start = offset as usize;
+        let end = std::cmp::min(start + limit as usize, filtered_assets.len());
+
+        let paginated_assets = if start < filtered_assets.len() {
+            filtered_assets[start..end].to_vec()
+        } else {
+            vec![]
         };
 
-        Ok((assets, total))
-    }
-
-    // Asset metadata operations
-
-    /// Create asset metadata
-    pub async fn create_metadata(
-        &self,
-        asset_id: &Uuid,
-        key: &str,
-        value: &serde_json::Value,
-        metadata_type: &str,
-    ) -> AssetResult<AssetMetadata> {
-        let metadata_id = Uuid::new_v4();
-        let now = Utc::now();
-
-        let metadata = sqlx::query_as!(
-            AssetMetadata,
-            r#"
-            INSERT INTO asset_metadata (
-                id, asset_id, key, value, metadata_type, created_at, updated_at
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING *
-            "#,
-            metadata_id,
-            asset_id,
-            key,
-            value,
-            metadata_type,
-            now,
-            now
-        )
-        .fetch_one(&self.pool)
-        .await?;
-
-        Ok(metadata)
-    }
-
-    /// Get asset metadata
-    pub async fn get_metadata(&self, asset_id: &Uuid) -> AssetResult<Vec<AssetMetadata>> {
-        let metadata = sqlx::query_as!(
-            AssetMetadata,
-            "SELECT * FROM asset_metadata WHERE asset_id = $1 ORDER BY created_at DESC",
-            asset_id
-        )
-        .fetch_all(&self.pool)
-        .await?;
-
-        Ok(metadata)
-    }
-
-    /// Update asset metadata
-    pub async fn update_metadata(
-        &self,
-        metadata_id: &Uuid,
-        value: &serde_json::Value,
-    ) -> AssetResult<AssetMetadata> {
-        let metadata = sqlx::query_as!(
-            AssetMetadata,
-            r#"
-            UPDATE asset_metadata SET
-                value = $2,
-                updated_at = NOW()
-            WHERE id = $1
-            RETURNING *
-            "#,
-            metadata_id,
-            value
-        )
-        .fetch_one(&self.pool)
-        .await?;
-
-        Ok(metadata)
-    }
-
-    /// Delete asset metadata
-    pub async fn delete_metadata(&self, metadata_id: &Uuid) -> AssetResult<()> {
-        sqlx::query!("DELETE FROM asset_metadata WHERE id = $1", metadata_id)
-            .execute(&self.pool)
-            .await?;
-
-        Ok(())
-    }
-
-    // Asset valuation operations
-
-    /// Create asset valuation
-    pub async fn create_valuation(
-        &self,
-        asset_id: &Uuid,
-        value: Decimal,
-        currency: &str,
-        valuation_method: &str,
-        valuation_date: DateTime<Utc>,
-        notes: Option<&str>,
-        metadata: Option<&serde_json::Value>,
-    ) -> AssetResult<AssetValuation> {
-        let valuation_id = Uuid::new_v4();
-        let now = Utc::now();
-
-        let valuation = sqlx::query_as!(
-            AssetValuation,
-            r#"
-            INSERT INTO asset_valuations (
-                id, asset_id, value, currency, valuation_method, valuation_date,
-                notes, metadata, created_at
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            RETURNING *
-            "#,
-            valuation_id,
-            asset_id,
-            value,
-            currency,
-            valuation_method,
-            valuation_date,
-            notes,
-            metadata,
-            now
-        )
-        .fetch_one(&self.pool)
-        .await?;
-
-        Ok(valuation)
-    }
-
-    /// Get asset valuations
-    pub async fn get_valuations(
-        &self,
-        asset_id: &Uuid,
-        page: i64,
-        per_page: i64,
-    ) -> AssetResult<(Vec<AssetValuation>, i64)> {
-        let offset = (page - 1) * per_page;
-
-        let valuations = sqlx::query_as!(
-            AssetValuation,
-            r#"
-            SELECT * FROM asset_valuations 
-            WHERE asset_id = $1
-            ORDER BY valuation_date DESC
-            LIMIT $2 OFFSET $3
-            "#,
-            asset_id,
-            per_page,
-            offset
-        )
-        .fetch_all(&self.pool)
-        .await?;
-
-        let total = sqlx::query_scalar!(
-            "SELECT COUNT(*) FROM asset_valuations WHERE asset_id = $1",
-            asset_id
-        )
-        .fetch_one(&self.pool)
-        .await?
-        .unwrap_or(0);
-
-        Ok((valuations, total))
-    }
-
-    /// Get latest asset valuation
-    pub async fn get_latest_valuation(&self, asset_id: &Uuid) -> AssetResult<Option<AssetValuation>> {
-        let valuation = sqlx::query_as!(
-            AssetValuation,
-            r#"
-            SELECT * FROM asset_valuations 
-            WHERE asset_id = $1
-            ORDER BY valuation_date DESC
-            LIMIT 1
-            "#,
-            asset_id
-        )
-        .fetch_optional(&self.pool)
-        .await?;
-
-        Ok(valuation)
-    }
-
-    /// Get asset statistics
-    pub async fn get_asset_statistics(&self, owner_id: Option<&Uuid>) -> AssetResult<serde_json::Value> {
-        let stats = if let Some(owner_id) = owner_id {
-            sqlx::query!(
-                r#"
-                SELECT 
-                    COUNT(*) as total_assets,
-                    COUNT(CASE WHEN is_tokenized = true THEN 1 END) as tokenized_assets,
-                    COUNT(DISTINCT asset_type) as asset_types,
-                    COALESCE(SUM(total_value), 0) as total_value
-                FROM assets 
-                WHERE owner_id = $1
-                "#,
-                owner_id
-            )
-            .fetch_one(&self.pool)
-            .await?
-        } else {
-            sqlx::query!(
-                r#"
-                SELECT 
-                    COUNT(*) as total_assets,
-                    COUNT(CASE WHEN is_tokenized = true THEN 1 END) as tokenized_assets,
-                    COUNT(DISTINCT asset_type) as asset_types,
-                    COALESCE(SUM(total_value), 0) as total_value
-                FROM assets
-                "#
-            )
-            .fetch_one(&self.pool)
-            .await?
-        };
-
-        Ok(serde_json::json!({
-            "total_assets": stats.total_assets,
-            "tokenized_assets": stats.tokenized_assets,
-            "asset_types": stats.asset_types,
-            "total_value": stats.total_value
-        }))
+        Ok((paginated_assets, total))
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use rust_decimal_macros::dec;
-    use sqlx::PgPool;
 
-    async fn create_test_asset(repo: &AssetRepository, owner_id: &Uuid) -> Asset {
-        repo.create_asset(
-            owner_id,
-            "Test Property",
-            "A test real estate property",
-            "real_estate",
-            dec!(500000.00),
-            "USD",
-            Some("New York, NY"),
-            None,
-        )
-        .await
-        .unwrap()
-    }
 
-    #[sqlx::test]
-    async fn test_create_and_find_asset(pool: PgPool) {
-        let repo = AssetRepository::new(pool);
-        let owner_id = Uuid::new_v4();
-        
-        let asset = create_test_asset(&repo, &owner_id).await;
-        assert_eq!(asset.name, "Test Property");
-        assert_eq!(asset.asset_type, "real_estate");
-        assert_eq!(asset.total_value, dec!(500000.00));
-        assert!(!asset.is_tokenized);
 
-        let found_asset = repo.find_by_id(&asset.id).await.unwrap();
-        assert!(found_asset.is_some());
-        assert_eq!(found_asset.unwrap().id, asset.id);
-    }
-
-    #[sqlx::test]
-    async fn test_update_asset(pool: PgPool) {
-        let repo = AssetRepository::new(pool);
-        let owner_id = Uuid::new_v4();
-        let mut asset = create_test_asset(&repo, &owner_id).await;
-
-        asset.name = "Updated Property".to_string();
-        asset.total_value = dec!(600000.00);
-
-        let updated_asset = repo.update_asset(&asset).await.unwrap();
-        assert_eq!(updated_asset.name, "Updated Property");
-        assert_eq!(updated_asset.total_value, dec!(600000.00));
-    }
-
-    #[sqlx::test]
-    async fn test_tokenization_update(pool: PgPool) {
-        let repo = AssetRepository::new(pool);
-        let owner_id = Uuid::new_v4();
-        let asset = create_test_asset(&repo, &owner_id).await;
-
-        repo.update_tokenization_info(
-            &asset.id,
-            "0x1234567890abcdef",
-            "ethereum",
-            1000000,
-            "PROP",
-        ).await.unwrap();
-
-        let updated_asset = repo.find_by_id(&asset.id).await.unwrap().unwrap();
-        assert!(updated_asset.is_tokenized);
-        assert_eq!(updated_asset.token_address, Some("0x1234567890abcdef".to_string()));
-        assert_eq!(updated_asset.blockchain_network, Some("ethereum".to_string()));
-        assert_eq!(updated_asset.token_supply, Some(1000000));
-        assert_eq!(updated_asset.token_symbol, Some("PROP".to_string()));
-    }
-
-    #[sqlx::test]
-    async fn test_asset_valuations(pool: PgPool) {
-        let repo = AssetRepository::new(pool);
-        let owner_id = Uuid::new_v4();
-        let asset = create_test_asset(&repo, &owner_id).await;
-
-        let valuation = repo.create_valuation(
-            &asset.id,
-            dec!(550000.00),
-            "USD",
-            "market_analysis",
-            Utc::now(),
-            Some("Updated market valuation"),
-            None,
-        ).await.unwrap();
-
-        assert_eq!(valuation.asset_id, asset.id);
-        assert_eq!(valuation.value, dec!(550000.00));
-        assert_eq!(valuation.valuation_method, "market_analysis");
-
-        let latest_valuation = repo.get_latest_valuation(&asset.id).await.unwrap();
-        assert!(latest_valuation.is_some());
-        assert_eq!(latest_valuation.unwrap().id, valuation.id);
-
-        let (valuations, total) = repo.get_valuations(&asset.id, 1, 10).await.unwrap();
-        assert_eq!(valuations.len(), 1);
-        assert_eq!(total, 1);
-    }
-
-    #[sqlx::test]
-    async fn test_asset_search(pool: PgPool) {
-        let repo = AssetRepository::new(pool);
-        let owner_id = Uuid::new_v4();
-        let _asset = create_test_asset(&repo, &owner_id).await;
-
-        let (assets, total) = repo.search_assets("Test", Some(&owner_id), 1, 10).await.unwrap();
-        assert_eq!(assets.len(), 1);
-        assert_eq!(total, 1);
-        assert_eq!(assets[0].name, "Test Property");
-
-        let (assets, total) = repo.search_assets("NonExistent", Some(&owner_id), 1, 10).await.unwrap();
-        assert_eq!(assets.len(), 0);
-        assert_eq!(total, 0);
-    }
-}

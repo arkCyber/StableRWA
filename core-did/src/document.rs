@@ -1,6 +1,6 @@
 // =====================================================================================
 // DID Document Implementation
-// 
+//
 // W3C DID Document specification compliant implementation
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
@@ -16,43 +16,43 @@ use url::Url;
 pub struct DidDocument {
     /// DID subject identifier
     pub id: String,
-    
+
     /// Context (JSON-LD)
     #[serde(rename = "@context")]
     pub context: Vec<String>,
-    
+
     /// Controller(s) of this DID
     #[serde(skip_serializing_if = "Option::is_none")]
     pub controller: Option<Vec<String>>,
-    
+
     /// Verification methods
     #[serde(rename = "verificationMethod", skip_serializing_if = "Vec::is_empty")]
     pub verification_method: Vec<VerificationMethod>,
-    
+
     /// Authentication verification methods
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub authentication: Vec<VerificationMethodReference>,
-    
+
     /// Assertion method verification methods
     #[serde(rename = "assertionMethod", skip_serializing_if = "Vec::is_empty")]
     pub assertion_method: Vec<VerificationMethodReference>,
-    
+
     /// Key agreement verification methods
     #[serde(rename = "keyAgreement", skip_serializing_if = "Vec::is_empty")]
     pub key_agreement: Vec<VerificationMethodReference>,
-    
+
     /// Capability invocation verification methods
     #[serde(rename = "capabilityInvocation", skip_serializing_if = "Vec::is_empty")]
     pub capability_invocation: Vec<VerificationMethodReference>,
-    
+
     /// Capability delegation verification methods
     #[serde(rename = "capabilityDelegation", skip_serializing_if = "Vec::is_empty")]
     pub capability_delegation: Vec<VerificationMethodReference>,
-    
+
     /// Service endpoints
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub service: Vec<ServiceEndpoint>,
-    
+
     /// Additional properties
     #[serde(flatten)]
     pub additional_properties: HashMap<String, serde_json::Value>,
@@ -149,14 +149,13 @@ impl DidDocument {
 
     /// Convert to JSON string
     pub fn to_json(&self) -> DidResult<String> {
-        serde_json::to_string_pretty(self)
-            .map_err(|e| DidError::SerializationError(e.to_string()))
+        serde_json::to_string_pretty(self).map_err(|e| DidError::SerializationError(e.to_string()))
     }
 
     /// Parse from JSON string
     pub fn from_json(json: &str) -> DidResult<Self> {
-        let document: DidDocument = serde_json::from_str(json)
-            .map_err(|e| DidError::SerializationError(e.to_string()))?;
+        let document: DidDocument =
+            serde_json::from_str(json).map_err(|e| DidError::SerializationError(e.to_string()))?;
 
         document.validate()?;
         Ok(document)
@@ -202,7 +201,7 @@ impl VerificationMethod {
         // Validate ID format
         if self.id.is_empty() {
             return Err(DidError::InvalidVerificationMethod(
-                "ID cannot be empty".to_string()
+                "ID cannot be empty".to_string(),
             ));
         }
 
@@ -249,14 +248,16 @@ impl PublicKeyMaterial {
             PublicKeyMaterial::Base58 { public_key_base58 } => {
                 if public_key_base58.is_empty() {
                     return Err(DidError::InvalidKeyFormat(
-                        "Base58 key cannot be empty".to_string()
+                        "Base58 key cannot be empty".to_string(),
                     ));
                 }
             }
-            PublicKeyMaterial::Multibase { public_key_multibase } => {
+            PublicKeyMaterial::Multibase {
+                public_key_multibase,
+            } => {
                 if public_key_multibase.is_empty() {
                     return Err(DidError::InvalidKeyFormat(
-                        "Multibase key cannot be empty".to_string()
+                        "Multibase key cannot be empty".to_string(),
                     ));
                 }
             }
@@ -266,7 +267,7 @@ impl PublicKeyMaterial {
             PublicKeyMaterial::Pem { public_key_pem } => {
                 if public_key_pem.is_empty() {
                     return Err(DidError::InvalidKeyFormat(
-                        "PEM key cannot be empty".to_string()
+                        "PEM key cannot be empty".to_string(),
                     ));
                 }
             }
@@ -314,13 +315,13 @@ impl ServiceEndpoint {
     pub fn validate(&self) -> DidResult<()> {
         if self.id.is_empty() {
             return Err(DidError::InvalidServiceEndpoint(
-                "Service ID cannot be empty".to_string()
+                "Service ID cannot be empty".to_string(),
             ));
         }
 
         if self.service_type.is_empty() {
             return Err(DidError::InvalidServiceEndpoint(
-                "Service type cannot be empty".to_string()
+                "Service type cannot be empty".to_string(),
             ));
         }
 
@@ -368,8 +369,7 @@ impl ServiceEndpointUrl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
-
+    use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 
     #[test]
     fn test_did_document_new() {
@@ -378,8 +378,12 @@ mod tests {
 
         assert_eq!(document.id, did.to_string());
         assert_eq!(document.context.len(), 2);
-        assert!(document.context.contains(&"https://www.w3.org/ns/did/v1".to_string()));
-        assert!(document.context.contains(&"https://w3id.org/security/suites/ed25519-2020/v1".to_string()));
+        assert!(document
+            .context
+            .contains(&"https://www.w3.org/ns/did/v1".to_string()));
+        assert!(document
+            .context
+            .contains(&"https://w3id.org/security/suites/ed25519-2020/v1".to_string()));
         assert!(document.controller.is_none());
         assert!(document.verification_method.is_empty());
         assert!(document.authentication.is_empty());
@@ -443,7 +447,8 @@ mod tests {
         let did = Did::new("123456789".to_string());
         let mut document = DidDocument::new(did);
 
-        let key_agreement_ref = VerificationMethodReference::Id("did:rwa:123456789#key-2".to_string());
+        let key_agreement_ref =
+            VerificationMethodReference::Id("did:rwa:123456789#key-2".to_string());
         document.add_key_agreement(key_agreement_ref);
 
         assert_eq!(document.key_agreement.len(), 1);
@@ -492,7 +497,10 @@ mod tests {
         let did = Did::new("123456789".to_string());
         let mut document = DidDocument::new(did);
 
-        let controllers = vec!["did:rwa:controller1".to_string(), "did:rwa:controller2".to_string()];
+        let controllers = vec![
+            "did:rwa:controller1".to_string(),
+            "did:rwa:controller2".to_string(),
+        ];
         document.set_controller(controllers.clone());
 
         assert_eq!(document.controller, Some(controllers));
@@ -617,7 +625,10 @@ mod tests {
         assert_eq!(vm.controller, "did:rwa:123");
         match vm.public_key {
             PublicKeyMaterial::Base58 { public_key_base58 } => {
-                assert_eq!(public_key_base58, "H3C2AVvLMv6gmMNam3uVAjZpfkcJCwDwnZn6z3wXmqPV");
+                assert_eq!(
+                    public_key_base58,
+                    "H3C2AVvLMv6gmMNam3uVAjZpfkcJCwDwnZn6z3wXmqPV"
+                );
             }
             _ => panic!("Expected Base58 public key"),
         }
@@ -654,7 +665,10 @@ mod tests {
 
         let result = vm.validate();
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), DidError::InvalidVerificationMethod(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            DidError::InvalidVerificationMethod(_)
+        ));
     }
 
     #[test]
@@ -717,7 +731,9 @@ mod tests {
     #[test]
     fn test_public_key_material_pem_validate() {
         let public_key = PublicKeyMaterial::Pem {
-            public_key_pem: "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA...\n-----END PUBLIC KEY-----".to_string(),
+            public_key_pem:
+                "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA...\n-----END PUBLIC KEY-----"
+                    .to_string(),
         };
 
         assert!(public_key.validate().is_ok());
@@ -817,7 +833,10 @@ mod tests {
 
         let result = service.validate();
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), DidError::InvalidServiceEndpoint(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            DidError::InvalidServiceEndpoint(_)
+        ));
     }
 
     #[test]
@@ -830,7 +849,10 @@ mod tests {
 
         let result = service.validate();
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), DidError::InvalidServiceEndpoint(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            DidError::InvalidServiceEndpoint(_)
+        ));
     }
 
     #[test]
@@ -844,7 +866,10 @@ mod tests {
         let url = ServiceEndpointUrl::Single("invalid-url".to_string());
         let result = url.validate();
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), DidError::InvalidServiceEndpoint(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            DidError::InvalidServiceEndpoint(_)
+        ));
     }
 
     #[test]
@@ -864,13 +889,19 @@ mod tests {
         ]);
         let result = urls.validate();
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), DidError::InvalidServiceEndpoint(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            DidError::InvalidServiceEndpoint(_)
+        ));
     }
 
     #[test]
     fn test_service_endpoint_url_complex() {
         let mut complex_endpoint = std::collections::HashMap::new();
-        complex_endpoint.insert("uri".to_string(), serde_json::json!("https://example.com/service"));
+        complex_endpoint.insert(
+            "uri".to_string(),
+            serde_json::json!("https://example.com/service"),
+        );
         complex_endpoint.insert("accept".to_string(), serde_json::json!(["didcomm/v2"]));
 
         let url = ServiceEndpointUrl::Complex(complex_endpoint);
@@ -895,11 +926,21 @@ mod tests {
         );
 
         document.add_verification_method(vm);
-        document.add_authentication(VerificationMethodReference::Id("did:rwa:123456789#key-1".to_string()));
-        document.add_assertion_method(VerificationMethodReference::Id("did:rwa:123456789#key-1".to_string()));
-        document.add_key_agreement(VerificationMethodReference::Id("did:rwa:123456789#key-1".to_string()));
-        document.add_capability_invocation(VerificationMethodReference::Id("did:rwa:123456789#key-1".to_string()));
-        document.add_capability_delegation(VerificationMethodReference::Id("did:rwa:123456789#key-1".to_string()));
+        document.add_authentication(VerificationMethodReference::Id(
+            "did:rwa:123456789#key-1".to_string(),
+        ));
+        document.add_assertion_method(VerificationMethodReference::Id(
+            "did:rwa:123456789#key-1".to_string(),
+        ));
+        document.add_key_agreement(VerificationMethodReference::Id(
+            "did:rwa:123456789#key-1".to_string(),
+        ));
+        document.add_capability_invocation(VerificationMethodReference::Id(
+            "did:rwa:123456789#key-1".to_string(),
+        ));
+        document.add_capability_delegation(VerificationMethodReference::Id(
+            "did:rwa:123456789#key-1".to_string(),
+        ));
 
         // Add service
         let service = ServiceEndpoint::new(
@@ -917,8 +958,14 @@ mod tests {
         let parsed_document = DidDocument::from_json(&json).unwrap();
 
         assert_eq!(document.id, parsed_document.id);
-        assert_eq!(document.verification_method.len(), parsed_document.verification_method.len());
-        assert_eq!(document.authentication.len(), parsed_document.authentication.len());
+        assert_eq!(
+            document.verification_method.len(),
+            parsed_document.verification_method.len()
+        );
+        assert_eq!(
+            document.authentication.len(),
+            parsed_document.authentication.len()
+        );
         assert_eq!(document.service.len(), parsed_document.service.len());
         assert_eq!(document.controller, parsed_document.controller);
     }
@@ -945,14 +992,28 @@ mod tests {
         }
 
         // Add different verification relationships
-        document.add_authentication(VerificationMethodReference::Id("did:rwa:complex-test#key-1".to_string()));
-        document.add_assertion_method(VerificationMethodReference::Id("did:rwa:complex-test#key-2".to_string()));
-        document.add_key_agreement(VerificationMethodReference::Id("did:rwa:complex-test#key-3".to_string()));
+        document.add_authentication(VerificationMethodReference::Id(
+            "did:rwa:complex-test#key-1".to_string(),
+        ));
+        document.add_assertion_method(VerificationMethodReference::Id(
+            "did:rwa:complex-test#key-2".to_string(),
+        ));
+        document.add_key_agreement(VerificationMethodReference::Id(
+            "did:rwa:complex-test#key-3".to_string(),
+        ));
 
         // Add multiple services
         let services = vec![
-            ("messaging", "DIDCommMessaging", "https://example.com/messaging"),
-            ("storage", "DecentralizedStorage", "https://example.com/storage"),
+            (
+                "messaging",
+                "DIDCommMessaging",
+                "https://example.com/messaging",
+            ),
+            (
+                "storage",
+                "DecentralizedStorage",
+                "https://example.com/storage",
+            ),
             ("identity", "IdentityHub", "https://example.com/identity"),
         ];
 

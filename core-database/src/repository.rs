@@ -4,20 +4,21 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use crate::{Cache, DatabaseError, Entity, Repository};
 use crate::redis_client::RedisClient;
+use crate::{Cache, DatabaseError, Entity, Repository};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres, Row};
 use std::marker::PhantomData;
-use tracing::{error, info, warn};
+use tracing::info;
 use uuid::Uuid;
 
 /// Generic PostgreSQL repository with caching
 pub struct PostgresRepository<T: Entity> {
     pool: Pool<Postgres>,
     cache: Option<RedisClient>,
+    #[allow(dead_code)]
     table_name: String,
     cache_prefix: String,
     cache_ttl: Option<u64>,
@@ -25,11 +26,7 @@ pub struct PostgresRepository<T: Entity> {
 }
 
 impl<T: Entity> PostgresRepository<T> {
-    pub fn new(
-        pool: Pool<Postgres>,
-        table_name: String,
-        cache_prefix: String,
-    ) -> Self {
+    pub fn new(pool: Pool<Postgres>, table_name: String, cache_prefix: String) -> Self {
         Self {
             pool,
             cache: None,
@@ -39,17 +36,13 @@ impl<T: Entity> PostgresRepository<T> {
             _phantom: PhantomData,
         }
     }
-    
-    pub fn with_cache(
-        mut self,
-        cache: RedisClient,
-        ttl: Option<u64>,
-    ) -> Self {
+
+    pub fn with_cache(mut self, cache: RedisClient, ttl: Option<u64>) -> Self {
         self.cache = Some(cache);
         self.cache_ttl = ttl;
         self
     }
-    
+
     /// Generate cache key for an entity
     fn cache_key(&self, id: &T::Id) -> String
     where
@@ -57,7 +50,7 @@ impl<T: Entity> PostgresRepository<T> {
     {
         format!("{}:{}", self.cache_prefix, id)
     }
-    
+
     /// Get from cache if available
     async fn get_from_cache(&self, id: &T::Id) -> Result<Option<T>, DatabaseError>
     where
@@ -71,7 +64,7 @@ impl<T: Entity> PostgresRepository<T> {
             Ok(None)
         }
     }
-    
+
     /// Set in cache if available
     async fn set_in_cache(&self, entity: &T) -> Result<(), DatabaseError>
     where
@@ -84,7 +77,7 @@ impl<T: Entity> PostgresRepository<T> {
         }
         Ok(())
     }
-    
+
     /// Remove from cache if available
     async fn remove_from_cache(&self, id: &T::Id) -> Result<(), DatabaseError>
     where
@@ -114,15 +107,15 @@ pub struct User {
 
 impl Entity for User {
     type Id = Uuid;
-    
+
     fn id(&self) -> &Self::Id {
         &self.id
     }
-    
+
     fn created_at(&self) -> DateTime<Utc> {
         self.created_at
     }
-    
+
     fn updated_at(&self) -> DateTime<Utc> {
         self.updated_at
     }
@@ -132,7 +125,7 @@ impl Entity for User {
 #[async_trait]
 impl Repository<User> for PostgresRepository<User> {
     type Error = DatabaseError;
-    
+
     async fn create(&self, user: &User) -> Result<User, Self::Error> {
         let row = sqlx::query(
             r#"
@@ -150,7 +143,7 @@ impl Repository<User> for PostgresRepository<User> {
         .bind(user.is_verified)
         .fetch_one(&self.pool)
         .await?;
-        
+
         let created_user = User {
             id: row.get("id"),
             email: row.get("email"),
@@ -162,20 +155,20 @@ impl Repository<User> for PostgresRepository<User> {
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
         };
-        
+
         // Cache the created user
         self.set_in_cache(&created_user).await?;
-        
+
         info!("User created: {}", created_user.id);
         Ok(created_user)
     }
-    
+
     async fn find_by_id(&self, id: &Uuid) -> Result<Option<User>, Self::Error> {
         // Try cache first
         if let Some(user) = self.get_from_cache(id).await? {
             return Ok(Some(user));
         }
-        
+
         // Query database
         let row = sqlx::query(
             "SELECT id, email, password_hash, first_name, last_name, is_active, is_verified, created_at, updated_at FROM users WHERE id = $1"
@@ -183,7 +176,7 @@ impl Repository<User> for PostgresRepository<User> {
         .bind(id)
         .fetch_optional(&self.pool)
         .await?;
-        
+
         if let Some(row) = row {
             let user = User {
                 id: row.get("id"),
@@ -196,16 +189,16 @@ impl Repository<User> for PostgresRepository<User> {
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
             };
-            
+
             // Cache the result
             self.set_in_cache(&user).await?;
-            
+
             Ok(Some(user))
         } else {
             Ok(None)
         }
     }
-    
+
     async fn update(&self, user: &User) -> Result<User, Self::Error> {
         let row = sqlx::query(
             r#"
@@ -225,7 +218,7 @@ impl Repository<User> for PostgresRepository<User> {
         .bind(user.is_verified)
         .fetch_one(&self.pool)
         .await?;
-        
+
         let updated_user = User {
             id: row.get("id"),
             email: row.get("email"),
@@ -237,34 +230,38 @@ impl Repository<User> for PostgresRepository<User> {
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
         };
-        
+
         // Update cache
         self.set_in_cache(&updated_user).await?;
-        
+
         info!("User updated: {}", updated_user.id);
         Ok(updated_user)
     }
-    
+
     async fn delete(&self, id: &Uuid) -> Result<bool, Self::Error> {
         let result = sqlx::query("DELETE FROM users WHERE id = $1")
             .bind(id)
             .execute(&self.pool)
             .await?;
-        
+
         let deleted = result.rows_affected() > 0;
-        
+
         if deleted {
             // Remove from cache
             self.remove_from_cache(id).await?;
             info!("User deleted: {}", id);
         }
-        
+
         Ok(deleted)
     }
-    
-    async fn list(&self, limit: Option<u32>, offset: Option<u32>) -> Result<Vec<User>, Self::Error> {
+
+    async fn list(
+        &self,
+        limit: Option<u32>,
+        offset: Option<u32>,
+    ) -> Result<Vec<User>, Self::Error> {
         let (limit, offset) = crate::utils::build_pagination(limit, offset);
-        
+
         let rows = sqlx::query(
             r#"
             SELECT id, email, password_hash, first_name, last_name, is_active, is_verified, created_at, updated_at 
@@ -277,19 +274,22 @@ impl Repository<User> for PostgresRepository<User> {
         .bind(offset as i64)
         .fetch_all(&self.pool)
         .await?;
-        
-        let users: Vec<User> = rows.into_iter().map(|row| User {
-            id: row.get("id"),
-            email: row.get("email"),
-            password_hash: row.get("password_hash"),
-            first_name: row.get("first_name"),
-            last_name: row.get("last_name"),
-            is_active: row.get("is_active"),
-            is_verified: row.get("is_verified"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        }).collect();
-        
+
+        let users: Vec<User> = rows
+            .into_iter()
+            .map(|row| User {
+                id: row.get("id"),
+                email: row.get("email"),
+                password_hash: row.get("password_hash"),
+                first_name: row.get("first_name"),
+                last_name: row.get("last_name"),
+                is_active: row.get("is_active"),
+                is_verified: row.get("is_verified"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            })
+            .collect();
+
         Ok(users)
     }
 }
@@ -304,7 +304,7 @@ impl PostgresRepository<User> {
         .bind(email)
         .fetch_optional(&self.pool)
         .await?;
-        
+
         if let Some(row) = row {
             let user = User {
                 id: row.get("id"),
@@ -317,27 +317,30 @@ impl PostgresRepository<User> {
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
             };
-            
+
             // Cache the result
             self.set_in_cache(&user).await?;
-            
+
             Ok(Some(user))
         } else {
             Ok(None)
         }
     }
-    
+
     /// Count active users
     pub async fn count_active_users(&self) -> Result<i64, DatabaseError> {
         let row = sqlx::query("SELECT COUNT(*) as count FROM users WHERE is_active = true")
             .fetch_one(&self.pool)
             .await?;
-        
+
         Ok(row.get("count"))
     }
-    
+
     /// Find users created after a specific date
-    pub async fn find_users_created_after(&self, date: DateTime<Utc>) -> Result<Vec<User>, DatabaseError> {
+    pub async fn find_users_created_after(
+        &self,
+        date: DateTime<Utc>,
+    ) -> Result<Vec<User>, DatabaseError> {
         let rows = sqlx::query(
             r#"
             SELECT id, email, password_hash, first_name, last_name, is_active, is_verified, created_at, updated_at 
@@ -349,19 +352,22 @@ impl PostgresRepository<User> {
         .bind(date)
         .fetch_all(&self.pool)
         .await?;
-        
-        let users: Vec<User> = rows.into_iter().map(|row| User {
-            id: row.get("id"),
-            email: row.get("email"),
-            password_hash: row.get("password_hash"),
-            first_name: row.get("first_name"),
-            last_name: row.get("last_name"),
-            is_active: row.get("is_active"),
-            is_verified: row.get("is_verified"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        }).collect();
-        
+
+        let users: Vec<User> = rows
+            .into_iter()
+            .map(|row| User {
+                id: row.get("id"),
+                email: row.get("email"),
+                password_hash: row.get("password_hash"),
+                first_name: row.get("first_name"),
+                last_name: row.get("last_name"),
+                is_active: row.get("is_active"),
+                is_verified: row.get("is_verified"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            })
+            .collect();
+
         Ok(users)
     }
 }
@@ -370,7 +376,7 @@ impl PostgresRepository<User> {
 mod tests {
     use super::*;
     use crate::utils;
-    
+
     #[test]
     fn test_user_entity() {
         let user = User {
@@ -384,12 +390,12 @@ mod tests {
             created_at: utils::now(),
             updated_at: utils::now(),
         };
-        
+
         assert_eq!(user.id(), &user.id);
         assert!(user.is_active);
         assert!(!user.is_verified);
     }
-    
+
     #[test]
     fn test_cache_key_generation() {
         // Test cache key generation without requiring a real database connection

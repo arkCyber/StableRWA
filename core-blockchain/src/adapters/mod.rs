@@ -1,7 +1,5 @@
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use tracing::{debug, error, info, warn};
+use tracing::info;
 
 use crate::{
     types::*,
@@ -64,7 +62,7 @@ impl EthereumAdapter {
     
     async fn get_client(&self) -> BlockchainResult<&ethers::providers::Provider<ethers::providers::Http>> {
         // In a real implementation, this would initialize the client
-        Err(BlockchainError::NetworkError("Client not initialized".to_string()))
+        Err(BlockchainError::NetworkError { message: "Client not initialized".to_string() })
     }
 }
 
@@ -87,10 +85,11 @@ impl BlockchainAdapter for EthereumAdapter {
             hash: format!("0x{:064x}", block_number),
             parent_hash: format!("0x{:064x}", block_number.saturating_sub(1)),
             timestamp: chrono::Utc::now(),
+            transaction_count: 0,
+            network: Network::Ethereum,
             transactions: vec![],
             gas_used: 0,
             gas_limit: 30_000_000,
-            network: Network::Ethereum,
         })
     }
     
@@ -108,6 +107,14 @@ impl BlockchainAdapter for EthereumAdapter {
             data: vec![],
             status: TransactionStatus::Confirmed,
             block_number: Some(18_000_000),
+            timestamp: Some(chrono::Utc::now()),
+            confirmations: 12,
+            metadata: std::collections::HashMap::new(),
+            id: uuid::Uuid::new_v4().to_string(),
+            from_address: Address { value: "0x0000000000000000000000000000000000000000".to_string(), network: Network::Ethereum },
+            to_address: Address { value: "0x0000000000000000000000000000000000000001".to_string(), network: Network::Ethereum },
+            created_at: chrono::Utc::now(),
+            updated_at: None,
         })
     }
     
@@ -118,7 +125,10 @@ impl BlockchainAdapter for EthereumAdapter {
             amount = transaction.amount,
             "Sending Ethereum transaction"
         );
-        Ok(TransactionHash { value: format!("0x{:064x}", rand::random::<u64>()) })
+        Ok(TransactionHash {
+            value: format!("0x{:064x}", rand::random::<u64>()),
+            network: Network::Ethereum
+        })
     }
     
     async fn get_transaction_receipt(&self, hash: &TransactionHash) -> BlockchainResult<TransactionReceipt> {
@@ -126,16 +136,26 @@ impl BlockchainAdapter for EthereumAdapter {
         Ok(TransactionReceipt {
             transaction_hash: hash.clone(),
             block_number: 18_000_000,
+            block_hash: format!("0x{:064x}", 18_000_000),
+            transaction_index: 0,
+            from: Address { value: "0x0000000000000000000000000000000000000000".to_string(), network: Network::Ethereum },
+            to: Some(Address { value: "0x0000000000000000000000000000000000000001".to_string(), network: Network::Ethereum }),
+            cumulative_gas_used: 21000,
             gas_used: 21000,
-            status: TransactionStatus::Confirmed,
+            contract_address: None,
             logs: vec![],
+            status: TransactionStatus::Confirmed,
+            network: Network::Ethereum,
         })
     }
     
     async fn get_balance(&self, address: &Address) -> BlockchainResult<Balance> {
         info!(address = %address.value, "Getting Ethereum balance");
         Ok(Balance {
+            address: address.clone(),
             amount: 1000000000000000000u64, // 1 ETH
+            token_balances: std::collections::HashMap::new(),
+            last_updated: chrono::Utc::now(),
             currency: "ETH".to_string(),
             network: Network::Ethereum,
         })
@@ -213,10 +233,11 @@ impl BlockchainAdapter for SolanaAdapter {
             hash: format!("solana_block_{}", block_number),
             parent_hash: format!("solana_block_{}", block_number.saturating_sub(1)),
             timestamp: chrono::Utc::now(),
+            transaction_count: 0,
+            network: Network::Solana,
             transactions: vec![],
             gas_used: 0,
             gas_limit: 1_400_000,
-            network: Network::Solana,
         })
     }
     

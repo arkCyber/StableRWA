@@ -5,49 +5,49 @@
 // =====================================================================================
 
 //! # Core Institutional Module
-//! 
+//!
 //! This module provides comprehensive institutional services for the StableRWA platform,
 //! including custody services, bulk trading, white label solutions, and institutional
 //! API gateway functionality.
 
-pub mod error;
-pub mod types;
-pub mod custody;
-pub mod bulk_trading;
-pub mod whitelabel;
 pub mod api_gateway;
+pub mod bulk_trading;
+pub mod custody;
+pub mod error;
 pub mod service;
+pub mod types;
+pub mod whitelabel;
 
 // Re-export main types and traits
-pub use error::{InstitutionalError, InstitutionalResult};
-pub use types::{
-    Institution, InstitutionType, InstitutionalAccount, InstitutionalUser,
-    InstitutionalRole, Permission, AccountType, ComplianceTier, RiskRating,
-    ServiceTier, ApiKey, ReportConfig, WhiteLabelConfig
-};
-pub use custody::{
-    CustodyService, CustodyAccount, CustodyAccountType, SegregationType,
-    AuthorizedSigner, SigningAuthority, CustodyTransactionRequest, CustodyTransactionResult
+pub use api_gateway::{
+    ApiEndpoint, ApiGatewayService, ApiMetrics, ApiRequest, ApiResponse, AuthenticationConfig,
+    RateLimitConfig,
 };
 pub use bulk_trading::{
-    BulkTradingService, BulkOrderRequest, BulkOrder, ExecutionStrategy,
-    BulkOrderResult, OrderExecutionResult, TradingStatistics
+    BulkOrder, BulkOrderRequest, BulkOrderResult, BulkTradingService, ExecutionStrategy,
+    OrderExecutionResult, TradingStatistics,
+};
+pub use custody::{
+    AuthorizedSigner, CustodyAccount, CustodyAccountType, CustodyService,
+    CustodyTransactionRequest, CustodyTransactionResult, SegregationType, SigningAuthority,
+};
+pub use error::{InstitutionalError, InstitutionalResult};
+pub use service::InstitutionalService;
+pub use types::{
+    AccountType, ApiKey, ComplianceTier, Institution, InstitutionType, InstitutionalAccount,
+    InstitutionalRole, InstitutionalUser, Permission, ReportConfig, RiskRating, ServiceTier,
+    WhiteLabelConfig,
 };
 pub use whitelabel::{
-    WhiteLabelService, WhiteLabelPlatform, BrandingConfig, FeatureConfig,
-    CustomizationOptions, WhiteLabelDeployment
+    BrandingConfig, CustomizationOptions, FeatureConfig, WhiteLabelDeployment, WhiteLabelPlatform,
+    WhiteLabelService,
 };
-pub use api_gateway::{
-    ApiGatewayService, ApiEndpoint, RateLimitConfig, AuthenticationConfig,
-    ApiMetrics, ApiRequest, ApiResponse
-};
-pub use service::InstitutionalService;
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 /// Main institutional service configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -340,6 +340,8 @@ mod tests {
 
         assert_eq!(onboarding_request.status, OnboardingStatus::Submitted);
         assert_eq!(onboarding_request.requested_services.len(), 2);
-        assert!(onboarding_request.requested_services.contains(&RequestedService::Custody));
+        assert!(onboarding_request
+            .requested_services
+            .contains(&RequestedService::Custody));
     }
 }

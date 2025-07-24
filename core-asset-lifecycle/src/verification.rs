@@ -301,7 +301,7 @@ impl AssetVerificationService {
 
         // Check if auto-verification is enabled for this asset type
         if let Some(asset) = self.get_asset(request.asset_id).await? {
-            if self.config.auto_verification.get(&asset.asset_type).unwrap_or(&false) {
+            if *self.config.auto_verification.get(&asset.asset_type).unwrap_or(&false) {
                 result = self.perform_auto_verification(result, &asset).await?;
             } else {
                 result.status = VerificationStatus::Assigned;

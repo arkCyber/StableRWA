@@ -1,38 +1,42 @@
 // =====================================================================================
 // DID Registry Implementation
-// 
+//
 // Registry for storing and managing DID documents
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use crate::{DidDocument, DidError, DidResult, DidMetadata};
+use crate::{DidDocument, DidError, DidMetadata, DidResult};
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use chrono::{DateTime, Utc};
 
 /// DID registry trait
 #[async_trait]
 pub trait DidRegistry: Send + Sync {
     /// Create a new DID document
     async fn create(&self, did: String, document: DidDocument) -> DidResult<()>;
-    
+
     /// Read a DID document
     async fn read(&self, did: &str) -> DidResult<Option<DidDocument>>;
-    
+
     /// Update a DID document
     async fn update(&self, did: String, document: DidDocument) -> DidResult<()>;
-    
+
     /// Deactivate a DID
     async fn deactivate(&self, did: &str) -> DidResult<()>;
-    
+
     /// Get DID metadata
     async fn get_metadata(&self, did: &str) -> DidResult<Option<DidMetadata>>;
-    
+
     /// List all DIDs (for admin purposes)
-    async fn list_dids(&self, limit: Option<usize>, offset: Option<usize>) -> DidResult<Vec<String>>;
+    async fn list_dids(
+        &self,
+        limit: Option<usize>,
+        offset: Option<usize>,
+    ) -> DidResult<Vec<String>>;
 }
 
 /// In-memory DID registry for development and testing
@@ -155,7 +159,11 @@ impl DidRegistry for MemoryRegistry {
         Ok(metadata.get(did).cloned())
     }
 
-    async fn list_dids(&self, limit: Option<usize>, offset: Option<usize>) -> DidResult<Vec<String>> {
+    async fn list_dids(
+        &self,
+        limit: Option<usize>,
+        offset: Option<usize>,
+    ) -> DidResult<Vec<String>> {
         let documents = self.documents.read().await;
         let mut dids: Vec<String> = documents.keys().cloned().collect();
         dids.sort();
@@ -238,7 +246,8 @@ impl AuditableRegistry {
     /// Get operations for a specific DID
     pub async fn get_operations_for_did(&self, did: &str) -> Vec<RegistryOperation> {
         let operations = self.operations.read().await;
-        operations.iter()
+        operations
+            .iter()
             .filter(|op| op.did == did)
             .cloned()
             .collect()
@@ -269,49 +278,69 @@ impl AuditableRegistry {
 impl DidRegistry for AuditableRegistry {
     async fn create(&self, did: String, document: DidDocument) -> DidResult<()> {
         let result = self.registry.create(did.clone(), document).await;
-        
+
         let operation_result = match &result {
             Ok(()) => RegistryOperationResult::Success,
-            Err(e) => RegistryOperationResult::Failed { error: e.to_string() },
+            Err(e) => RegistryOperationResult::Failed {
+                error: e.to_string(),
+            },
         };
 
-        self.log_operation(RegistryOperationType::Create, did, operation_result).await;
+        self.log_operation(RegistryOperationType::Create, did, operation_result)
+            .await;
         result
     }
 
     async fn read(&self, did: &str) -> DidResult<Option<DidDocument>> {
         let result = self.registry.read(did).await;
-        
+
         let operation_result = match &result {
             Ok(_) => RegistryOperationResult::Success,
-            Err(e) => RegistryOperationResult::Failed { error: e.to_string() },
+            Err(e) => RegistryOperationResult::Failed {
+                error: e.to_string(),
+            },
         };
 
-        self.log_operation(RegistryOperationType::Read, did.to_string(), operation_result).await;
+        self.log_operation(
+            RegistryOperationType::Read,
+            did.to_string(),
+            operation_result,
+        )
+        .await;
         result
     }
 
     async fn update(&self, did: String, document: DidDocument) -> DidResult<()> {
         let result = self.registry.update(did.clone(), document).await;
-        
+
         let operation_result = match &result {
             Ok(()) => RegistryOperationResult::Success,
-            Err(e) => RegistryOperationResult::Failed { error: e.to_string() },
+            Err(e) => RegistryOperationResult::Failed {
+                error: e.to_string(),
+            },
         };
 
-        self.log_operation(RegistryOperationType::Update, did, operation_result).await;
+        self.log_operation(RegistryOperationType::Update, did, operation_result)
+            .await;
         result
     }
 
     async fn deactivate(&self, did: &str) -> DidResult<()> {
         let result = self.registry.deactivate(did).await;
-        
+
         let operation_result = match &result {
             Ok(()) => RegistryOperationResult::Success,
-            Err(e) => RegistryOperationResult::Failed { error: e.to_string() },
+            Err(e) => RegistryOperationResult::Failed {
+                error: e.to_string(),
+            },
         };
 
-        self.log_operation(RegistryOperationType::Deactivate, did.to_string(), operation_result).await;
+        self.log_operation(
+            RegistryOperationType::Deactivate,
+            did.to_string(),
+            operation_result,
+        )
+        .await;
         result
     }
 
@@ -319,7 +348,11 @@ impl DidRegistry for AuditableRegistry {
         self.registry.get_metadata(did).await
     }
 
-    async fn list_dids(&self, limit: Option<usize>, offset: Option<usize>) -> DidResult<Vec<String>> {
+    async fn list_dids(
+        &self,
+        limit: Option<usize>,
+        offset: Option<usize>,
+    ) -> DidResult<Vec<String>> {
         self.registry.list_dids(limit, offset).await
     }
 }
@@ -332,27 +365,30 @@ mod tests {
     #[tokio::test]
     async fn test_memory_registry() {
         let registry = MemoryRegistry::new();
-        
+
         // Create DID document
         let did = Did::new("123456789".to_string());
         let document = DidDocument::new(did.clone());
-        
+
         // Test create
-        registry.create(did.to_string(), document.clone()).await.unwrap();
-        
+        registry
+            .create(did.to_string(), document.clone())
+            .await
+            .unwrap();
+
         // Test read
         let retrieved = registry.read(&did.to_string()).await.unwrap();
         assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap().id, did.to_string());
-        
+
         // Test metadata
         let metadata = registry.get_metadata(&did.to_string()).await.unwrap();
         assert!(metadata.is_some());
         assert_eq!(metadata.unwrap().version, 1);
-        
+
         // Test deactivate
         registry.deactivate(&did.to_string()).await.unwrap();
-        
+
         // Should fail to read deactivated DID
         assert!(registry.read(&did.to_string()).await.is_err());
     }
@@ -361,19 +397,24 @@ mod tests {
     async fn test_auditable_registry() {
         let memory_registry = Arc::new(MemoryRegistry::new());
         let auditable_registry = AuditableRegistry::new(memory_registry);
-        
+
         let did = Did::new("123456789".to_string());
         let document = DidDocument::new(did.clone());
-        
+
         // Perform operations
-        auditable_registry.create(did.to_string(), document).await.unwrap();
+        auditable_registry
+            .create(did.to_string(), document)
+            .await
+            .unwrap();
         auditable_registry.read(&did.to_string()).await.unwrap();
-        
+
         // Check audit log
         let operations = auditable_registry.get_operations().await;
         assert_eq!(operations.len(), 2);
-        
-        let did_operations = auditable_registry.get_operations_for_did(&did.to_string()).await;
+
+        let did_operations = auditable_registry
+            .get_operations_for_did(&did.to_string())
+            .await;
         assert_eq!(did_operations.len(), 2);
     }
 }

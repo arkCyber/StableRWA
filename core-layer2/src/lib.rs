@@ -34,13 +34,16 @@ pub use types::{
 pub use polygon::{PolygonService, PolygonConfig, PolygonBridge};
 pub use arbitrum::{ArbitrumService, ArbitrumConfig, ArbitrumBridge};
 pub use optimism::{OptimismService, OptimismConfig, OptimismBridge};
-pub use base::{BaseService, BaseConfig, BaseBridge};
+pub use base::{BaseService, BaseConfig, BaseBridge, BaseTransaction, PaymasterData, SmartWalletConfig};
+pub use zksync::{ZkSyncConfig, ZkSyncNetwork};
+pub use starknet::{StarkNetConfig, StarkNetNetwork};
+pub use avalanche::{AvalancheConfig, AvalancheNetwork};
 pub use cross_chain::{
     CrossChainService, CrossChainRouter, MessageRelay,
-    CrossChainSwap, CrossChainLiquidity
+    CrossChainSwap, CrossChainLiquidity, CrossChainProtocol, LayerZeroService, AxelarService
 };
 pub use bridge::{
-    BridgeService, BridgeValidator, BridgeRelay,
+    BridgeService, BridgeValidator, BridgeRelay, BridgeConfig, BridgeType,
     LockAndMint, BurnAndRelease, NativeBridge
 };
 pub use state_sync::{
@@ -48,8 +51,8 @@ pub use state_sync::{
     CheckpointManager, StateProof
 };
 pub use gas_optimization::{
-    GasOptimizer, GasTracker, BatchProcessor,
-    MetaTransaction, GaslessTransaction
+    GasOptimizationService, GasPriceOracle, TransactionBatcher,
+    GasEstimator
 };
 pub use service::Layer2Service;
 
@@ -184,196 +187,11 @@ pub struct Layer2HealthStatus {
     pub last_check: DateTime<Utc>,
 }
 
-// Stub modules for compilation
-pub mod polygon {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct PolygonConfig {
-        pub rpc_url: String,
-        pub chain_id: u64,
-        pub pos_bridge_address: String,
-        pub plasma_bridge_address: String,
-    }
-    
-    impl Default for PolygonConfig {
-        fn default() -> Self {
-            Self {
-                rpc_url: "https://polygon-rpc.com".to_string(),
-                chain_id: 137,
-                pos_bridge_address: "0x...".to_string(),
-                plasma_bridge_address: "0x...".to_string(),
-            }
-        }
-    }
-    
-    pub struct PolygonService;
-    pub struct PolygonBridge;
-}
 
-pub mod arbitrum {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct ArbitrumConfig {
-        pub rpc_url: String,
-        pub chain_id: u64,
-        pub bridge_address: String,
-    }
-    
-    impl Default for ArbitrumConfig {
-        fn default() -> Self {
-            Self {
-                rpc_url: "https://arb1.arbitrum.io/rpc".to_string(),
-                chain_id: 42161,
-                bridge_address: "0x...".to_string(),
-            }
-        }
-    }
-    
-    pub struct ArbitrumService;
-    pub struct ArbitrumBridge;
-}
 
-pub mod optimism {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct OptimismConfig {
-        pub rpc_url: String,
-        pub chain_id: u64,
-        pub bridge_address: String,
-    }
-    
-    impl Default for OptimismConfig {
-        fn default() -> Self {
-            Self {
-                rpc_url: "https://mainnet.optimism.io".to_string(),
-                chain_id: 10,
-                bridge_address: "0x...".to_string(),
-            }
-        }
-    }
-    
-    pub struct OptimismService;
-    pub struct OptimismBridge;
-}
 
-pub mod base {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct BaseConfig {
-        pub rpc_url: String,
-        pub chain_id: u64,
-        pub bridge_address: String,
-    }
-    
-    impl Default for BaseConfig {
-        fn default() -> Self {
-            Self {
-                rpc_url: "https://mainnet.base.org".to_string(),
-                chain_id: 8453,
-                bridge_address: "0x...".to_string(),
-            }
-        }
-    }
-    
-    pub struct BaseService;
-    pub struct BaseBridge;
-}
 
-pub mod cross_chain {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct CrossChainConfig {
-        pub enable_automatic_routing: bool,
-        pub max_hops: u8,
-        pub slippage_tolerance: Decimal,
-    }
-    
-    impl Default for CrossChainConfig {
-        fn default() -> Self {
-            Self {
-                enable_automatic_routing: true,
-                max_hops: 3,
-                slippage_tolerance: Decimal::new(50, 4), // 0.5%
-            }
-        }
-    }
-    
-    pub struct CrossChainService;
-    pub struct CrossChainRouter;
-    pub struct MessageRelay;
-    pub struct CrossChainSwap;
-    pub struct CrossChainLiquidity;
-}
 
-pub mod bridge {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct BridgeConfig {
-        pub min_confirmation_blocks: u32,
-        pub max_bridge_amount: Decimal,
-        pub bridge_fee_percentage: Decimal,
-    }
-    
-    impl Default for BridgeConfig {
-        fn default() -> Self {
-            Self {
-                min_confirmation_blocks: 12,
-                max_bridge_amount: Decimal::new(100000000, 2), // $1M
-                bridge_fee_percentage: Decimal::new(10, 4), // 0.1%
-            }
-        }
-    }
-    
-    pub struct BridgeService;
-    pub struct BridgeValidator;
-    pub struct BridgeRelay;
-    pub struct LockAndMint;
-    pub struct BurnAndRelease;
-    pub struct NativeBridge;
-}
-
-pub mod state_sync {
-    use super::*;
-    
-    pub struct StateSyncService;
-    pub struct StateRoot;
-    pub struct StateMerkleTree;
-    pub struct CheckpointManager;
-    pub struct StateProof;
-}
-
-pub mod gas_optimization {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct GasConfig {
-        pub enable_gas_optimization: bool,
-        pub target_gas_price: u64,
-        pub gas_price_buffer: Decimal,
-    }
-    
-    impl Default for GasConfig {
-        fn default() -> Self {
-            Self {
-                enable_gas_optimization: true,
-                target_gas_price: 20,
-                gas_price_buffer: Decimal::new(110, 2), // 10% buffer
-            }
-        }
-    }
-    
-    pub struct GasOptimizer;
-    pub struct GasTracker;
-    pub struct BatchProcessor;
-    pub struct MetaTransaction;
-    pub struct GaslessTransaction;
-}
 
 #[cfg(test)]
 mod tests {

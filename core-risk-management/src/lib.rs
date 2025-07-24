@@ -27,11 +27,12 @@ pub use types::{
     InsurancePolicy, InsuranceClaim, HedgingStrategy, RiskMetrics
 };
 pub use service::RiskManagementService;
-pub use assessment::{RiskAssessmentEngine, AssessmentRequest};
-pub use insurance::{InsuranceService, PolicyRequest};
-pub use hedging::{HedgingService, HedgingRequest};
-pub use monitoring::{RiskMonitoringService, MonitoringAlert};
-pub use emergency::{EmergencyResponseService, EmergencyPlan};
+pub use assessment::{RiskAssessmentService, AssessmentRequest};
+pub use insurance::{InsuranceService, QuoteRequest};
+pub use hedging::{HedgingService, HedgeRequest};
+pub use monitoring::{RiskMonitoringService};
+pub use types::RiskAlert;
+pub use emergency::{EmergencyResponseService, EmergencyConfig};
 pub use models::{RiskModel, ModelType};
 
 use serde::{Deserialize, Serialize};

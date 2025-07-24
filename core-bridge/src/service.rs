@@ -5,22 +5,22 @@
 // =====================================================================================
 
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use uuid::Uuid;
 
 use crate::{
+    atomic_swap::{AtomicSwapService, SwapDetails, SwapRequest},
     error::{BridgeError, BridgeResult},
-    types::{ChainId, BridgeStatus, BridgeTransaction},
-    transfer::{TransferService, TransferRequest, TransferResult},
-    liquidity::{LiquidityService, LiquidityRequest, LiquidityPosition},
-    atomic_swap::{AtomicSwapService, SwapRequest, SwapDetails},
-    security::{SecurityService, SecurityCheckRequest, SecurityCheckResult},
-    relayer::{RelayerService, RelayRequest, RelayResult},
-    validator::{ValidatorService, ValidationRequest, ValidationResult},
+    liquidity::{LiquidityPosition, LiquidityRequest, LiquidityService},
+    relayer::{RelayRequest, RelayResult, RelayerService},
+    security::{SecurityCheckRequest, SecurityCheckResult, SecurityService},
+    transfer::{TransferRequest, TransferResult, TransferService},
+    types::{BridgeStatus, BridgeTransaction, ChainId},
+    validator::{ValidationRequest, ValidationResult, ValidatorService},
     BridgeServiceConfig,
 };
 
@@ -58,7 +58,10 @@ impl BridgeService {
     }
 
     /// Process a cross-chain transfer with full security and validation
-    pub async fn process_transfer(&self, request: TransferRequest) -> BridgeResult<BridgeTransaction> {
+    pub async fn process_transfer(
+        &self,
+        request: TransferRequest,
+    ) -> BridgeResult<BridgeTransaction> {
         // Step 1: Security check
         let security_request = SecurityCheckRequest {
             transaction_id: request.id,
@@ -75,16 +78,23 @@ impl BridgeService {
             session_id: None,
         };
 
-        let security_result = self.security_service.check_transaction(security_request).await?;
-        
+        let security_result = self
+            .security_service
+            .check_transaction(security_request)
+            .await?;
+
         if !security_result.approved {
-            return Err(BridgeError::security_error(
-                format!("Transaction blocked: {:?}", security_result.blocked_reasons)
-            ));
+            return Err(BridgeError::security_error(format!(
+                "Transaction blocked: {:?}",
+                security_result.blocked_reasons
+            )));
         }
 
         // Step 2: Submit transfer
-        let transfer_result = self.transfer_service.submit_transfer(request.clone()).await?;
+        let transfer_result = self
+            .transfer_service
+            .submit_transfer(request.clone())
+            .await?;
 
         // Step 3: Create validation request if needed
         if security_result.requires_manual_review {
@@ -93,15 +103,18 @@ impl BridgeService {
                 request.source_chain,
                 request.destination_chain,
                 transfer_result.source_tx_hash.clone().unwrap_or_default(),
-                0, // Block number would be filled by the actual implementation
+                0,             // Block number would be filled by the actual implementation
                 String::new(), // Block hash would be filled by the actual implementation
-                vec![], // Message data would be filled by the actual implementation
-                vec![], // Proof data would be filled by the actual implementation
+                vec![],        // Message data would be filled by the actual implementation
+                vec![],        // Proof data would be filled by the actual implementation
                 String::new(), // Merkle root would be filled by the actual implementation
-                vec![], // Merkle proof would be filled by the actual implementation
+                vec![],        // Merkle proof would be filled by the actual implementation
             );
 
-            let _validation_result = self.validator_service.submit_validation(validation_request).await?;
+            let _validation_result = self
+                .validator_service
+                .submit_validation(validation_request)
+                .await?;
         }
 
         // Step 4: Create bridge transaction record
@@ -188,11 +201,12 @@ impl BridgeService {
         let relayer_health = self.relayer_service.health_check().await?;
         let validator_health = self.validator_service.health_check().await?;
 
-        let overall_status = if transfer_health.status == "healthy" &&
-                               liquidity_health.status == "healthy" &&
-                               security_health.status == "healthy" &&
-                               relayer_health.status == "healthy" &&
-                               validator_health.status == "healthy" {
+        let overall_status = if transfer_health.status == "healthy"
+            && liquidity_health.status == "healthy"
+            && security_health.status == "healthy"
+            && relayer_health.status == "healthy"
+            && validator_health.status == "healthy"
+        {
             "healthy".to_string()
         } else {
             "degraded".to_string()
@@ -205,7 +219,12 @@ impl BridgeService {
             security_service: security_health.status,
             relayer_service: relayer_health.status,
             validator_service: validator_health.status,
-            emergency_pause_active: self.config.read().await.global_settings.emergency_pause_enabled,
+            emergency_pause_active: self
+                .config
+                .read()
+                .await
+                .global_settings
+                .emergency_pause_enabled,
             last_check: Utc::now(),
         })
     }
@@ -247,16 +266,16 @@ pub struct BridgeHealthStatus {
 pub trait BridgeServiceTrait: Send + Sync {
     /// Process a cross-chain transfer
     async fn process_transfer(&self, request: TransferRequest) -> BridgeResult<BridgeTransaction>;
-    
+
     /// Get bridge statistics
     async fn get_statistics(&self) -> BridgeResult<BridgeStatistics>;
-    
+
     /// Health check
     async fn health_check(&self) -> BridgeResult<BridgeHealthStatus>;
-    
+
     /// Emergency pause
     async fn emergency_pause(&self) -> BridgeResult<()>;
-    
+
     /// Resume operations
     async fn resume_operations(&self) -> BridgeResult<()>;
 }
@@ -266,19 +285,19 @@ impl BridgeServiceTrait for BridgeService {
     async fn process_transfer(&self, request: TransferRequest) -> BridgeResult<BridgeTransaction> {
         self.process_transfer(request).await
     }
-    
+
     async fn get_statistics(&self) -> BridgeResult<BridgeStatistics> {
         self.get_bridge_statistics().await
     }
-    
+
     async fn health_check(&self) -> BridgeResult<BridgeHealthStatus> {
         self.comprehensive_health_check().await
     }
-    
+
     async fn emergency_pause(&self) -> BridgeResult<()> {
         self.emergency_pause().await
     }
-    
+
     async fn resume_operations(&self) -> BridgeResult<()> {
         self.resume_operations().await
     }

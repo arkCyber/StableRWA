@@ -5,78 +5,42 @@
 // =====================================================================================
 
 //! # Core Smart Contract Module
-//! 
+//!
 //! This module provides comprehensive smart contract management capabilities for the
 //! StableRWA platform, including deployment, upgrading, monitoring, auditing, and
 //! lifecycle management of smart contracts across multiple blockchain networks.
 
-pub mod error;
-pub mod types;
 pub mod compiler;
 pub mod deployer;
-pub mod proxy;
-pub mod upgrader;
-pub mod monitor;
-pub mod auditor;
-pub mod verifier;
-pub mod gas_optimizer;
-pub mod registry;
-pub mod template;
+pub mod error;
 pub mod service;
+pub mod types;
 
 // Re-export main types and traits
-pub use error::{SmartContractError, SmartContractResult};
-pub use types::{
-    SmartContract, ContractMetadata, ContractVersion, ContractState,
-    DeploymentConfig, UpgradeConfig, ProxyConfig, AuditReport
-};
 pub use compiler::{
-    SolidityCompiler, CompilerConfig, CompilationResult,
-    OptimizationSettings, CompilerVersion
+    BatchCompilationResult, CompilerVersion, DependencyResolver, SmartContractCompiler,
+    SolidityCompiler, VyperCompiler,
 };
 pub use deployer::{
-    ContractDeployer, DeploymentStrategy, DeploymentResult,
-    MultiChainDeployer, BatchDeployer
+    DeploymentStatus, DeploymentTransaction, EthereumDeployer, GasPriceStrategy,
+    MultiNetworkDeployer, ProxyDeployer, SmartContractDeployer,
 };
-pub use proxy::{
-    ProxyManager, ProxyPattern, TransparentProxy, UUPSProxy,
-    BeaconProxy, DiamondProxy
+pub use error::{SmartContractError, SmartContractResult};
+pub use service::{
+    AuditConfig, CompilationResult, CompilerConfig, ContractFilter, ContractHealthStatus,
+    DeploymentResult, HealthScore, SmartContractService, SmartContractServiceImpl, UpgradeResult,
+    VerificationResult,
 };
-pub use upgrader::{
-    ContractUpgrader, UpgradeStrategy, UpgradeProposal,
-    SafeUpgrade, TimelockUpgrade
+pub use types::{
+    AuditReport, ContractMetadata, ContractState, ContractVersion, DeploymentConfig, ProxyConfig,
+    SmartContract, UpgradeConfig,
 };
-pub use monitor::{
-    ContractMonitor, MonitoringConfig, ContractMetrics,
-    EventMonitor, StateMonitor, PerformanceMonitor
-};
-pub use auditor::{
-    ContractAuditor, AuditConfig, SecurityAnalysis,
-    VulnerabilityScanner, CodeAnalyzer
-};
-pub use verifier::{
-    ContractVerifier, VerificationConfig, SourceVerification,
-    BytecodeVerification, FormalVerification
-};
-pub use gas_optimizer::{
-    GasOptimizer, OptimizationStrategy, GasAnalysis,
-    OptimizationReport, GasEstimator
-};
-pub use registry::{
-    ContractRegistry, RegistryConfig, ContractIndex,
-    VersionRegistry, DependencyRegistry
-};
-pub use template::{
-    ContractTemplate, TemplateManager, TemplateConfig,
-    StandardTemplates, CustomTemplate
-};
-pub use service::SmartContractService;
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 /// Main Smart Contract service configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -203,7 +167,7 @@ pub struct SmartContractHealthStatus {
 // Stub modules for compilation
 pub mod compiler {
     use super::*;
-    
+
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct CompilerConfig {
         pub solidity_version: String,
@@ -211,7 +175,7 @@ pub mod compiler {
         pub optimization_runs: u32,
         pub evm_version: String,
     }
-    
+
     impl Default for CompilerConfig {
         fn default() -> Self {
             Self {
@@ -222,7 +186,7 @@ pub mod compiler {
             }
         }
     }
-    
+
     pub struct SolidityCompiler;
     pub struct CompilationResult;
     pub struct OptimizationSettings;
@@ -231,7 +195,7 @@ pub mod compiler {
 
 pub mod deployer {
     use super::*;
-    
+
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct DeploymentConfig {
         pub gas_limit: u64,
@@ -239,7 +203,7 @@ pub mod deployer {
         pub confirmation_blocks: u32,
         pub timeout_seconds: u64,
     }
-    
+
     impl Default for DeploymentConfig {
         fn default() -> Self {
             Self {
@@ -250,7 +214,7 @@ pub mod deployer {
             }
         }
     }
-    
+
     pub struct ContractDeployer;
     pub struct DeploymentStrategy;
     pub struct DeploymentResult;
@@ -260,14 +224,14 @@ pub mod deployer {
 
 pub mod proxy {
     use super::*;
-    
+
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct ProxyConfig {
         pub default_proxy_type: ProxyType,
         pub enable_access_control: bool,
         pub upgrade_delay_seconds: u64,
     }
-    
+
     impl Default for ProxyConfig {
         fn default() -> Self {
             Self {
@@ -277,7 +241,7 @@ pub mod proxy {
             }
         }
     }
-    
+
     pub struct ProxyManager;
     pub struct ProxyPattern;
     pub struct TransparentProxy;
@@ -288,7 +252,7 @@ pub mod proxy {
 
 pub mod monitor {
     use super::*;
-    
+
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct MonitoringConfig {
         pub enable_event_monitoring: bool,
@@ -296,7 +260,7 @@ pub mod monitor {
         pub monitoring_interval_seconds: u64,
         pub alert_thresholds: HashMap<String, f64>,
     }
-    
+
     impl Default for MonitoringConfig {
         fn default() -> Self {
             Self {
@@ -307,7 +271,7 @@ pub mod monitor {
             }
         }
     }
-    
+
     pub struct ContractMonitor;
     pub struct ContractMetrics;
     pub struct EventMonitor;
@@ -317,7 +281,7 @@ pub mod monitor {
 
 pub mod auditor {
     use super::*;
-    
+
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct AuditConfig {
         pub enable_static_analysis: bool,
@@ -325,7 +289,7 @@ pub mod auditor {
         pub security_level: String,
         pub custom_rules: Vec<String>,
     }
-    
+
     impl Default for AuditConfig {
         fn default() -> Self {
             Self {
@@ -336,7 +300,7 @@ pub mod auditor {
             }
         }
     }
-    
+
     pub struct ContractAuditor;
     pub struct SecurityAnalysis;
     pub struct VulnerabilityScanner;
@@ -345,14 +309,14 @@ pub mod auditor {
 
 pub mod verifier {
     use super::*;
-    
+
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct VerificationConfig {
         pub enable_source_verification: bool,
         pub enable_bytecode_verification: bool,
         pub verification_timeout_seconds: u64,
     }
-    
+
     impl Default for VerificationConfig {
         fn default() -> Self {
             Self {
@@ -362,7 +326,7 @@ pub mod verifier {
             }
         }
     }
-    
+
     pub struct ContractVerifier;
     pub struct SourceVerification;
     pub struct BytecodeVerification;
@@ -371,14 +335,14 @@ pub mod verifier {
 
 pub mod gas_optimizer {
     use super::*;
-    
+
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct GasConfig {
         pub enable_optimization: bool,
         pub target_gas_reduction: f64,
         pub optimization_strategies: Vec<String>,
     }
-    
+
     impl Default for GasConfig {
         fn default() -> Self {
             Self {
@@ -392,7 +356,7 @@ pub mod gas_optimizer {
             }
         }
     }
-    
+
     pub struct GasOptimizer;
     pub struct OptimizationStrategy;
     pub struct GasAnalysis;
@@ -402,14 +366,14 @@ pub mod gas_optimizer {
 
 pub mod registry {
     use super::*;
-    
+
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct RegistryConfig {
         pub enable_versioning: bool,
         pub enable_dependency_tracking: bool,
         pub max_versions_per_contract: u32,
     }
-    
+
     impl Default for RegistryConfig {
         fn default() -> Self {
             Self {
@@ -419,7 +383,7 @@ pub mod registry {
             }
         }
     }
-    
+
     pub struct ContractRegistry;
     pub struct ContractIndex;
     pub struct VersionRegistry;
@@ -428,7 +392,7 @@ pub mod registry {
 
 pub mod template {
     use super::*;
-    
+
     pub struct ContractTemplate;
     pub struct TemplateManager;
     pub struct TemplateConfig;
@@ -438,7 +402,7 @@ pub mod template {
 
 pub mod upgrader {
     use super::*;
-    
+
     pub struct ContractUpgrader;
     pub struct UpgradeStrategy;
     pub struct UpgradeProposal;

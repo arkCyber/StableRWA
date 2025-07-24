@@ -15,6 +15,7 @@ members = [
 
     # Web3 and DeFi Infrastructure
     "core-defi",
+    "core-stablecoin",
     "core-layer2",
     "core-oracle",
     "core-wallet",
@@ -36,6 +37,8 @@ members = [
     # Business Services
     "service-asset",
     "service-gateway",
+    "service-oracle",
+    "service-custody",
 
     # Blockchain Integrations
     "ethereum-integration",

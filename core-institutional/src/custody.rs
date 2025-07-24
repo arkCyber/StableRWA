@@ -5,15 +5,15 @@
 // =====================================================================================
 
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 use crate::{
     error::{InstitutionalError, InstitutionalResult},
-    types::{InstitutionalAccount, AccountType, TransactionStatus},
+    types::{AccountType, InstitutionalAccount, TransactionStatus},
 };
 
 /// Custody service configuration
@@ -45,7 +45,7 @@ impl Default for CustodyConfig {
             multisig_threshold: 3,
             high_value_signers: 5,
             high_value_threshold: Decimal::new(100000000, 2), // $1,000,000
-            cold_storage_percentage: Decimal::new(95, 2), // 95%
+            cold_storage_percentage: Decimal::new(95, 2),     // 95%
             hot_wallet_max_balance: Decimal::new(500000000, 2), // $5,000,000
             insurance_coverage: Decimal::new(10000000000, 2), // $100,000,000
             enable_hsm: true,
@@ -131,10 +131,10 @@ pub struct AuthorizedSigner {
 /// Signing authority level
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SigningAuthority {
-    Limited,    // Up to $100K
-    Standard,   // Up to $1M
-    Senior,     // Up to $10M
-    Executive,  // Unlimited
+    Limited,   // Up to $100K
+    Standard,  // Up to $1M
+    Senior,    // Up to $10M
+    Executive, // Unlimited
 }
 
 impl SigningAuthority {
@@ -144,7 +144,7 @@ impl SigningAuthority {
             SigningAuthority::Limited => Some(Decimal::new(10000000, 2)), // $100K
             SigningAuthority::Standard => Some(Decimal::new(100000000, 2)), // $1M
             SigningAuthority::Senior => Some(Decimal::new(1000000000, 2)), // $10M
-            SigningAuthority::Executive => None, // Unlimited
+            SigningAuthority::Executive => None,                          // Unlimited
         }
     }
 }
@@ -218,22 +218,31 @@ pub struct TransactionApproval {
 pub trait CustodyService: Send + Sync {
     /// Create a new custody account
     async fn create_account(&self, account: CustodyAccount) -> InstitutionalResult<CustodyAccount>;
-    
+
     /// Get custody account by ID
     async fn get_account(&self, account_id: Uuid) -> InstitutionalResult<Option<CustodyAccount>>;
-    
+
     /// Get all accounts for an institution
-    async fn get_institution_accounts(&self, institution_id: Uuid) -> InstitutionalResult<Vec<CustodyAccount>>;
-    
+    async fn get_institution_accounts(
+        &self,
+        institution_id: Uuid,
+    ) -> InstitutionalResult<Vec<CustodyAccount>>;
+
     /// Update account information
     async fn update_account(&self, account: CustodyAccount) -> InstitutionalResult<CustodyAccount>;
-    
+
     /// Get asset balances for an account
-    async fn get_balances(&self, account_id: Uuid) -> InstitutionalResult<HashMap<String, AssetBalance>>;
-    
+    async fn get_balances(
+        &self,
+        account_id: Uuid,
+    ) -> InstitutionalResult<HashMap<String, AssetBalance>>;
+
     /// Submit custody transaction request
-    async fn submit_transaction(&self, request: CustodyTransactionRequest) -> InstitutionalResult<CustodyTransactionResult>;
-    
+    async fn submit_transaction(
+        &self,
+        request: CustodyTransactionRequest,
+    ) -> InstitutionalResult<CustodyTransactionResult>;
+
     /// Approve custody transaction
     async fn approve_transaction(
         &self,
@@ -241,10 +250,13 @@ pub trait CustodyService: Send + Sync {
         signer_id: Uuid,
         signature: String,
     ) -> InstitutionalResult<CustodyTransactionResult>;
-    
+
     /// Get transaction status
-    async fn get_transaction_status(&self, request_id: Uuid) -> InstitutionalResult<Option<CustodyTransactionResult>>;
-    
+    async fn get_transaction_status(
+        &self,
+        request_id: Uuid,
+    ) -> InstitutionalResult<Option<CustodyTransactionResult>>;
+
     /// Get transaction history
     async fn get_transaction_history(
         &self,
@@ -252,13 +264,21 @@ pub trait CustodyService: Send + Sync {
         limit: Option<usize>,
         offset: Option<usize>,
     ) -> InstitutionalResult<Vec<CustodyTransactionResult>>;
-    
+
     /// Add authorized signer
-    async fn add_authorized_signer(&self, account_id: Uuid, signer: AuthorizedSigner) -> InstitutionalResult<()>;
-    
+    async fn add_authorized_signer(
+        &self,
+        account_id: Uuid,
+        signer: AuthorizedSigner,
+    ) -> InstitutionalResult<()>;
+
     /// Remove authorized signer
-    async fn remove_authorized_signer(&self, account_id: Uuid, signer_id: Uuid) -> InstitutionalResult<()>;
-    
+    async fn remove_authorized_signer(
+        &self,
+        account_id: Uuid,
+        signer_id: Uuid,
+    ) -> InstitutionalResult<()>;
+
     /// Generate custody report
     async fn generate_custody_report(
         &self,
@@ -267,7 +287,7 @@ pub trait CustodyService: Send + Sync {
         start_date: DateTime<Utc>,
         end_date: DateTime<Utc>,
     ) -> InstitutionalResult<CustodyReport>;
-    
+
     /// Health check
     async fn health_check(&self) -> InstitutionalResult<CustodyHealthStatus>;
 }
@@ -315,9 +335,18 @@ mod tests {
 
     #[test]
     fn test_signing_authority_limits() {
-        assert_eq!(SigningAuthority::Limited.max_amount(), Some(Decimal::new(10000000, 2)));
-        assert_eq!(SigningAuthority::Standard.max_amount(), Some(Decimal::new(100000000, 2)));
-        assert_eq!(SigningAuthority::Senior.max_amount(), Some(Decimal::new(1000000000, 2)));
+        assert_eq!(
+            SigningAuthority::Limited.max_amount(),
+            Some(Decimal::new(10000000, 2))
+        );
+        assert_eq!(
+            SigningAuthority::Standard.max_amount(),
+            Some(Decimal::new(100000000, 2))
+        );
+        assert_eq!(
+            SigningAuthority::Senior.max_amount(),
+            Some(Decimal::new(1000000000, 2))
+        );
         assert_eq!(SigningAuthority::Executive.max_amount(), None);
     }
 

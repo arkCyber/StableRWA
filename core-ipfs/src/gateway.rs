@@ -1,17 +1,17 @@
 // =====================================================================================
 // IPFS Gateway Management
-// 
+//
 // HTTP gateway interface for accessing IPFS content
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use crate::{IpfsError, IpfsResult, IpfsHash, IpfsConfig};
+use crate::{IpfsConfig, IpfsError, IpfsHash, IpfsResult};
 use async_trait::async_trait;
 use reqwest::{Client, Response};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
-use tracing::{debug, info, warn, instrument};
+use tracing::{debug, info, instrument, warn};
 use url::Url;
 
 /// Gateway response metadata
@@ -56,19 +56,22 @@ impl Default for GatewayConfig {
 pub trait GatewayClientTrait {
     /// Get content via HTTP gateway
     async fn get_content(&self, hash: &IpfsHash) -> IpfsResult<Vec<u8>>;
-    
+
     /// Get content with metadata
-    async fn get_content_with_metadata(&self, hash: &IpfsHash) -> IpfsResult<(Vec<u8>, GatewayResponse)>;
-    
+    async fn get_content_with_metadata(
+        &self,
+        hash: &IpfsHash,
+    ) -> IpfsResult<(Vec<u8>, GatewayResponse)>;
+
     /// Get content URL
     fn get_content_url(&self, hash: &IpfsHash) -> String;
-    
+
     /// Check if content is available via gateway
     async fn is_available(&self, hash: &IpfsHash) -> IpfsResult<bool>;
-    
+
     /// Get content metadata only (HEAD request)
     async fn get_metadata(&self, hash: &IpfsHash) -> IpfsResult<GatewayResponse>;
-    
+
     /// Stream content (for large files)
     async fn stream_content(&self, hash: &IpfsHash) -> IpfsResult<Response>;
 }
@@ -77,7 +80,9 @@ pub trait GatewayClientTrait {
 pub struct HttpGatewayClient {
     client: Client,
     config: GatewayConfig,
-    cache: std::sync::Arc<tokio::sync::RwLock<HashMap<String, (Vec<u8>, chrono::DateTime<chrono::Utc>)>>>,
+    cache: std::sync::Arc<
+        tokio::sync::RwLock<HashMap<String, (Vec<u8>, chrono::DateTime<chrono::Utc>)>>,
+    >,
 }
 
 impl HttpGatewayClient {
@@ -86,7 +91,7 @@ impl HttpGatewayClient {
         let mut client_builder = Client::builder()
             .timeout(Duration::from_secs(config.timeout_seconds))
             .user_agent("RWA-Platform-IPFS-Gateway/1.0");
-        
+
         // Add custom headers if any
         if !config.custom_headers.is_empty() {
             let mut headers = reqwest::header::HeaderMap::new();
@@ -99,39 +104,41 @@ impl HttpGatewayClient {
             }
             client_builder = client_builder.default_headers(headers);
         }
-        
-        let client = client_builder.build()
+
+        let client = client_builder
+            .build()
             .map_err(|e| IpfsError::GatewayError(format!("Failed to create HTTP client: {}", e)))?;
-        
+
         Ok(Self {
             client,
             config,
             cache: std::sync::Arc::new(tokio::sync::RwLock::new(HashMap::new())),
         })
     }
-    
+
     /// Create client with default configuration
     pub fn with_default_config() -> IpfsResult<Self> {
         Self::new(GatewayConfig::default())
     }
-    
+
     /// Build URL for IPFS content
     fn build_url(&self, hash: &IpfsHash) -> IpfsResult<String> {
         let base_url = Url::parse(&self.config.base_url)
             .map_err(|e| IpfsError::GatewayError(format!("Invalid base URL: {}", e)))?;
-        
-        let url = base_url.join(&format!("/ipfs/{}", hash.as_str()))
+
+        let url = base_url
+            .join(&format!("/ipfs/{}", hash.as_str()))
             .map_err(|e| IpfsError::GatewayError(format!("Failed to build URL: {}", e)))?;
-        
+
         Ok(url.to_string())
     }
-    
+
     /// Check cache for content
     async fn get_from_cache(&self, hash: &IpfsHash) -> Option<Vec<u8>> {
         if !self.config.cache_enabled {
             return None;
         }
-        
+
         let cache = self.cache.read().await;
         if let Some((content, cached_at)) = cache.get(hash.as_str()) {
             let cache_age = chrono::Utc::now().signed_duration_since(*cached_at);
@@ -142,7 +149,7 @@ impl HttpGatewayClient {
         }
         None
     }
-    
+
     /// Store content in cache
     async fn store_in_cache(&self, hash: &IpfsHash, content: Vec<u8>) {
         if self.config.cache_enabled {
@@ -151,11 +158,11 @@ impl HttpGatewayClient {
             debug!("Cached content for {}", hash);
         }
     }
-    
+
     /// Perform HTTP request with retries
     async fn request_with_retries(&self, url: &str) -> IpfsResult<Response> {
         let mut last_error = None;
-        
+
         for attempt in 0..=self.config.max_retries {
             match self.client.get(url).send().await {
                 Ok(response) => {
@@ -173,20 +180,25 @@ impl HttpGatewayClient {
                     last_error = Some(IpfsError::NetworkError(format!("Request failed: {}", e)));
                 }
             }
-            
+
             if attempt < self.config.max_retries {
-                debug!("Request attempt {} failed, retrying in {}ms", attempt + 1, self.config.retry_delay_ms);
+                debug!(
+                    "Request attempt {} failed, retrying in {}ms",
+                    attempt + 1,
+                    self.config.retry_delay_ms
+                );
                 tokio::time::sleep(Duration::from_millis(self.config.retry_delay_ms)).await;
             }
         }
-        
-        Err(last_error.unwrap_or_else(|| IpfsError::GatewayError("All retry attempts failed".to_string())))
+
+        Err(last_error
+            .unwrap_or_else(|| IpfsError::GatewayError("All retry attempts failed".to_string())))
     }
-    
+
     /// Extract response metadata
     fn extract_metadata(&self, hash: &IpfsHash, response: &Response) -> GatewayResponse {
         let headers = response.headers();
-        
+
         GatewayResponse {
             hash: hash.clone(),
             content_type: headers
@@ -219,66 +231,90 @@ impl GatewayClientTrait for HttpGatewayClient {
     #[instrument(skip(self))]
     async fn get_content(&self, hash: &IpfsHash) -> IpfsResult<Vec<u8>> {
         debug!("Getting content via gateway: {}", hash);
-        
+
         // Check cache first
         if let Some(cached_content) = self.get_from_cache(hash).await {
             return Ok(cached_content);
         }
-        
+
         let url = self.build_url(hash)?;
         let response = self.request_with_retries(&url).await?;
-        
-        let content = response.bytes().await
+
+        let content = response
+            .bytes()
+            .await
             .map_err(|e| IpfsError::NetworkError(format!("Failed to read response body: {}", e)))?
             .to_vec();
-        
+
         // Cache the content
         self.store_in_cache(hash, content.clone()).await;
-        
-        info!("Successfully retrieved {} bytes via gateway for {}", content.len(), hash);
+
+        info!(
+            "Successfully retrieved {} bytes via gateway for {}",
+            content.len(),
+            hash
+        );
         Ok(content)
     }
-    
+
     #[instrument(skip(self))]
-    async fn get_content_with_metadata(&self, hash: &IpfsHash) -> IpfsResult<(Vec<u8>, GatewayResponse)> {
+    async fn get_content_with_metadata(
+        &self,
+        hash: &IpfsHash,
+    ) -> IpfsResult<(Vec<u8>, GatewayResponse)> {
         debug!("Getting content with metadata via gateway: {}", hash);
-        
+
         // Check cache first
         if let Some(cached_content) = self.get_from_cache(hash).await {
             // For cached content, we need to make a HEAD request to get fresh metadata
             let metadata = self.get_metadata(hash).await?;
             return Ok((cached_content, metadata));
         }
-        
+
         let url = self.build_url(hash)?;
         let response = self.request_with_retries(&url).await?;
-        
+
         let metadata = self.extract_metadata(hash, &response);
-        let content = response.bytes().await
+        let content = response
+            .bytes()
+            .await
             .map_err(|e| IpfsError::NetworkError(format!("Failed to read response body: {}", e)))?
             .to_vec();
-        
+
         // Cache the content
         self.store_in_cache(hash, content.clone()).await;
-        
-        info!("Successfully retrieved {} bytes with metadata via gateway for {}", content.len(), hash);
+
+        info!(
+            "Successfully retrieved {} bytes with metadata via gateway for {}",
+            content.len(),
+            hash
+        );
         Ok((content, metadata))
     }
-    
+
     fn get_content_url(&self, hash: &IpfsHash) -> String {
-        self.build_url(hash).unwrap_or_else(|_| format!("{}/ipfs/{}", self.config.base_url, hash.as_str()))
+        self.build_url(hash)
+            .unwrap_or_else(|_| format!("{}/ipfs/{}", self.config.base_url, hash.as_str()))
     }
-    
+
     #[instrument(skip(self))]
     async fn is_available(&self, hash: &IpfsHash) -> IpfsResult<bool> {
         debug!("Checking availability via gateway: {}", hash);
-        
+
         let url = self.build_url(hash)?;
-        
+
         match self.client.head(&url).send().await {
             Ok(response) => {
                 let available = response.status().is_success();
-                debug!("Content {} is {} via gateway", hash, if available { "available" } else { "not available" });
+                debug!(
+                    "Content {} is {} via gateway",
+                    hash,
+                    if available {
+                        "available"
+                    } else {
+                        "not available"
+                    }
+                );
                 Ok(available)
             }
             Err(e) => {
@@ -287,15 +323,19 @@ impl GatewayClientTrait for HttpGatewayClient {
             }
         }
     }
-    
+
     #[instrument(skip(self))]
     async fn get_metadata(&self, hash: &IpfsHash) -> IpfsResult<GatewayResponse> {
         debug!("Getting metadata via gateway: {}", hash);
-        
+
         let url = self.build_url(hash)?;
-        let response = self.client.head(&url).send().await
+        let response = self
+            .client
+            .head(&url)
+            .send()
+            .await
             .map_err(|e| IpfsError::NetworkError(format!("HEAD request failed: {}", e)))?;
-        
+
         if !response.status().is_success() {
             return Err(IpfsError::GatewayError(format!(
                 "HTTP error: {} - {}",
@@ -303,20 +343,23 @@ impl GatewayClientTrait for HttpGatewayClient {
                 response.status().canonical_reason().unwrap_or("Unknown")
             )));
         }
-        
+
         let metadata = self.extract_metadata(hash, &response);
         info!("Successfully retrieved metadata via gateway for {}", hash);
         Ok(metadata)
     }
-    
+
     #[instrument(skip(self))]
     async fn stream_content(&self, hash: &IpfsHash) -> IpfsResult<Response> {
         debug!("Streaming content via gateway: {}", hash);
-        
+
         let url = self.build_url(hash)?;
         let response = self.request_with_retries(&url).await?;
-        
-        info!("Successfully started streaming content via gateway for {}", hash);
+
+        info!(
+            "Successfully started streaming content via gateway for {}",
+            hash
+        );
         Ok(response)
     }
 }
@@ -352,10 +395,14 @@ mod tests {
             ..Default::default()
         };
         let client = HttpGatewayClient::new(config).unwrap();
-        let hash = IpfsHash::new("QmTestHash123456789012345678901234567890123456".to_string()).unwrap();
+        let hash =
+            IpfsHash::new("QmTestHash123456789012345678901234567890123456".to_string()).unwrap();
 
         let url = client.build_url(&hash).unwrap();
-        assert_eq!(url, "https://test-gateway.com/ipfs/QmTestHash123456789012345678901234567890123456");
+        assert_eq!(
+            url,
+            "https://test-gateway.com/ipfs/QmTestHash123456789012345678901234567890123456"
+        );
     }
 
     #[tokio::test]
@@ -365,10 +412,14 @@ mod tests {
             ..Default::default()
         };
         let client = HttpGatewayClient::new(config).unwrap();
-        let hash = IpfsHash::new("QmTestHash123456789012345678901234567890123456".to_string()).unwrap();
+        let hash =
+            IpfsHash::new("QmTestHash123456789012345678901234567890123456".to_string()).unwrap();
 
         let url = client.get_content_url(&hash);
-        assert_eq!(url, "https://test-gateway.com/ipfs/QmTestHash123456789012345678901234567890123456");
+        assert_eq!(
+            url,
+            "https://test-gateway.com/ipfs/QmTestHash123456789012345678901234567890123456"
+        );
     }
 
     #[tokio::test]
@@ -379,7 +430,8 @@ mod tests {
             ..Default::default()
         };
         let client = HttpGatewayClient::new(config).unwrap();
-        let hash = IpfsHash::new("QmCacheTest123456789012345678901234567890123456".to_string()).unwrap();
+        let hash =
+            IpfsHash::new("QmCacheTest123456789012345678901234567890123456".to_string()).unwrap();
         let test_content = b"cached content".to_vec();
 
         // Initially no cache
@@ -400,7 +452,8 @@ mod tests {
         // In a real test environment, you'd use a test server or mock the HTTP layer
         let config = GatewayConfig::default();
         let _client = HttpGatewayClient::new(config).unwrap();
-        let hash = IpfsHash::new("QmMetadataTest123456789012345678901234567890123".to_string()).unwrap();
+        let hash =
+            IpfsHash::new("QmMetadataTest123456789012345678901234567890123".to_string()).unwrap();
 
         // Test the metadata structure creation
         let metadata = GatewayResponse {
@@ -420,7 +473,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_gateway_response() {
-        let hash = IpfsHash::new("QmResponseTest123456789012345678901234567890123".to_string()).unwrap();
+        let hash =
+            IpfsHash::new("QmResponseTest123456789012345678901234567890123".to_string()).unwrap();
         let response = GatewayResponse {
             hash: hash.clone(),
             content_type: "text/plain".to_string(),
@@ -458,7 +512,8 @@ mod tests {
         };
 
         let client = HttpGatewayClient::new(config).unwrap();
-        let hash = IpfsHash::new("QmInvalidUrl123456789012345678901234567890123".to_string()).unwrap();
+        let hash =
+            IpfsHash::new("QmInvalidUrl123456789012345678901234567890123".to_string()).unwrap();
 
         let result = client.build_url(&hash);
         assert!(result.is_err());
@@ -477,7 +532,8 @@ mod tests {
 
     #[test]
     fn test_gateway_response_serialization() {
-        let hash = IpfsHash::new("QmSerializationTest123456789012345678901234567".to_string()).unwrap();
+        let hash =
+            IpfsHash::new("QmSerializationTest123456789012345678901234567".to_string()).unwrap();
         let response = GatewayResponse {
             hash,
             content_type: "application/json".to_string(),

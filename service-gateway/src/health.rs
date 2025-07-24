@@ -6,7 +6,24 @@
 
 use crate::GatewayState;
 use actix_web::{web, HttpResponse, Result as ActixResult};
-use core_observability::health::{HealthCheckManager, HealthStatus, OverallHealthResult};
+// Simple health check types to replace core_observability
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub enum HealthStatus {
+    Healthy,
+    Unhealthy,
+    Degraded,
+    Unknown,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct OverallHealthResult {
+    pub status: HealthStatus,
+    pub message: String,
+}
+
+pub struct HealthCheckManager {
+    // Placeholder implementation
+}
 use prometheus::{Encoder, TextEncoder};
 use serde_json::json;
 use std::collections::HashMap;
@@ -15,7 +32,7 @@ use tracing::{debug, error};
 /// Basic health check endpoint
 pub async fn health_check(data: web::Data<GatewayState>) -> ActixResult<HttpResponse> {
     debug!("Health check requested");
-    
+
     // Perform basic health checks
     let mut checks = HashMap::new();
     let mut overall_healthy = true;
@@ -23,47 +40,62 @@ pub async fn health_check(data: web::Data<GatewayState>) -> ActixResult<HttpResp
     // Check service registry
     let services = data.service_registry.get_all_services().await;
     let total_services = services.len();
-    let healthy_services = services.values()
+    let healthy_services = services
+        .values()
         .map(|instances| instances.iter().filter(|i| i.is_healthy()).count())
         .sum::<usize>();
 
-    checks.insert("service_registry", json!({
-        "status": if total_services > 0 { "healthy" } else { "degraded" },
-        "total_services": total_services,
-        "healthy_instances": healthy_services,
-        "details": services.keys().collect::<Vec<_>>()
-    }));
+    checks.insert(
+        "service_registry",
+        json!({
+            "status": if total_services > 0 { "healthy" } else { "degraded" },
+            "total_services": total_services,
+            "healthy_instances": healthy_services,
+            "details": services.keys().collect::<Vec<_>>()
+        }),
+    );
 
     if total_services == 0 {
         overall_healthy = false;
     }
 
     // Check metrics system
-    checks.insert("metrics", json!({
-        "status": "healthy",
-        "message": "Metrics collection active"
-    }));
+    checks.insert(
+        "metrics",
+        json!({
+            "status": "healthy",
+            "message": "Metrics collection active"
+        }),
+    );
 
-    let status = if overall_healthy { "healthy" } else { "degraded" };
+    let status = if overall_healthy {
+        "healthy"
+    } else {
+        "degraded"
+    };
     let http_status = if overall_healthy { 200 } else { 503 };
 
-    Ok(HttpResponse::build(actix_web::http::StatusCode::from_u16(http_status).unwrap())
-        .json(json!({
-            "status": status,
-            "timestamp": chrono::Utc::now().to_rfc3339(),
-            "service": "rwa-api-gateway",
-            "version": env!("CARGO_PKG_VERSION"),
-            "checks": checks
-        })))
+    Ok(
+        HttpResponse::build(actix_web::http::StatusCode::from_u16(http_status).unwrap()).json(
+            json!({
+                "status": status,
+                "timestamp": chrono::Utc::now().to_rfc3339(),
+                "service": "rwa-api-gateway",
+                "version": env!("CARGO_PKG_VERSION"),
+                "checks": checks
+            }),
+        ),
+    )
 }
 
 /// Readiness probe endpoint
 pub async fn readiness_check(data: web::Data<GatewayState>) -> ActixResult<HttpResponse> {
     debug!("Readiness check requested");
-    
+
     // Check if gateway is ready to serve traffic
     let services = data.service_registry.get_all_services().await;
-    let has_healthy_services = services.values()
+    let has_healthy_services = services
+        .values()
         .any(|instances| instances.iter().any(|i| i.is_healthy()));
 
     if has_healthy_services {
@@ -84,7 +116,7 @@ pub async fn readiness_check(data: web::Data<GatewayState>) -> ActixResult<HttpR
 /// Liveness probe endpoint
 pub async fn liveness_check() -> ActixResult<HttpResponse> {
     debug!("Liveness check requested");
-    
+
     // Simple liveness check - if we can respond, we're alive
     Ok(HttpResponse::Ok().json(json!({
         "status": "alive",
@@ -96,16 +128,14 @@ pub async fn liveness_check() -> ActixResult<HttpResponse> {
 /// Metrics endpoint for Prometheus scraping
 pub async fn metrics_endpoint(data: web::Data<GatewayState>) -> ActixResult<HttpResponse> {
     debug!("Metrics endpoint requested");
-    
+
     let encoder = TextEncoder::new();
     let metric_families = prometheus::gather();
-    
+
     match encoder.encode_to_string(&metric_families) {
-        Ok(metrics_text) => {
-            Ok(HttpResponse::Ok()
-                .content_type("text/plain; version=0.0.4; charset=utf-8")
-                .body(metrics_text))
-        }
+        Ok(metrics_text) => Ok(HttpResponse::Ok()
+            .content_type("text/plain; version=0.0.4; charset=utf-8")
+            .body(metrics_text)),
         Err(e) => {
             error!("Failed to encode metrics: {}", e);
             Ok(HttpResponse::InternalServerError().json(json!({
@@ -119,31 +149,37 @@ pub async fn metrics_endpoint(data: web::Data<GatewayState>) -> ActixResult<Http
 /// Detailed service status endpoint
 pub async fn service_status(data: web::Data<GatewayState>) -> ActixResult<HttpResponse> {
     debug!("Service status requested");
-    
+
     let services = data.service_registry.get_all_services().await;
     let mut service_details = HashMap::new();
 
     for (service_name, instances) in services {
         let healthy_count = instances.iter().filter(|i| i.is_healthy()).count();
         let total_count = instances.len();
-        
-        let instance_details: Vec<_> = instances.iter().map(|instance| {
-            json!({
-                "id": instance.id,
-                "url": instance.url(),
-                "status": instance.status,
-                "weight": instance.weight,
-                "last_heartbeat": instance.last_heartbeat.elapsed().as_secs(),
-                "metadata": instance.metadata
-            })
-        }).collect();
 
-        service_details.insert(service_name, json!({
-            "healthy_instances": healthy_count,
-            "total_instances": total_count,
-            "status": if healthy_count > 0 { "healthy" } else { "unhealthy" },
-            "instances": instance_details
-        }));
+        let instance_details: Vec<_> = instances
+            .iter()
+            .map(|instance| {
+                json!({
+                    "id": instance.id,
+                    "url": instance.url(),
+                    "status": instance.status,
+                    "weight": instance.weight,
+                    "last_heartbeat": instance.last_heartbeat.elapsed().as_secs(),
+                    "metadata": instance.metadata
+                })
+            })
+            .collect();
+
+        service_details.insert(
+            service_name,
+            json!({
+                "healthy_instances": healthy_count,
+                "total_instances": total_count,
+                "status": if healthy_count > 0 { "healthy" } else { "unhealthy" },
+                "instances": instance_details
+            }),
+        );
     }
 
     Ok(HttpResponse::Ok().json(json!({
@@ -155,7 +191,7 @@ pub async fn service_status(data: web::Data<GatewayState>) -> ActixResult<HttpRe
 /// Gateway configuration endpoint
 pub async fn gateway_config(data: web::Data<GatewayState>) -> ActixResult<HttpResponse> {
     debug!("Gateway configuration requested");
-    
+
     Ok(HttpResponse::Ok().json(json!({
         "timestamp": chrono::Utc::now().to_rfc3339(),
         "gateway": {
@@ -167,20 +203,17 @@ pub async fn gateway_config(data: web::Data<GatewayState>) -> ActixResult<HttpRe
             "host": data.config.server.host,
             "port": data.config.server.port,
             "workers": data.config.server.workers,
-            "keep_alive": data.config.server.keep_alive,
-            "client_timeout": data.config.server.client_timeout
+            "workers": data.config.server.workers
         },
         "security": {
-            "jwt_expiration": data.config.security.jwt_expiration,
+            "jwt_expiration": data.config.auth.token_expiry_hours,
             "rate_limit": {
-                "requests_per_minute": data.config.security.rate_limit.requests_per_minute,
-                "burst_size": data.config.security.rate_limit.burst_size
+                "requests_per_minute": data.config.rate_limiting.requests_per_minute,
+                "burst_size": data.config.rate_limiting.burst_size
             }
         },
         "observability": {
-            "tracing_level": data.config.observability.tracing.level,
-            "metrics_enabled": data.config.observability.metrics.enabled,
-            "metrics_port": data.config.observability.metrics.port
+            "services_count": data.config.services.len()
         }
     })))
 }
@@ -188,7 +221,7 @@ pub async fn gateway_config(data: web::Data<GatewayState>) -> ActixResult<HttpRe
 /// System information endpoint
 pub async fn system_info() -> ActixResult<HttpResponse> {
     debug!("System information requested");
-    
+
     let system_info = json!({
         "timestamp": chrono::Utc::now().to_rfc3339(),
         "system": {
@@ -215,7 +248,7 @@ pub async fn system_info() -> ActixResult<HttpResponse> {
 fn get_uptime_seconds() -> u64 {
     use std::sync::OnceLock;
     use std::time::Instant;
-    
+
     static START_TIME: OnceLock<Instant> = OnceLock::new();
     let start = START_TIME.get_or_init(|| Instant::now());
     start.elapsed().as_secs()
@@ -224,7 +257,7 @@ fn get_uptime_seconds() -> u64 {
 /// Comprehensive health check with detailed diagnostics
 pub async fn detailed_health_check(data: web::Data<GatewayState>) -> ActixResult<HttpResponse> {
     debug!("Detailed health check requested");
-    
+
     let start_time = std::time::Instant::now();
     let mut checks = HashMap::new();
     let mut overall_status = HealthStatus::Healthy;
@@ -232,7 +265,8 @@ pub async fn detailed_health_check(data: web::Data<GatewayState>) -> ActixResult
     // Service registry check
     let services = data.service_registry.get_all_services().await;
     let total_services = services.len();
-    let healthy_services = services.values()
+    let healthy_services = services
+        .values()
         .map(|instances| instances.iter().filter(|i| i.is_healthy()).count())
         .sum::<usize>();
 
@@ -260,16 +294,22 @@ pub async fn detailed_health_check(data: web::Data<GatewayState>) -> ActixResult
     }
 
     // Memory usage check (simplified)
-    checks.insert("memory".to_string(), json!({
-        "status": HealthStatus::Healthy,
-        "message": "Memory usage within acceptable limits"
-    }));
+    checks.insert(
+        "memory".to_string(),
+        json!({
+            "status": HealthStatus::Healthy,
+            "message": "Memory usage within acceptable limits"
+        }),
+    );
 
     // Rate limiter check
-    checks.insert("rate_limiter".to_string(), json!({
-        "status": HealthStatus::Healthy,
-        "message": "Rate limiter operational"
-    }));
+    checks.insert(
+        "rate_limiter".to_string(),
+        json!({
+            "status": HealthStatus::Healthy,
+            "message": "Rate limiter operational"
+        }),
+    );
 
     let duration = start_time.elapsed();
     let http_status = match overall_status {
@@ -328,18 +368,17 @@ mod tests {
                 .route("/health", web::get().to(health_check))
                 .route("/health/ready", web::get().to(readiness_check))
                 .route("/health/live", web::get().to(liveness_check))
-                .route("/metrics", web::get().to(metrics_endpoint))
-        ).await
+                .route("/metrics", web::get().to(metrics_endpoint)),
+        )
+        .await
     }
 
     #[actix_web::test]
     async fn test_health_check() {
         let app = create_test_app().await;
-        
-        let req = test::TestRequest::get()
-            .uri("/health")
-            .to_request();
-        
+
+        let req = test::TestRequest::get().uri("/health").to_request();
+
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_success());
     }
@@ -347,11 +386,9 @@ mod tests {
     #[actix_web::test]
     async fn test_readiness_check() {
         let app = create_test_app().await;
-        
-        let req = test::TestRequest::get()
-            .uri("/health/ready")
-            .to_request();
-        
+
+        let req = test::TestRequest::get().uri("/health/ready").to_request();
+
         let resp = test::call_service(&app, req).await;
         // Should return 503 since no services are registered
         assert_eq!(resp.status(), 503);
@@ -360,11 +397,9 @@ mod tests {
     #[actix_web::test]
     async fn test_liveness_check() {
         let app = create_test_app().await;
-        
-        let req = test::TestRequest::get()
-            .uri("/health/live")
-            .to_request();
-        
+
+        let req = test::TestRequest::get().uri("/health/live").to_request();
+
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_success());
     }
@@ -372,14 +407,12 @@ mod tests {
     #[actix_web::test]
     async fn test_metrics_endpoint() {
         let app = create_test_app().await;
-        
-        let req = test::TestRequest::get()
-            .uri("/metrics")
-            .to_request();
-        
+
+        let req = test::TestRequest::get().uri("/metrics").to_request();
+
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_success());
-        
+
         let content_type = resp.headers().get("content-type").unwrap();
         assert!(content_type.to_str().unwrap().contains("text/plain"));
     }

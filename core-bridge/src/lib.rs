@@ -5,40 +5,40 @@
 // =====================================================================================
 
 //! # Core Bridge Module
-//! 
+//!
 //! This module provides comprehensive cross-chain bridge functionality for the
 //! StableRWA platform, including multi-chain asset transfers, liquidity aggregation,
 //! atomic swaps, and bridge security monitoring.
 
-pub mod transfer;
-pub mod liquidity;
 pub mod atomic_swap;
-pub mod security;
-pub mod relayer;
-pub mod validator;
 pub mod error;
-pub mod types;
+pub mod liquidity;
+pub mod relayer;
+pub mod security;
 pub mod service;
+pub mod transfer;
+pub mod types;
+pub mod validator;
 
 // Re-export main types and traits
-pub use error::{BridgeError, BridgeResult};
-pub use types::{
-    BridgeTransaction, BridgeStatus, ChainId, AssetTransfer, LiquidityPool,
-    AtomicSwap, SwapStatus, BridgeConfig, SecurityAlert
-};
-pub use service::BridgeService;
-pub use transfer::{TransferService, TransferRequest};
-pub use liquidity::{LiquidityService, LiquidityRequest};
 pub use atomic_swap::{AtomicSwapService, SwapRequest};
-pub use security::{SecurityService, SecurityMonitor};
-pub use relayer::{RelayerService, RelayerNode};
-pub use validator::{ValidatorService, BridgeValidator};
+pub use error::{BridgeError, BridgeResult};
+pub use liquidity::{LiquidityRequest, LiquidityService};
+pub use relayer::{RelayerNode, RelayerService};
+pub use security::{SecurityMonitor, SecurityService};
+pub use service::BridgeService;
+pub use transfer::{TransferRequest, TransferService};
+pub use types::{
+    AssetTransfer, AtomicSwap, BridgeConfig, BridgeStatus, BridgeTransaction, ChainId,
+    LiquidityPool, SecurityAlert, SwapStatus,
+};
+pub use validator::{BridgeValidator, ValidatorService};
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 /// Main bridge configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -120,13 +120,17 @@ impl ChainConfig {
                     symbol: "USDC".to_string(),
                     name: "USD Coin".to_string(),
                     decimals: 6,
-                    contract_address: Some("0xA0b86a33E6441b8C4505B8C4505B8C4505B8C450".to_string()),
+                    contract_address: Some(
+                        "0xA0b86a33E6441b8C4505B8C4505B8C4505B8C450".to_string(),
+                    ),
                 },
                 TokenConfig {
                     symbol: "USDT".to_string(),
                     name: "Tether USD".to_string(),
                     decimals: 6,
-                    contract_address: Some("0xdAC17F958D2ee523a2206206994597C13D831ec7".to_string()),
+                    contract_address: Some(
+                        "0xdAC17F958D2ee523a2206206994597C13D831ec7".to_string(),
+                    ),
                 },
             ],
             bridge_contract: Some("0x1234567890123456789012345678901234567890".to_string()),
@@ -157,14 +161,12 @@ impl ChainConfig {
                 decimals: 18,
                 contract_address: None,
             },
-            supported_tokens: vec![
-                TokenConfig {
-                    symbol: "USDC".to_string(),
-                    name: "USD Coin".to_string(),
-                    decimals: 6,
-                    contract_address: Some("0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174".to_string()),
-                },
-            ],
+            supported_tokens: vec![TokenConfig {
+                symbol: "USDC".to_string(),
+                name: "USD Coin".to_string(),
+                decimals: 6,
+                contract_address: Some("0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174".to_string()),
+            }],
             bridge_contract: Some("0x2345678901234567890123456789012345678901".to_string()),
             confirmation_blocks: 20,
             gas_settings: GasSettings {
@@ -193,14 +195,12 @@ impl ChainConfig {
                 decimals: 18,
                 contract_address: None,
             },
-            supported_tokens: vec![
-                TokenConfig {
-                    symbol: "USDT".to_string(),
-                    name: "Tether USD".to_string(),
-                    decimals: 18,
-                    contract_address: Some("0x55d398326f99059fF775485246999027B3197955".to_string()),
-                },
-            ],
+            supported_tokens: vec![TokenConfig {
+                symbol: "USDT".to_string(),
+                name: "Tether USD".to_string(),
+                decimals: 18,
+                contract_address: Some("0x55d398326f99059fF775485246999027B3197955".to_string()),
+            }],
             bridge_contract: Some("0x3456789012345678901234567890123456789012".to_string()),
             confirmation_blocks: 15,
             gas_settings: GasSettings {
@@ -218,9 +218,7 @@ impl ChainConfig {
             chain_id: ChainId::Bitcoin,
             name: "Bitcoin Mainnet".to_string(),
             network_type: NetworkType::Mainnet,
-            rpc_endpoints: vec![
-                "https://bitcoin-rpc.example.com".to_string(),
-            ],
+            rpc_endpoints: vec!["https://bitcoin-rpc.example.com".to_string()],
             explorer_url: "https://blockstream.info".to_string(),
             native_token: TokenConfig {
                 symbol: "BTC".to_string(),
@@ -229,10 +227,10 @@ impl ChainConfig {
                 contract_address: None,
             },
             supported_tokens: vec![], // Bitcoin doesn't support tokens natively
-            bridge_contract: None, // Bitcoin uses different bridge mechanisms
+            bridge_contract: None,    // Bitcoin uses different bridge mechanisms
             confirmation_blocks: 6,
             gas_settings: GasSettings {
-                gas_limit: 0, // Not applicable for Bitcoin
+                gas_limit: 0,                       // Not applicable for Bitcoin
                 max_gas_price: Decimal::new(50, 0), // 50 sat/byte
                 priority_fee: Decimal::new(10, 0),  // 10 sat/byte
             },
@@ -288,11 +286,11 @@ pub struct GlobalBridgeSettings {
 impl Default for GlobalBridgeSettings {
     fn default() -> Self {
         Self {
-            min_transfer_amount: Decimal::new(1000, 2), // $10.00
+            min_transfer_amount: Decimal::new(1000, 2),      // $10.00
             max_transfer_amount: Decimal::new(100000000, 2), // $1,000,000.00
-            bridge_fee_percentage: Decimal::new(30, 4), // 0.30%
-            max_slippage: Decimal::new(500, 4), // 5.00%
-            transfer_timeout_seconds: 3600, // 1 hour
+            bridge_fee_percentage: Decimal::new(30, 4),      // 0.30%
+            max_slippage: Decimal::new(500, 4),              // 5.00%
+            transfer_timeout_seconds: 3600,                  // 1 hour
             emergency_pause_enabled: true,
             rate_limits: RateLimitSettings::default(),
         }
@@ -359,7 +357,10 @@ mod tests {
         let config = BridgeServiceConfig::default();
         assert!(!config.supported_chains.is_empty());
         assert!(config.global_settings.emergency_pause_enabled);
-        assert_eq!(config.global_settings.bridge_fee_percentage, Decimal::new(30, 4));
+        assert_eq!(
+            config.global_settings.bridge_fee_percentage,
+            Decimal::new(30, 4)
+        );
     }
 
     #[test]
@@ -410,8 +411,14 @@ mod tests {
     fn test_rate_limit_settings_default() {
         let rate_limits = RateLimitSettings::default();
         assert_eq!(rate_limits.max_transfers_per_user_per_hour, 10);
-        assert_eq!(rate_limits.max_volume_per_user_per_day, Decimal::new(5000000, 2));
-        assert_eq!(rate_limits.max_total_volume_per_hour, Decimal::new(1000000000, 2));
+        assert_eq!(
+            rate_limits.max_volume_per_user_per_day,
+            Decimal::new(5000000, 2)
+        );
+        assert_eq!(
+            rate_limits.max_total_volume_per_hour,
+            Decimal::new(1000000000, 2)
+        );
     }
 
     #[test]
@@ -424,7 +431,7 @@ mod tests {
             destination_chain: ChainId::Polygon,
             asset_symbol: "USDC".to_string(),
             amount: Decimal::new(100000, 6), // 100 USDC
-            fee: Decimal::new(300, 6), // 0.3 USDC
+            fee: Decimal::new(300, 6),       // 0.3 USDC
             user_address: "0x1234567890123456789012345678901234567890".to_string(),
             destination_address: "0x0987654321098765432109876543210987654321".to_string(),
             source_tx_hash: None,

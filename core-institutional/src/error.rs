@@ -4,8 +4,8 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use thiserror::Error;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 /// Result type for institutional operations
 pub type InstitutionalResult<T> = Result<T, InstitutionalError>;

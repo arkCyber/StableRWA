@@ -45,7 +45,7 @@ sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chron
 redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
 
 # Ethereum integration
-ethers = { version = "2.0", features = ["ws", "rustls", "contract"] }
+ethers = { version = "2.0", features = ["ws", "rustls"] }
 
 # PDF generation
 pdf-canvas = "0.7"
@@ -85,7 +85,7 @@ num-traits = "0.2"
 regex = "1.10"
 
 # Email
-lettre = { version = "0.11", features = ["tokio1", "tokio1-rustls-tls", "smtp-transport"] }
+lettre = { version = "0.11", default-features = false, features = ["tokio1-rustls-tls", "smtp-transport"] }
 
 # Template engine
 handlebars = "5.0"

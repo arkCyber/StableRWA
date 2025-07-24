@@ -4,13 +4,13 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 use crate::{
-    error::{ComplianceError, ComplianceResult},
+    error::ComplianceResult,
     types::{AuditEvent, AuditEventType, ComplianceLevel},
     ComplianceCheckResult,
 };
@@ -360,7 +360,7 @@ impl AuditService {
     }
 
     /// Query audit events
-    pub async fn query_events(&self, query: AuditQuery) -> ComplianceResult<Vec<AuditEvent>> {
+    pub async fn query_events(&self, _query: AuditQuery) -> ComplianceResult<Vec<AuditEvent>> {
         // In a real implementation, this would query the storage backend
         // For now, return empty list as placeholder
         Ok(vec![])
@@ -369,8 +369,8 @@ impl AuditService {
     /// Get audit statistics
     pub async fn get_statistics(
         &self,
-        start_time: DateTime<Utc>,
-        end_time: DateTime<Utc>,
+        _start_time: DateTime<Utc>,
+        _end_time: DateTime<Utc>,
     ) -> ComplianceResult<AuditStatistics> {
         // In a real implementation, this would aggregate data from storage
         Ok(AuditStatistics {
@@ -405,7 +405,7 @@ impl AuditService {
             return Ok(());
         }
 
-        if let Some(threshold) = self.config.alerting.alert_thresholds.get(&event_type) {
+        if let Some(_threshold) = self.config.alerting.alert_thresholds.get(&event_type) {
             // In a real implementation, this would check if the threshold is exceeded
             // and send alerts through configured channels
             tracing::warn!(
@@ -468,15 +468,15 @@ mod tests {
             user_id: "user123".to_string(),
             check_type: crate::types::AmlCheckType::Sanctions,
             result: crate::types::AmlResult::Clear,
+            overall_result: crate::types::AmlResult::Clear,
+            risk_level: crate::types::RiskLevel::Low,
             risk_score: 0.1,
             matches: vec![],
             checked_at: Utc::now(),
             provider: "test".to_string(),
         };
 
-        let result = service
-            .log_transaction_monitored("tx123", &aml_check)
-            .await;
+        let result = service.log_transaction_monitored("tx123", &aml_check).await;
 
         assert!(result.is_ok());
     }

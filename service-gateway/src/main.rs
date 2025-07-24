@@ -11,7 +11,7 @@ use core_observability::{init_tracing, BusinessMetrics};
 use core_security::jwt::{JwtConfig, JwtManager};
 use service_gateway::{
     auth::AuthService,
-    rate_limit::{RateLimiter, RateLimitConfig},
+    rate_limit::{RateLimitConfig, RateLimiter},
     routing::ServiceRegistry,
     GatewayState,
 };
@@ -84,9 +84,10 @@ async fn main() -> std::io::Result<()> {
         service_gateway::create_app(gateway_state.clone())
             .wrap(middleware::Logger::default())
             .wrap(middleware::Compress::default())
-            .wrap(middleware::DefaultHeaders::new()
-                .add(("X-Version", env!("CARGO_PKG_VERSION")))
-                .add(("X-Service", "rwa-gateway"))
+            .wrap(
+                middleware::DefaultHeaders::new()
+                    .add(("X-Version", env!("CARGO_PKG_VERSION")))
+                    .add(("X-Service", "rwa-gateway")),
             )
     })
     .workers(workers)
@@ -103,8 +104,8 @@ async fn main() -> std::io::Result<()> {
 
 /// Load application configuration
 async fn load_config() -> Result<AppConfig, ConfigError> {
-    let config_path = std::env::var("CONFIG_PATH")
-        .unwrap_or_else(|_| "config/gateway.toml".to_string());
+    let config_path =
+        std::env::var("CONFIG_PATH").unwrap_or_else(|_| "config/gateway.toml".to_string());
 
     match AppConfig::from_file(&config_path).await {
         Ok(config) => {
@@ -175,11 +176,11 @@ pub async fn gateway_readiness_check(
 ) -> ActixResult<web::Json<serde_json::Value>> {
     // Check if all downstream services are available
     let service_health = state.service_registry.check_all_services().await;
-    
+
     let ready = service_health.iter().all(|(_, healthy)| *healthy);
-    
+
     let status = if ready { "ready" } else { "not_ready" };
-    
+
     Ok(web::Json(serde_json::json!({
         "status": status,
         "service": "rwa-gateway",
@@ -201,9 +202,7 @@ pub async fn gateway_liveness_check() -> ActixResult<web::Json<serde_json::Value
 }
 
 /// Metrics endpoint for Prometheus scraping
-pub async fn metrics_endpoint(
-    state: web::Data<GatewayState>,
-) -> ActixResult<String> {
+pub async fn metrics_endpoint(state: web::Data<GatewayState>) -> ActixResult<String> {
     let metrics = state.metrics.export_prometheus_metrics().await;
     Ok(metrics)
 }
@@ -215,25 +214,26 @@ mod tests {
 
     #[actix_web::test]
     async fn test_health_check() {
-        let app = test::init_service(
-            App::new().route("/health", web::get().to(gateway_health_check))
-        ).await;
+        let app =
+            test::init_service(App::new().route("/health", web::get().to(gateway_health_check)))
+                .await;
 
         let req = test::TestRequest::get().uri("/health").to_request();
         let resp = test::call_service(&app, req).await;
-        
+
         assert!(resp.status().is_success());
     }
 
     #[actix_web::test]
     async fn test_liveness_check() {
         let app = test::init_service(
-            App::new().route("/health/live", web::get().to(gateway_liveness_check))
-        ).await;
+            App::new().route("/health/live", web::get().to(gateway_liveness_check)),
+        )
+        .await;
 
         let req = test::TestRequest::get().uri("/health/live").to_request();
         let resp = test::call_service(&app, req).await;
-        
+
         assert!(resp.status().is_success());
     }
 }
@@ -259,12 +259,12 @@ fn validate_config(config: &AppConfig) -> Result<(), String> {
 fn init_panic_handler() {
     std::panic::set_hook(Box::new(|panic_info| {
         error!("Gateway panic occurred: {:?}", panic_info);
-        
+
         // In production, you might want to send this to an error tracking service
         if let Some(location) = panic_info.location() {
             error!("Panic location: {}:{}", location.file(), location.line());
         }
-        
+
         if let Some(payload) = panic_info.payload().downcast_ref::<&str>() {
             error!("Panic payload: {}", payload);
         }
@@ -273,7 +273,8 @@ fn init_panic_handler() {
 
 /// Print startup banner
 fn print_banner() {
-    println!(r#"
+    println!(
+        r#"
     ██████╗ ██╗    ██╗ █████╗     ██████╗  █████╗ ████████╗███████╗██╗    ██╗ █████╗ ██╗   ██╗
     ██╔══██╗██║    ██║██╔══██╗    ██╔════╝ ██╔══██╗╚══██╔══╝██╔════╝██║    ██║██╔══██╗╚██╗ ██╔╝
     ██████╔╝██║ █╗ ██║███████║    ██║  ███╗███████║   ██║   █████╗  ██║ █╗ ██║███████║ ╚████╔╝ 
@@ -284,5 +285,7 @@ fn print_banner() {
     Real World Asset Platform - API Gateway
     Version: {}
     Environment: Production Ready
-    "#, env!("CARGO_PKG_VERSION"));
+    "#,
+        env!("CARGO_PKG_VERSION")
+    );
 }

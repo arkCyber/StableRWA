@@ -1,0 +1,241 @@
+# =====================================================================================
+# File: testing/test-config.toml
+# Description: Comprehensive test configuration for RWA platform
+# Author: arkSong (arksong2018@gmail.com)
+# =====================================================================================
+
+[general]
+# Test execution timeout in seconds
+test_timeout = 300
+benchmark_timeout = 600
+coverage_threshold = 80.0
+parallel_jobs = 4
+
+[modules]
+# Core modules to test
+core_modules = [
+    "core-monitoring",
+    "core-oracle", 
+    "core-smart-contract",
+    "core-ai-risk",
+    "core-privacy",
+    "core-regtech",
+    "core-analytics",
+    "core-bridge",
+    "core-trading",
+    "core-defi",
+    "core-layer2",
+    "core-nft",
+    "core-utils",
+    "core-security"
+]
+
+# Service modules to test
+service_modules = [
+    "ai-service",
+    "audit-service",
+    "auth-service",
+    "user-service",
+    "payment-service"
+]
+
+# Integration modules to test
+integration_modules = [
+    "ethereum-integration",
+    "bsc-integration",
+    "solana-integration",
+    "polkadot-integration"
+]
+
+[unit_tests]
+enabled = true
+# Cargo test flags
+flags = ["--release", "--all-features"]
+# Test patterns to include
+include_patterns = ["test_*", "*_test"]
+# Test patterns to exclude
+exclude_patterns = ["integration_*", "benchmark_*"]
+
+[integration_tests]
+enabled = true
+# Integration test timeout
+timeout = 600
+# Test environment setup
+setup_database = true
+setup_redis = false
+setup_external_services = false
+# Test data cleanup
+cleanup_after_tests = true
+
+[benchmarks]
+enabled = false  # Disabled by default due to time consumption
+# Benchmark configuration
+output_format = "html"
+sample_size = 100
+measurement_time = 10
+warm_up_time = 3
+# Benchmark comparison
+compare_with_baseline = false
+baseline_path = "target/criterion/baseline"
+
+[coverage]
+enabled = true
+# Coverage tool configuration
+tool = "tarpaulin"
+output_formats = ["Html", "Lcov", "Json"]
+output_dir = "target/coverage"
+# Coverage thresholds
+line_threshold = 80.0
+branch_threshold = 75.0
+function_threshold = 85.0
+# Files to exclude from coverage
+exclude_files = [
+    "*/tests/*",
+    "*/benches/*",
+    "*/examples/*",
+    "*/target/*"
+]
+
+[linting]
+enabled = true
+# Clippy configuration
+clippy_flags = ["-D", "warnings", "-W", "clippy::all", "-W", "clippy::pedantic"]
+# Rustfmt configuration
+rustfmt_check = true
+rustfmt_edition = "2021"
+
+[security]
+enabled = true
+# Security audit configuration
+audit_tool = "cargo-audit"
+# Vulnerability database update
+update_db = true
+# Ignore advisories (use with caution)
+ignore_advisories = []
+
+[performance]
+enabled = true
+# Performance test configuration
+load_test_duration = 60
+concurrent_users = 100
+ramp_up_time = 10
+# Memory usage monitoring
+monitor_memory = true
+memory_threshold_mb = 1024
+# CPU usage monitoring
+monitor_cpu = true
+cpu_threshold_percent = 80.0
+
+[reporting]
+enabled = true
+# Report generation
+generate_html_report = true
+generate_json_report = true
+generate_junit_xml = true
+# Report output directory
+output_dir = "target/test-reports"
+# Report aggregation
+aggregate_module_reports = true
+include_benchmark_results = true
+include_coverage_summary = true
+
+[database]
+# Test database configuration
+host = "localhost"
+port = 5432
+database = "rwa_test"
+username = "test_user"
+password = "test_password"
+# Connection pool
+max_connections = 10
+min_connections = 1
+connection_timeout = 30
+
+[redis]
+# Test Redis configuration
+host = "localhost"
+port = 6379
+database = 1
+password = ""
+# Connection pool
+max_connections = 10
+connection_timeout = 5
+
+[external_services]
+# Mock external services for testing
+mock_chainlink = true
+mock_band_protocol = true
+mock_pyth_network = true
+mock_ethereum_node = true
+mock_ipfs_node = true
+# Service endpoints for integration tests
+chainlink_endpoint = "http://localhost:8545"
+band_endpoint = "http://localhost:8546"
+ethereum_endpoint = "http://localhost:8547"
+
+[logging]
+# Test logging configuration
+level = "info"
+format = "json"
+output = "stdout"
+# Log file configuration
+log_to_file = true
+log_file_path = "target/test-logs/test.log"
+rotate_logs = true
+max_log_size_mb = 100
+
+[environment]
+# Environment variables for tests
+variables = [
+    "RUST_LOG=info",
+    "RUST_BACKTRACE=1",
+    "TEST_ENV=true"
+]
+# Test-specific feature flags
+features = [
+    "test-utils",
+    "mock-services",
+    "integration-tests"
+]
+
+[notifications]
+# Test result notifications
+enabled = false
+# Slack notification
+slack_webhook = ""
+slack_channel = "#rwa-tests"
+# Email notification
+smtp_server = ""
+smtp_port = 587
+email_from = "tests@rwa-platform.com"
+email_to = ["dev-team@rwa-platform.com"]
+
+[ci_cd]
+# CI/CD specific configuration
+fail_fast = true
+retry_failed_tests = 2
+cache_dependencies = true
+# Artifact retention
+keep_test_artifacts = true
+artifact_retention_days = 7
+# Parallel execution
+parallel_test_execution = true
+max_parallel_jobs = 4
+
+[custom_tests]
+# Custom test suites
+load_tests = [
+    { name = "api_load_test", script = "tests/load/api-load-test.js", duration = 300 },
+    { name = "database_load_test", script = "tests/load/db-load-test.js", duration = 180 }
+]
+
+stress_tests = [
+    { name = "memory_stress", script = "tests/stress/memory-stress.js", duration = 600 },
+    { name = "cpu_stress", script = "tests/stress/cpu-stress.js", duration = 300 }
+]
+
+# End-to-end tests
+e2e_tests = [
+    { name = "user_journey", script = "tests/e2e/user-journey.js", timeout = 900 },
+    { name = "asset_lifecycle", script = "tests/e2e/asset-lifecycle.js", timeout = 1200 }
+]

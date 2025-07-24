@@ -4,8 +4,8 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use thiserror::Error;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 /// Result type alias for bridge operations
 pub type BridgeResult<T> = Result<T, BridgeError>;
@@ -31,7 +31,10 @@ pub enum BridgeError {
 
     /// Validator errors
     #[error("Validator error: {validator_id} - {message}")]
-    ValidatorError { validator_id: String, message: String },
+    ValidatorError {
+        validator_id: String,
+        message: String,
+    },
 
     /// Relayer errors
     #[error("Relayer error: {relayer_id} - {message}")]
@@ -43,7 +46,10 @@ pub enum BridgeError {
 
     /// Smart contract errors
     #[error("Contract error: {contract_address} - {message}")]
-    ContractError { contract_address: String, message: String },
+    ContractError {
+        contract_address: String,
+        message: String,
+    },
 
     /// Transaction errors
     #[error("Transaction error: {tx_hash} - {message}")]
@@ -63,7 +69,10 @@ pub enum BridgeError {
 
     /// Transaction timeout
     #[error("Transaction timeout: {transaction_id} - expired after {timeout_seconds}s")]
-    TransactionTimeout { transaction_id: String, timeout_seconds: u64 },
+    TransactionTimeout {
+        transaction_id: String,
+        timeout_seconds: u64,
+    },
 
     /// Bridge paused
     #[error("Bridge paused: {reason}")]
@@ -75,7 +84,10 @@ pub enum BridgeError {
 
     /// Unsupported token
     #[error("Unsupported token: {token_symbol} on chain {chain_id}")]
-    UnsupportedToken { token_symbol: String, chain_id: String },
+    UnsupportedToken {
+        token_symbol: String,
+        chain_id: String,
+    },
 
     /// Rate limit exceeded
     #[error("Rate limit exceeded: {limit_type} - {message}")]
@@ -83,7 +95,11 @@ pub enum BridgeError {
 
     /// Amount limits exceeded
     #[error("Amount limit exceeded: {limit_type} - amount {amount}, limit {limit}")]
-    AmountLimitExceeded { limit_type: String, amount: String, limit: String },
+    AmountLimitExceeded {
+        limit_type: String,
+        amount: String,
+        limit: String,
+    },
 
     /// Slippage too high
     #[error("Slippage too high: expected {expected}%, actual {actual}%")]
@@ -99,7 +115,11 @@ pub enum BridgeError {
 
     /// Insufficient confirmations
     #[error("Insufficient confirmations: {current}/{required} for transaction {tx_hash}")]
-    InsufficientConfirmations { current: u64, required: u64, tx_hash: String },
+    InsufficientConfirmations {
+        current: u64,
+        required: u64,
+        tx_hash: String,
+    },
 
     /// Nonce error
     #[error("Nonce error: {message}")]
@@ -143,11 +163,17 @@ pub enum BridgeError {
 
     /// Insufficient permissions
     #[error("Insufficient permissions: {required_permission} for user {user_id}")]
-    InsufficientPermissions { user_id: String, required_permission: String },
+    InsufficientPermissions {
+        user_id: String,
+        required_permission: String,
+    },
 
     /// Concurrent modification error
     #[error("Concurrent modification detected for {resource_type} {resource_id}")]
-    ConcurrentModification { resource_type: String, resource_id: String },
+    ConcurrentModification {
+        resource_type: String,
+        resource_id: String,
+    },
 
     /// Business rule violation
     #[error("Business rule violation: {rule} - {message}")]
@@ -173,22 +199,30 @@ pub enum BridgeError {
 impl BridgeError {
     /// Create a transfer error
     pub fn transfer_error<S: Into<String>>(message: S) -> Self {
-        Self::TransferError { message: message.into() }
+        Self::TransferError {
+            message: message.into(),
+        }
     }
 
     /// Create a liquidity error
     pub fn liquidity_error<S: Into<String>>(message: S) -> Self {
-        Self::LiquidityError { message: message.into() }
+        Self::LiquidityError {
+            message: message.into(),
+        }
     }
 
     /// Create an atomic swap error
     pub fn atomic_swap_error<S: Into<String>>(message: S) -> Self {
-        Self::AtomicSwapError { message: message.into() }
+        Self::AtomicSwapError {
+            message: message.into(),
+        }
     }
 
     /// Create a security error
     pub fn security_error<S: Into<String>>(message: S) -> Self {
-        Self::SecurityError { message: message.into() }
+        Self::SecurityError {
+            message: message.into(),
+        }
     }
 
     /// Create a validator error
@@ -217,7 +251,9 @@ impl BridgeError {
 
     /// Create an invalid transaction error
     pub fn invalid_transaction<S: Into<String>>(reason: S) -> Self {
-        Self::InvalidTransaction { reason: reason.into() }
+        Self::InvalidTransaction {
+            reason: reason.into(),
+        }
     }
 
     /// Create a transaction timeout error
@@ -230,12 +266,16 @@ impl BridgeError {
 
     /// Create a bridge paused error
     pub fn bridge_paused<S: Into<String>>(reason: S) -> Self {
-        Self::BridgePaused { reason: reason.into() }
+        Self::BridgePaused {
+            reason: reason.into(),
+        }
     }
 
     /// Create an unsupported chain error
     pub fn unsupported_chain<S: Into<String>>(chain_id: S) -> Self {
-        Self::UnsupportedChain { chain_id: chain_id.into() }
+        Self::UnsupportedChain {
+            chain_id: chain_id.into(),
+        }
     }
 
     /// Create an unsupported token error
@@ -280,7 +320,11 @@ impl BridgeError {
     }
 
     /// Create an insufficient confirmations error
-    pub fn insufficient_confirmations<S: Into<String>>(current: u64, required: u64, tx_hash: S) -> Self {
+    pub fn insufficient_confirmations<S: Into<String>>(
+        current: u64,
+        required: u64,
+        tx_hash: S,
+    ) -> Self {
         Self::InsufficientConfirmations {
             current,
             required,
@@ -384,7 +428,10 @@ impl BridgeError {
 
     /// Check if error requires immediate attention
     pub fn requires_immediate_attention(&self) -> bool {
-        matches!(self.severity(), ErrorSeverity::Critical | ErrorSeverity::High)
+        matches!(
+            self.severity(),
+            ErrorSeverity::Critical | ErrorSeverity::High
+        )
     }
 
     /// Check if error should trigger emergency procedures
@@ -428,20 +475,26 @@ pub enum ErrorSeverity {
 // Implement conversions from common error types
 impl From<serde_json::Error> for BridgeError {
     fn from(err: serde_json::Error) -> Self {
-        Self::SerializationError { message: err.to_string() }
+        Self::SerializationError {
+            message: err.to_string(),
+        }
     }
 }
 
 impl From<reqwest::Error> for BridgeError {
     fn from(err: reqwest::Error) -> Self {
-        Self::NetworkError { message: err.to_string() }
+        Self::NetworkError {
+            message: err.to_string(),
+        }
     }
 }
 
 #[cfg(feature = "database")]
 impl From<sqlx::Error> for BridgeError {
     fn from(err: sqlx::Error) -> Self {
-        Self::DatabaseError { message: err.to_string() }
+        Self::DatabaseError {
+            message: err.to_string(),
+        }
     }
 }
 
@@ -513,13 +566,22 @@ mod tests {
     #[test]
     fn test_specific_error_constructors() {
         let timeout_error = BridgeError::transaction_timeout("tx123", 3600);
-        assert!(matches!(timeout_error, BridgeError::TransactionTimeout { .. }));
+        assert!(matches!(
+            timeout_error,
+            BridgeError::TransactionTimeout { .. }
+        ));
 
         let unsupported_token = BridgeError::unsupported_token("XYZ", "Ethereum");
-        assert!(matches!(unsupported_token, BridgeError::UnsupportedToken { .. }));
+        assert!(matches!(
+            unsupported_token,
+            BridgeError::UnsupportedToken { .. }
+        ));
 
         let slippage_error = BridgeError::slippage_too_high("1%", "5%");
-        assert!(matches!(slippage_error, BridgeError::SlippageTooHigh { .. }));
+        assert!(matches!(
+            slippage_error,
+            BridgeError::SlippageTooHigh { .. }
+        ));
     }
 
     #[test]
@@ -532,6 +594,9 @@ mod tests {
         ];
 
         let categories: Vec<&str> = errors.iter().map(|e| e.category()).collect();
-        assert_eq!(categories, vec!["transfer", "liquidity", "atomic_swap", "security"]);
+        assert_eq!(
+            categories,
+            vec!["transfer", "liquidity", "atomic_swap", "security"]
+        );
     }
 }

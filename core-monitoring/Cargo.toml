@@ -77,13 +77,13 @@ fxhash = "0.2"
 statrs = "0.16"
 
 # Email notifications
-lettre = { version = "0.11", features = ["tokio1", "tokio1-rustls-tls", "smtp-transport"] }
+lettre = { version = "0.11", default-features = false, features = ["tokio1-rustls-tls", "smtp-transport"] }
 
 # Slack notifications
 slack-hook = "0.8"
 
 # SMS notifications
-twilio = { version = "0.3", optional = true }
+twilio = { version = "1.1", optional = true }
 
 # Push notifications
 fcm = { version = "0.9", optional = true }
@@ -109,6 +109,8 @@ core-analytics = { path = "../core-analytics" }
 tokio-test = "0.4"
 mockall = "0.12"
 tempfile = "3.8"
+criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
+proptest = "1.4"
 
 [features]
 default = ["prometheus", "influxdb", "alerting", "dashboards"]
@@ -121,3 +123,7 @@ sms = ["twilio"]
 push-notifications = ["fcm"]
 distributed-tracing = []
 log-aggregation = []
+
+[[bench]]
+name = "monitoring_benchmarks"
+harness = false

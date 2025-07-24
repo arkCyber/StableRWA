@@ -342,7 +342,7 @@ impl AssetValuationService {
         let methods = if request.valuation_methods.is_empty() {
             asset.asset_type.typical_valuation_methods()
         } else {
-            request.valuation_methods
+            request.valuation_methods.clone()
         };
 
         // Perform valuations using different methods
@@ -359,7 +359,7 @@ impl AssetValuationService {
             .cloned()
             .ok_or_else(|| AssetError::valuation_error("No valid valuations produced"))?;
 
-        let alternative_valuations = valuations
+        let alternative_valuations: Vec<AssetValuation> = valuations
             .into_iter()
             .filter(|v| v.id != primary_valuation.id)
             .collect();

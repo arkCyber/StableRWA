@@ -45,7 +45,7 @@ sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chron
 redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
 
 # Ethereum integration
-ethers = { version = "2.0", features = ["ws", "rustls", "contract", "abigen", "legacy"] }
+ethers = { version = "2.0", features = ["ws", "rustls", "abigen", "legacy"] }
 ethers-solc = { version = "2.0", features = ["full"] }
 ethers-providers = { version = "2.0", features = ["ws", "rustls"] }
 ethers-signers = { version = "2.0" }
@@ -53,8 +53,7 @@ ethers-contract = { version = "2.0" }
 ethers-core = { version = "2.0" }
 ethers-middleware = { version = "2.0" }
 
-# Solidity compiler
-solc = { version = "0.1", features = ["svm-solc"] }
+# Solidity compiler (using ethers-solc instead)
 
 # Cryptography
 ring = "0.17"
@@ -102,6 +101,8 @@ core-blockchain = { path = "../core-blockchain" }
 tokio-test = "0.4"
 mockall = "0.12"
 tempfile = "3.8"
+criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
+proptest = "1.4"
 
 [features]
 default = ["ethereum", "proxy", "verification", "monitoring"]
@@ -113,3 +114,7 @@ verification = []
 monitoring = []
 audit = []
 gas-optimization = []
+
+[[bench]]
+name = "smart_contract_benchmarks"
+harness = false

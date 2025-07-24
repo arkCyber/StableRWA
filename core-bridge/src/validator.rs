@@ -5,15 +5,15 @@
 // =====================================================================================
 
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 use crate::{
     error::{BridgeError, BridgeResult},
-    types::{ChainId, BridgeStatus},
+    types::{BridgeStatus, ChainId},
 };
 
 /// Validator configuration
@@ -47,11 +47,11 @@ impl Default for ValidatorConfig {
             node_id: format!("validator-{}", Uuid::new_v4()),
             min_validators: 5,
             consensus_threshold: Decimal::new(67, 2), // 67%
-            validation_timeout_seconds: 300, // 5 minutes
+            validation_timeout_seconds: 300,          // 5 minutes
             max_validation_attempts: 3,
             min_stake_amount: Decimal::new(10000000, 2), // $100,000
-            slashing_penalty: Decimal::new(10, 2), // 10%
-            validation_reward: Decimal::new(1000, 2), // $10.00
+            slashing_penalty: Decimal::new(10, 2),       // 10%
+            validation_reward: Decimal::new(1000, 2),    // $10.00
             fraud_detection_enabled: true,
             challenge_period_seconds: 86400, // 24 hours
         }
@@ -229,14 +229,18 @@ pub enum ValidatorStatus {
 #[async_trait]
 pub trait ValidatorService: Send + Sync {
     /// Submit a validation request
-    async fn submit_validation(&self, request: ValidationRequest) -> BridgeResult<ValidationResult>;
-    
+    async fn submit_validation(&self, request: ValidationRequest)
+        -> BridgeResult<ValidationResult>;
+
     /// Get validation status
-    async fn get_validation_status(&self, request_id: Uuid) -> BridgeResult<Option<ValidationResult>>;
-    
+    async fn get_validation_status(
+        &self,
+        request_id: Uuid,
+    ) -> BridgeResult<Option<ValidationResult>>;
+
     /// Submit validation response (for validators)
     async fn submit_validation_response(&self, response: ValidationResponse) -> BridgeResult<()>;
-    
+
     /// Challenge a validation result
     async fn challenge_validation(
         &self,
@@ -244,25 +248,34 @@ pub trait ValidatorService: Send + Sync {
         challenger_id: String,
         evidence: Vec<u8>,
     ) -> BridgeResult<ChallengeResult>;
-    
+
     /// Get validator information
     async fn get_validator(&self, validator_id: &str) -> BridgeResult<Option<BridgeValidator>>;
-    
+
     /// Get all active validators
     async fn get_active_validators(&self) -> BridgeResult<Vec<BridgeValidator>>;
-    
+
     /// Register as a validator
     async fn register_validator(&self, validator: BridgeValidator) -> BridgeResult<()>;
-    
+
     /// Update validator status
-    async fn update_validator_status(&self, validator_id: &str, status: ValidatorStatus) -> BridgeResult<()>;
-    
+    async fn update_validator_status(
+        &self,
+        validator_id: &str,
+        status: ValidatorStatus,
+    ) -> BridgeResult<()>;
+
     /// Slash validator for misbehavior
-    async fn slash_validator(&self, validator_id: &str, reason: String, amount: Decimal) -> BridgeResult<()>;
-    
+    async fn slash_validator(
+        &self,
+        validator_id: &str,
+        reason: String,
+        amount: Decimal,
+    ) -> BridgeResult<()>;
+
     /// Distribute validation rewards
     async fn distribute_rewards(&self, request_id: Uuid) -> BridgeResult<RewardDistribution>;
-    
+
     /// Health check
     async fn health_check(&self) -> BridgeResult<ValidatorHealthStatus>;
 }

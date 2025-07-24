@@ -1,0 +1,107 @@
+# =====================================================================================
+# File: .cargo/config.toml
+# Description: Enterprise-grade Cargo configuration for StableRWA Platform
+# Author: arkSong (arksong2018@gmail.com)
+# Framework: StableRWA - Enterprise RWA Tokenization Technology Framework Platform
+# =====================================================================================
+
+[build]
+# Enable all warnings as errors for production builds
+rustflags = [
+    "-D", "warnings",
+    "-D", "clippy::all",
+    "-D", "clippy::pedantic",
+    "-D", "clippy::nursery",
+    "-D", "clippy::cargo",
+    "-A", "clippy::module_name_repetitions",
+    "-A", "clippy::missing_errors_doc",
+    "-A", "clippy::missing_panics_doc",
+]
+
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[target.aarch64-apple-darwin]
+# Use default linker on macOS
+rustflags = []
+
+# Enterprise security settings
+[env]
+RUST_BACKTRACE = "1"
+RUST_LOG = "info"
+CARGO_INCREMENTAL = "0"  # Disable incremental compilation for security
+
+# Profile configurations for different environments
+[profile.dev]
+debug = true
+opt-level = 0
+overflow-checks = true
+lto = false
+panic = "unwind"
+codegen-units = 256
+rpath = false
+
+[profile.test]
+debug = true
+opt-level = 1
+overflow-checks = true
+lto = false
+panic = "unwind"
+
+[profile.release]
+debug = false
+opt-level = 3
+overflow-checks = true
+lto = "fat"
+panic = "abort"
+codegen-units = 1
+strip = "symbols"
+
+[profile.production]
+inherits = "release"
+debug = false
+opt-level = 3
+overflow-checks = true
+lto = "fat"
+panic = "abort"
+codegen-units = 1
+strip = "symbols"
+
+# Security-focused profile
+[profile.security]
+inherits = "release"
+debug = false
+opt-level = "s"  # Optimize for size to reduce attack surface
+overflow-checks = true
+lto = "fat"
+panic = "abort"
+codegen-units = 1
+strip = "symbols"
+
+# Audit configuration
+[audit]
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/RustSec/advisory-db"]
+ignore = []
+informational_warnings = ["unmaintained", "unsound", "yanked"]
+
+# Registry configuration for enterprise environments
+[registries]
+crates-io = { index = "https://github.com/rust-lang/crates.io-index" }
+
+# Network configuration for corporate environments
+[http]
+check-revoke = true
+timeout = 30
+multiplexing = true
+user-agent = "StableRWA-Platform/1.0.0"
+
+[net]
+retry = 3
+git-fetch-with-cli = true
+offline = false
+
+# Future compatibility settings
+[future-incompat-report]
+frequency = "always"

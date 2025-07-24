@@ -16,11 +16,6 @@ pub mod multisig;
 pub mod hardware;
 pub mod key_management;
 pub mod recovery;
-pub mod timelock;
-pub mod gnosis_safe;
-pub mod mnemonic;
-pub mod encryption;
-pub mod derivation;
 pub mod service;
 
 // Re-export main types and traits
@@ -30,34 +25,21 @@ pub use types::{
     Address, Signature, Transaction, WalletType, SignatureScheme
 };
 pub use multisig::{
-    MultiSigService, MultiSigConfig, MultiSigTransaction,
-    Signer, SigningPolicy, ThresholdPolicy
+    MultiSigService, MultiSigServiceImpl, MultiSigConfig, CreateWalletRequest,
+    SigningPolicy, ThresholdPolicy
 };
 pub use hardware::{
-    HardwareWalletService, LedgerWallet, TrezorWallet,
-    HardwareDevice, DeviceInfo, DeviceStatus
+    HardwareWalletService, HardwareWalletServiceImpl, HardwareConfig
 };
 pub use key_management::{
-    KeyManager, KeyStore, SecureKeyStore,
-    KeyDerivation, KeyRotation, KeyBackup
+    KeyManager, KeyManagerImpl, KeyStore, SecureKeyStore, KeyManagementConfig
 };
 pub use recovery::{
-    RecoveryService, SocialRecovery, RecoveryGuardian,
-    RecoveryRequest, RecoveryProposal
+    RecoveryService, RecoveryServiceImpl, RecoveryConfig, SocialRecovery,
+    RecoveryGuardian, RecoveryRequest
 };
-pub use mnemonic::{
-    MnemonicGenerator, MnemonicValidator, SeedPhrase,
-    WordList, EntropySource
-};
-pub use encryption::{
-    EncryptionService, AESEncryption, ChaChaEncryption,
-    EncryptedData, EncryptionKey
-};
-pub use derivation::{
-    HDWallet, DerivationPath, ExtendedKey,
-    BIP32Derivation, BIP44Derivation
-};
-pub use service::WalletService;
+pub use service::{WalletService, WalletServiceImpl};
+
 
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
@@ -76,8 +58,6 @@ pub struct WalletServiceConfig {
     pub key_management_config: key_management::KeyManagementConfig,
     /// Recovery configuration
     pub recovery_config: recovery::RecoveryConfig,
-    /// Encryption configuration
-    pub encryption_config: encryption::EncryptionConfig,
     /// Global wallet settings
     pub global_settings: GlobalWalletSettings,
 }
@@ -89,7 +69,6 @@ impl Default for WalletServiceConfig {
             hardware_config: hardware::HardwareConfig::default(),
             key_management_config: key_management::KeyManagementConfig::default(),
             recovery_config: recovery::RecoveryConfig::default(),
-            encryption_config: encryption::EncryptionConfig::default(),
             global_settings: GlobalWalletSettings::default(),
         }
     }
@@ -164,89 +143,14 @@ pub struct WalletHealthStatus {
     pub last_check: DateTime<Utc>,
 }
 
-// Stub modules for compilation
-pub mod multisig {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct MultiSigConfig {
-        pub default_threshold: u32,
-        pub max_signers: u32,
-        pub signing_timeout_minutes: u32,
-    }
-    
-    impl Default for MultiSigConfig {
-        fn default() -> Self {
-            Self {
-                default_threshold: 2,
-                max_signers: 10,
-                signing_timeout_minutes: 30,
-            }
-        }
-    }
-    
-    pub struct MultiSigService;
-    pub struct MultiSigTransaction;
-    pub struct Signer;
-    pub struct SigningPolicy;
-    pub struct ThresholdPolicy;
-}
+// Re-export from actual modules
+pub use multisig::{MultiSigConfig, CreateWalletRequest, SigningPolicy, ThresholdPolicy};
 
-pub mod hardware {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct HardwareConfig {
-        pub enable_ledger: bool,
-        pub enable_trezor: bool,
-        pub connection_timeout_seconds: u32,
-    }
-    
-    impl Default for HardwareConfig {
-        fn default() -> Self {
-            Self {
-                enable_ledger: true,
-                enable_trezor: true,
-                connection_timeout_seconds: 30,
-            }
-        }
-    }
-    
-    pub struct HardwareWalletService;
-    pub struct LedgerWallet;
-    pub struct TrezorWallet;
-    pub struct HardwareDevice;
-    pub struct DeviceInfo;
-    pub struct DeviceStatus;
-}
+// Re-export from actual modules
+pub use hardware::HardwareConfig;
 
-pub mod key_management {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct KeyManagementConfig {
-        pub encryption_algorithm: String,
-        pub key_derivation_iterations: u32,
-        pub backup_enabled: bool,
-    }
-    
-    impl Default for KeyManagementConfig {
-        fn default() -> Self {
-            Self {
-                encryption_algorithm: "AES-256-GCM".to_string(),
-                key_derivation_iterations: 100000,
-                backup_enabled: true,
-            }
-        }
-    }
-    
-    pub struct KeyManager;
-    pub struct KeyStore;
-    pub struct SecureKeyStore;
-    pub struct KeyDerivation;
-    pub struct KeyRotation;
-    pub struct KeyBackup;
-}
+// Re-export from actual modules
+pub use key_management::KeyManagementConfig;
 
 pub mod recovery {
     use super::*;

@@ -43,7 +43,7 @@ config = "0.13"
 validator = { version = "0.16", features = ["derive"] }
 
 # Decimal arithmetic for financial calculations
-rust_decimal = { version = "1.0", features = ["serde-json"] }
+rust_decimal = { version = "1.33", features = ["serde-float"] }
 
 # Concurrent data structures
 dashmap = "5.5"

@@ -4,12 +4,12 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
+use chrono::{DateTime, Duration, Utc};
 use core_analytics::*;
-use chrono::{DateTime, Utc, Duration};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
-use uuid::Uuid;
 use tokio_test;
+use uuid::Uuid;
 
 #[tokio::test]
 async fn test_metrics_collection_and_aggregation() {
@@ -40,9 +40,18 @@ async fn test_metrics_collection_and_aggregation() {
     // Test histogram metric
     let histogram = MetricValue::Histogram {
         buckets: vec![
-            HistogramBucket { upper_bound: Decimal::new(100, 0), count: 10 },
-            HistogramBucket { upper_bound: Decimal::new(500, 0), count: 25 },
-            HistogramBucket { upper_bound: Decimal::new(1000, 0), count: 15 },
+            HistogramBucket {
+                upper_bound: Decimal::new(100, 0),
+                count: 10,
+            },
+            HistogramBucket {
+                upper_bound: Decimal::new(500, 0),
+                count: 25,
+            },
+            HistogramBucket {
+                upper_bound: Decimal::new(1000, 0),
+                count: 15,
+            },
         ],
         count: 50,
         sum: 12500.0,
@@ -95,7 +104,7 @@ async fn test_time_series_data_handling() {
     let start_time = base_time + Duration::minutes(3);
     let end_time = base_time + Duration::minutes(7);
     let filtered_points = time_series.get_points_in_range(start_time, end_time);
-    
+
     assert_eq!(filtered_points.len(), 5); // Points at minutes 3, 4, 5, 6, 7
 }
 
@@ -104,10 +113,7 @@ async fn test_analytics_query_system() {
     // Test query builder
     let query = AnalyticsQuery::builder()
         .metric("trading_volume")
-        .time_range(
-            Utc::now() - Duration::hours(24),
-            Utc::now(),
-        )
+        .time_range(Utc::now() - Duration::hours(24), Utc::now())
         .filter("asset", "BTC")
         .filter("exchange", "main")
         .aggregation(AggregationType::Sum)
@@ -242,7 +248,7 @@ async fn test_real_time_analytics() {
 
     assert_eq!(alert.name, "High Volume Alert");
     assert_eq!(alert.severity, AlertSeverity::Warning);
-    
+
     if let AlertCondition::GreaterThan(threshold) = alert.condition {
         assert_eq!(threshold, Decimal::new(1000000, 2));
     }
@@ -251,8 +257,12 @@ async fn test_real_time_analytics() {
     let high_value = Decimal::new(1500000, 2); // $15,000
     let low_value = Decimal::new(500000, 2); // $5,000
 
-    assert!(matches!(alert.condition, AlertCondition::GreaterThan(threshold) if high_value > threshold));
-    assert!(!matches!(alert.condition, AlertCondition::GreaterThan(threshold) if low_value > threshold));
+    assert!(
+        matches!(alert.condition, AlertCondition::GreaterThan(threshold) if high_value > threshold)
+    );
+    assert!(
+        !matches!(alert.condition, AlertCondition::GreaterThan(threshold) if low_value > threshold)
+    );
 }
 
 #[tokio::test]
@@ -280,8 +290,9 @@ async fn test_performance_metrics() {
 
     // Test aggregation performance
     let aggregation_start = std::time::Instant::now();
-    
-    let sum: i64 = metrics.iter()
+
+    let sum: i64 = metrics
+        .iter()
         .filter_map(|m| match &m.value {
             MetricValue::Integer(i) => Some(*i),
             _ => None,
@@ -323,17 +334,9 @@ async fn test_data_retention_and_cleanup() {
     let recent_time = Utc::now() - Duration::days(15);
 
     // Simulate data points
-    let old_point = TimeSeriesPoint::new(
-        cutoff_time,
-        Decimal::new(1000, 0),
-        HashMap::new(),
-    );
+    let old_point = TimeSeriesPoint::new(cutoff_time, Decimal::new(1000, 0), HashMap::new());
 
-    let recent_point = TimeSeriesPoint::new(
-        recent_time,
-        Decimal::new(2000, 0),
-        HashMap::new(),
-    );
+    let recent_point = TimeSeriesPoint::new(recent_time, Decimal::new(2000, 0), HashMap::new());
 
     // Old point should be eligible for cleanup
     assert!(old_point.timestamp < Utc::now() - retention_policy.retention_period);
@@ -345,16 +348,19 @@ async fn test_data_retention_and_cleanup() {
 async fn test_analytics_service_configuration() {
     // Test service configuration
     let config = AnalyticsServiceConfig::default();
-    
+
     assert_eq!(config.metrics_config.max_metrics_per_request, 1000);
-    assert_eq!(config.aggregation_config.default_bucket_size, Duration::minutes(5));
+    assert_eq!(
+        config.aggregation_config.default_bucket_size,
+        Duration::minutes(5)
+    );
     assert_eq!(config.reporting_config.max_report_size_mb, 100);
     assert!(config.service_config.enable_real_time_processing);
 
     // Test configuration validation
     let mut invalid_config = config.clone();
     invalid_config.metrics_config.max_metrics_per_request = 0;
-    
+
     // This would fail validation in a real implementation
     assert_eq!(invalid_config.metrics_config.max_metrics_per_request, 0);
 }
@@ -383,10 +389,8 @@ async fn test_error_handling_and_edge_cases() {
         MetricValue::Integer(200),
     ];
 
-    let numeric_count = values_with_null.iter()
-        .filter(|v| v.is_numeric())
-        .count();
-    
+    let numeric_count = values_with_null.iter().filter(|v| v.is_numeric()).count();
+
     assert_eq!(numeric_count, 2);
 
     // Test time range validation
@@ -442,6 +446,12 @@ async fn test_complex_analytics_scenario() {
     }
 
     assert_eq!(dashboard.widgets.len(), 3);
-    assert!(dashboard.widgets.iter().any(|w| w.title == "Trading Volume"));
-    assert!(dashboard.widgets.iter().any(|w| w.widget_type == WidgetType::Histogram));
+    assert!(dashboard
+        .widgets
+        .iter()
+        .any(|w| w.title == "Trading Volume"));
+    assert!(dashboard
+        .widgets
+        .iter()
+        .any(|w| w.widget_type == WidgetType::Histogram));
 }

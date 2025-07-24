@@ -1,0 +1,176 @@
+# =====================================================================================
+# File: Dockerfile.enterprise
+# Description: Enterprise-grade multi-stage Dockerfile for StableRWA Platform
+# Author: arkSong (arksong2018@gmail.com)
+# Framework: StableRWA - Enterprise RWA Tokenization Technology Framework Platform
+# =====================================================================================
+
+# Build stage
+FROM rust:1.75-slim-bullseye AS builder
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    libpq-dev \
+    ca-certificates \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app user
+RUN groupadd -r stablerwa && useradd -r -g stablerwa stablerwa
+
+# Set working directory
+WORKDIR /app
+
+# Copy dependency files
+COPY Cargo.toml Cargo.lock ./
+COPY crates/ ./crates/
+COPY core-*/ ./
+COPY service-*/ ./
+
+# Build dependencies (this layer will be cached)
+RUN cargo build --release --locked
+
+# Copy source code
+COPY . .
+
+# Build application
+RUN cargo build --release --locked --bin service-gateway
+RUN cargo build --release --locked --bin service-oracle
+RUN cargo build --release --locked --bin service-asset
+RUN cargo build --release --locked --bin service-custody
+RUN cargo build --release --locked --bin ai-service
+
+# Runtime stage
+FROM debian:bullseye-slim AS runtime
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl1.1 \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app user
+RUN groupadd -r stablerwa && useradd -r -g stablerwa stablerwa
+
+# Create necessary directories
+RUN mkdir -p /app/bin /app/config /app/logs /app/data \
+    && chown -R stablerwa:stablerwa /app
+
+# Copy binaries from builder
+COPY --from=builder --chown=stablerwa:stablerwa /app/target/release/service-gateway /app/bin/
+COPY --from=builder --chown=stablerwa:stablerwa /app/target/release/service-oracle /app/bin/
+COPY --from=builder --chown=stablerwa:stablerwa /app/target/release/service-asset /app/bin/
+COPY --from=builder --chown=stablerwa:stablerwa /app/target/release/service-custody /app/bin/
+COPY --from=builder --chown=stablerwa:stablerwa /app/target/release/ai-service /app/bin/
+
+# Copy configuration files
+COPY --chown=stablerwa:stablerwa config/ /app/config/
+COPY --chown=stablerwa:stablerwa monitoring/ /app/monitoring/
+
+# Set working directory
+WORKDIR /app
+
+# Switch to non-root user
+USER stablerwa
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Expose ports
+EXPOSE 8080 8081 8082 8083 8084
+
+# Default command
+CMD ["/app/bin/service-gateway"]
+
+# Labels for enterprise compliance
+LABEL maintainer="arkSong <arksong2018@gmail.com>"
+LABEL version="1.0.0"
+LABEL description="StableRWA Platform - Enterprise RWA Tokenization Framework"
+LABEL vendor="StableRWA"
+LABEL org.opencontainers.image.title="StableRWA Platform"
+LABEL org.opencontainers.image.description="Enterprise-grade Real World Asset tokenization platform"
+LABEL org.opencontainers.image.version="1.0.0"
+LABEL org.opencontainers.image.vendor="StableRWA"
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.source="https://github.com/arkCyber/StableRWA"
+LABEL org.opencontainers.image.documentation="https://docs.stablerwa.com"
+
+# Security labels
+LABEL security.scan.enabled="true"
+LABEL security.vulnerability.scan="trivy"
+LABEL security.compliance="SOC2,ISO27001"
+
+# Multi-service variant
+FROM runtime AS gateway
+CMD ["/app/bin/service-gateway"]
+
+FROM runtime AS oracle
+CMD ["/app/bin/service-oracle"]
+
+FROM runtime AS asset
+CMD ["/app/bin/service-asset"]
+
+FROM runtime AS custody
+CMD ["/app/bin/service-custody"]
+
+FROM runtime AS ai
+CMD ["/app/bin/ai-service"]
+
+# Development stage
+FROM builder AS development
+
+# Install development tools
+RUN cargo install cargo-watch cargo-audit cargo-tarpaulin
+
+# Copy development configuration
+COPY --chown=stablerwa:stablerwa dev-config/ /app/config/
+
+# Development command
+CMD ["cargo", "watch", "-x", "run"]
+
+# Testing stage
+FROM builder AS testing
+
+# Install testing tools
+RUN cargo install cargo-nextest
+
+# Run tests
+RUN cargo test --all-features --release
+
+# Security scanning stage
+FROM aquasec/trivy:latest AS security-scan
+
+# Copy application for scanning
+COPY --from=builder /app/target/release/ /scan/
+
+# Run security scan
+RUN trivy fs --exit-code 1 --severity HIGH,CRITICAL /scan/
+
+# Final production stage with security scan
+FROM runtime AS production
+
+# Copy scan results (this will fail the build if vulnerabilities are found)
+COPY --from=security-scan /scan/ /tmp/scan-results/
+
+# Production optimizations
+ENV RUST_LOG=info
+ENV RUST_BACKTRACE=0
+ENV MALLOC_ARENA_MAX=2
+
+# Resource limits (to be enforced by container runtime)
+LABEL resource.cpu.limit="2"
+LABEL resource.memory.limit="4Gi"
+LABEL resource.storage.limit="10Gi"
+
+# Compliance and audit labels
+LABEL audit.enabled="true"
+LABEL audit.retention="7y"
+LABEL compliance.gdpr="true"
+LABEL compliance.sox="true"
+LABEL compliance.pci="true"

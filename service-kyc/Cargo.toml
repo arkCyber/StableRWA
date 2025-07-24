@@ -1,0 +1,103 @@
+# =====================================================================================
+# RWA Tokenization Platform - KYC/AML Compliance Service
+# 
+# Author: arkSong (arksong2018@gmail.com)
+# =====================================================================================
+
+[package]
+name = "service-kyc"
+version = "0.1.0"
+edition = "2021"
+authors = ["arkSong <arksong2018@gmail.com>"]
+description = "Enterprise-grade KYC/AML compliance service for RWA tokenization platform"
+license = "MIT"
+repository = "https://github.com/rwa-platform/service-kyc"
+
+[dependencies]
+# Web framework
+actix-web = "4.4"
+actix-cors = "0.7"
+actix-multipart = "0.6"
+
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+futures = "0.3"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json", "rustls-tls", "multipart"] }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid"] }
+
+# Cache
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+
+# Date and time
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID
+uuid = { version = "1.6", features = ["v4", "serde"] }
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-actix-web = "0.7"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Configuration
+config = "0.14"
+
+# Metrics
+prometheus = "0.13"
+
+# Security
+jsonwebtoken = "9.2"
+bcrypt = "0.15"
+
+# Utilities
+once_cell = "1.19"
+regex = "1.10"
+
+# Image processing
+image = "0.24"
+
+# PDF processing
+pdf = "0.8"
+
+# OCR capabilities
+tesseract = { version = "0.13", optional = true }
+
+# Machine learning for fraud detection
+candle-core = { version = "0.3", optional = true }
+candle-nn = { version = "0.3", optional = true }
+
+# Encryption
+aes-gcm = "0.10"
+rand = "0.8"
+
+[dev-dependencies]
+actix-web-test = "4.4"
+tempfile = "3.8"
+
+[features]
+default = ["ocr", "ml"]
+ocr = ["tesseract"]
+ml = ["candle-core", "candle-nn"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[[bin]]
+name = "service-kyc"
+path = "src/main.rs"

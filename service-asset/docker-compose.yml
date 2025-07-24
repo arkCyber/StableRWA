@@ -1,0 +1,202 @@
+# =====================================================================================
+# Docker Compose configuration for Asset Service
+# Production-ready setup with all dependencies
+# =====================================================================================
+
+version: '3.8'
+
+services:
+  # Asset Service
+  asset-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: asset-service
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+    environment:
+      # Server configuration
+      - HOST=0.0.0.0
+      - PORT=8080
+      - METRICS_PORT=9090
+      
+      # Database configuration
+      - DATABASE_URL=postgresql://asset_user:asset_password@postgres:5432/asset_db
+      - DATABASE_MAX_CONNECTIONS=20
+      
+      # Redis configuration
+      - REDIS_URL=redis://redis:6379
+      
+      # Security configuration
+      - JWT_SECRET=your-super-secret-jwt-key-here-must-be-at-least-32-chars
+      - ENCRYPTION_KEY=your-super-secret-encryption-key-32-chars
+      
+      # Blockchain configuration
+      - ETHEREUM_RPC_URL=https://mainnet.infura.io/v3/YOUR_PROJECT_ID
+      - ETHEREUM_TESTNET_RPC_URL=https://goerli.infura.io/v3/YOUR_PROJECT_ID
+      
+      # Monitoring configuration
+      - RUST_LOG=info
+      - RUST_BACKTRACE=1
+      
+      # Feature flags
+      - TOKENIZATION_ENABLED=true
+      - VALUATION_ENABLED=true
+      - CACHING_ENABLED=true
+      - RATE_LIMITING_ENABLED=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - asset-network
+    volumes:
+      - asset-logs:/app/logs
+      - asset-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: asset-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=asset_db
+      - POSTGRES_USER=asset_user
+      - POSTGRES_PASSWORD=asset_password
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    networks:
+      - asset-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U asset_user -d asset_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: asset-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass redis_password
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - asset-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+
+  # Prometheus (Metrics Collection)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: asset-prometheus
+    restart: unless-stopped
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - asset-network
+    depends_on:
+      - asset-service
+
+  # Grafana (Metrics Visualization)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: asset-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - asset-network
+    depends_on:
+      - prometheus
+
+  # Jaeger (Distributed Tracing)
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: asset-jaeger
+    restart: unless-stopped
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - asset-network
+
+  # Nginx (Reverse Proxy & Load Balancer)
+  nginx:
+    image: nginx:alpine
+    container_name: asset-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+      - nginx-logs:/var/log/nginx
+    networks:
+      - asset-network
+    depends_on:
+      - asset-service
+
+networks:
+  asset-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  asset-logs:
+    driver: local
+  asset-data:
+    driver: local
+  nginx-logs:
+    driver: local

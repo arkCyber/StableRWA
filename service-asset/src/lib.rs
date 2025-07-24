@@ -7,9 +7,15 @@
 pub mod handlers;
 pub mod models;
 pub mod service;
+pub mod config;
+pub mod metrics;
+pub mod middleware;
+pub mod cache;
+pub mod health;
 
-use core_utils::config::Config;
-use core_asset_lifecycle::AssetManager;
+#[cfg(test)]
+pub mod testing;
+
 use service::AssetService;
 use std::sync::Arc;
 use thiserror::Error;
@@ -19,6 +25,8 @@ use thiserror::Error;
 pub enum AssetError {
     #[error("Asset not found: {0}")]
     AssetNotFound(String),
+    #[error("Invalid asset ID: {0}")]
+    InvalidAssetId(String),
     #[error("Invalid asset type: {0}")]
     InvalidAssetType(String),
     #[error("Asset already tokenized")]
@@ -35,26 +43,11 @@ pub enum AssetError {
     DatabaseError(String),
 }
 
-impl From<sqlx::Error> for AssetError {
-    fn from(err: sqlx::Error) -> Self {
-        match err {
-            sqlx::Error::RowNotFound => AssetError::AssetNotFound("Asset not found".to_string()),
-            _ => AssetError::DatabaseError(err.to_string()),
-        }
-    }
-}
 
-impl From<core_blockchain::BlockchainError> for AssetError {
-    fn from(err: core_blockchain::BlockchainError) -> Self {
-        AssetError::BlockchainError(err.to_string())
-    }
-}
 
 /// Application state for the asset service
 pub struct AppState {
-    pub config: Config,
     pub asset_service: Arc<AssetService>,
-    pub asset_manager: Arc<AssetManager>,
 }
 
 /// Asset service result type
@@ -118,11 +111,15 @@ impl AssetType {
 /// Validation functions
 pub fn validate_asset_name(name: &str) -> AssetResult<()> {
     if name.trim().is_empty() {
-        return Err(AssetError::ValidationError("Asset name cannot be empty".to_string()));
+        return Err(AssetError::ValidationError(
+            "Asset name cannot be empty".to_string(),
+        ));
     }
 
     if name.len() > 200 {
-        return Err(AssetError::ValidationError("Asset name is too long (max 200 characters)".to_string()));
+        return Err(AssetError::ValidationError(
+            "Asset name is too long (max 200 characters)".to_string(),
+        ));
     }
 
     Ok(())
@@ -130,11 +127,15 @@ pub fn validate_asset_name(name: &str) -> AssetResult<()> {
 
 pub fn validate_asset_description(description: &str) -> AssetResult<()> {
     if description.trim().is_empty() {
-        return Err(AssetError::ValidationError("Asset description cannot be empty".to_string()));
+        return Err(AssetError::ValidationError(
+            "Asset description cannot be empty".to_string(),
+        ));
     }
 
     if description.len() > 2000 {
-        return Err(AssetError::ValidationError("Asset description is too long (max 2000 characters)".to_string()));
+        return Err(AssetError::ValidationError(
+            "Asset description is too long (max 2000 characters)".to_string(),
+        ));
     }
 
     Ok(())
@@ -150,21 +151,30 @@ pub fn validate_asset_type(asset_type: &str) -> AssetResult<()> {
 
 pub fn validate_asset_value(value: rust_decimal::Decimal) -> AssetResult<()> {
     if value <= rust_decimal::Decimal::ZERO {
-        return Err(AssetError::ValidationError("Asset value must be positive".to_string()));
+        return Err(AssetError::ValidationError(
+            "Asset value must be positive".to_string(),
+        ));
     }
 
     if value > rust_decimal::Decimal::from(1_000_000_000_000i64) {
-        return Err(AssetError::ValidationError("Asset value is too large".to_string()));
+        return Err(AssetError::ValidationError(
+            "Asset value is too large".to_string(),
+        ));
     }
 
     Ok(())
 }
 
 pub fn validate_currency(currency: &str) -> AssetResult<()> {
-    let valid_currencies = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "BTC", "ETH"];
+    let valid_currencies = [
+        "USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "BTC", "ETH",
+    ];
 
     if !valid_currencies.contains(&currency.to_uppercase().as_str()) {
-        return Err(AssetError::ValidationError(format!("Unsupported currency: {}", currency)));
+        return Err(AssetError::ValidationError(format!(
+            "Unsupported currency: {}",
+            currency
+        )));
     }
 
     Ok(())
@@ -177,7 +187,10 @@ mod tests {
     #[test]
     fn test_asset_type_conversion() {
         assert_eq!(AssetType::RealEstate.as_str(), "real_estate");
-        assert_eq!(AssetType::from_str("real_estate"), Some(AssetType::RealEstate));
+        assert_eq!(
+            AssetType::from_str("real_estate"),
+            Some(AssetType::RealEstate)
+        );
         assert_eq!(AssetType::from_str("invalid"), None);
     }
 

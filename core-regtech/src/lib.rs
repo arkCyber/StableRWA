@@ -5,103 +5,88 @@
 // =====================================================================================
 
 //! # Core RegTech Module
-//! 
+//!
 //! This module provides comprehensive regulatory technology (RegTech) automation
 //! for the StableRWA platform, including AML/KYC compliance, regulatory reporting,
 //! risk assessment, and automated compliance monitoring.
 
-pub mod error;
-pub mod types;
 pub mod aml;
-pub mod kyc;
-pub mod reporting;
-pub mod monitoring;
-pub mod travel_rule;
-pub mod sanctions;
-pub mod risk_assessment;
-pub mod document_analysis;
-pub mod regulatory_calendar;
 pub mod audit_trail;
-pub mod notification;
+pub mod document_analysis;
+pub mod error;
+pub mod kyc;
+pub mod monitoring;
+pub mod regulatory_calendar;
+pub mod reporting;
+pub mod risk_assessment;
+pub mod sanctions;
+pub mod travel_rule;
+pub mod types;
+
 pub mod service;
 
 // Re-export main types and traits
-pub use error::{RegTechError, RegTechResult};
-pub use types::{
-    ComplianceCheck, RegulatoryReport, RiskAssessment, SanctionsCheck,
-    KYCProfile, AMLAlert, ComplianceStatus, RegulatoryFramework
-};
 pub use aml::{
-    AMLService, AMLConfig, TransactionMonitoring, SuspiciousActivityReport,
-    AMLAlert as AMLAlertType, PatternDetection
+    AMLConfig, AMLService, PatternDetection, SuspiciousActivityReport, TransactionData,
+    TransactionMonitoring,
 };
+pub use audit_trail::{AuditConfig, AuditEvent, AuditReport, AuditTrail, AuditTrailImpl};
+pub use document_analysis::{
+    DocumentAnalysis, DocumentAnalyzer, DocumentAnalyzerImpl, DocumentConfig,
+};
+pub use error::{RegTechError, RegTechResult};
 pub use kyc::{
-    KYCService, KYCConfig, IdentityVerification, DocumentVerification,
-    BiometricVerification, KYCProfile as KYCProfileType
-};
-pub use reporting::{
-    ReportingService, ReportConfig, RegulatoryReport as ReportType,
-    ReportTemplate, ReportScheduler, ReportDistribution
+    BiometricSubmission, DocumentSubmission, IdentityVerification, KYCConfig, KYCService,
+    ReviewResult,
 };
 pub use monitoring::{
-    ComplianceMonitor, MonitoringConfig, ComplianceMetrics,
-    AlertManager, ViolationDetector
-};
-pub use travel_rule::{
-    TravelRuleService, TravelRuleConfig, TravelRuleMessage,
-    VASPDirectory, TravelRuleCompliance
-};
-pub use sanctions::{
-    SanctionsService, SanctionsConfig, SanctionsScreening,
-    WatchlistManager, SanctionsAlert
-};
-pub use risk_assessment::{
-    RiskAssessmentService, RiskConfig, RiskModel,
-    RiskScore, RiskFactors, RiskMatrix
-};
-pub use document_analysis::{
-    DocumentAnalyzer, DocumentConfig, DocumentClassification,
-    TextExtraction, DocumentValidation
+    ComplianceMetrics, ComplianceMonitor, ComplianceMonitorImpl, MonitoringConfig,
 };
 pub use regulatory_calendar::{
-    RegulatoryCalendar, CalendarConfig, RegulatoryEvent,
-    ComplianceDeadline, RegulatoryUpdate
+    CalendarConfig, ComplianceDeadline, RegulatoryCalendar, RegulatoryCalendarImpl,
+    RegulatoryUpdate,
 };
-pub use audit_trail::{
-    AuditTrail, AuditConfig, AuditEvent,
-    ComplianceAudit, AuditReport
+pub use reporting::{ReportConfig, ReportingService, ReportingServiceImpl};
+pub use risk_assessment::{
+    RiskAssessmentService, RiskAssessmentServiceImpl, RiskConfig, RiskMatrix,
 };
-pub use notification::{
-    NotificationService, NotificationConfig, ComplianceNotification,
-    AlertNotification, ReportNotification
+pub use sanctions::{
+    SanctionsAlert, SanctionsConfig, SanctionsScreening, SanctionsService, WatchlistManager,
 };
-pub use service::RegTechService;
+pub use service::{RegTechHealthStatus, RegTechService, RegTechServiceImpl};
+pub use travel_rule::{
+    TravelRuleConfig, TravelRuleMessage, TravelRuleService, TravelRuleServiceImpl,
+};
+pub use types::{
+    AMLAlert, ComplianceCheck, ComplianceStatus, KYCProfile, RegulatoryFramework, RegulatoryReport,
+    RiskAssessment, SanctionsCheck,
+};
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 /// Main RegTech service configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegTechServiceConfig {
     /// AML configuration
-    pub aml_config: aml::AMLConfig,
+    pub aml_config: AMLConfig,
     /// KYC configuration
-    pub kyc_config: kyc::KYCConfig,
+    pub kyc_config: KYCConfig,
     /// Reporting configuration
-    pub reporting_config: reporting::ReportConfig,
+    pub reporting_config: ReportConfig,
     /// Monitoring configuration
-    pub monitoring_config: monitoring::MonitoringConfig,
+    pub monitoring_config: MonitoringConfig,
     /// Travel Rule configuration
-    pub travel_rule_config: travel_rule::TravelRuleConfig,
+    pub travel_rule_config: TravelRuleConfig,
     /// Sanctions configuration
-    pub sanctions_config: sanctions::SanctionsConfig,
+    pub sanctions_config: SanctionsConfig,
     /// Risk assessment configuration
-    pub risk_config: risk_assessment::RiskConfig,
+    pub risk_config: RiskConfig,
     /// Document analysis configuration
-    pub document_config: document_analysis::DocumentConfig,
+    pub document_config: DocumentConfig,
     /// Global RegTech settings
     pub global_settings: GlobalRegTechSettings,
 }
@@ -109,14 +94,14 @@ pub struct RegTechServiceConfig {
 impl Default for RegTechServiceConfig {
     fn default() -> Self {
         Self {
-            aml_config: aml::AMLConfig::default(),
-            kyc_config: kyc::KYCConfig::default(),
-            reporting_config: reporting::ReportConfig::default(),
-            monitoring_config: monitoring::MonitoringConfig::default(),
-            travel_rule_config: travel_rule::TravelRuleConfig::default(),
-            sanctions_config: sanctions::SanctionsConfig::default(),
-            risk_config: risk_assessment::RiskConfig::default(),
-            document_config: document_analysis::DocumentConfig::default(),
+            aml_config: AMLConfig::default(),
+            kyc_config: KYCConfig::default(),
+            reporting_config: ReportConfig::default(),
+            monitoring_config: MonitoringConfig::default(),
+            travel_rule_config: TravelRuleConfig::default(),
+            sanctions_config: SanctionsConfig::default(),
+            risk_config: RiskConfig::default(),
+            document_config: DocumentConfig::default(),
             global_settings: GlobalRegTechSettings::default(),
         }
     }
@@ -196,271 +181,6 @@ pub struct RegTechHealthStatus {
     pub last_check: DateTime<Utc>,
 }
 
-// Stub modules for compilation
-pub mod aml {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct AMLConfig {
-        pub transaction_threshold: Decimal,
-        pub monitoring_window_hours: u32,
-        pub suspicious_pattern_threshold: f64,
-        pub enable_ml_detection: bool,
-    }
-    
-    impl Default for AMLConfig {
-        fn default() -> Self {
-            Self {
-                transaction_threshold: Decimal::new(1000000, 2), // $10,000
-                monitoring_window_hours: 24,
-                suspicious_pattern_threshold: 0.8,
-                enable_ml_detection: true,
-            }
-        }
-    }
-    
-    pub struct AMLService;
-    pub struct TransactionMonitoring;
-    pub struct SuspiciousActivityReport;
-    pub struct AMLAlert;
-    pub struct PatternDetection;
-}
-
-pub mod kyc {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct KYCConfig {
-        pub verification_level: String,
-        pub document_types_required: Vec<String>,
-        pub enable_biometric_verification: bool,
-        pub verification_timeout_hours: u32,
-    }
-    
-    impl Default for KYCConfig {
-        fn default() -> Self {
-            Self {
-                verification_level: "enhanced".to_string(),
-                document_types_required: vec![
-                    "passport".to_string(),
-                    "driver_license".to_string(),
-                    "utility_bill".to_string(),
-                ],
-                enable_biometric_verification: true,
-                verification_timeout_hours: 72,
-            }
-        }
-    }
-    
-    pub struct KYCService;
-    pub struct IdentityVerification;
-    pub struct DocumentVerification;
-    pub struct BiometricVerification;
-    pub struct KYCProfile;
-}
-
-pub mod reporting {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct ReportConfig {
-        pub enable_automated_generation: bool,
-        pub report_formats: Vec<String>,
-        pub distribution_channels: Vec<String>,
-        pub retention_days: u32,
-    }
-    
-    impl Default for ReportConfig {
-        fn default() -> Self {
-            Self {
-                enable_automated_generation: true,
-                report_formats: vec!["pdf".to_string(), "xlsx".to_string(), "json".to_string()],
-                distribution_channels: vec!["email".to_string(), "api".to_string()],
-                retention_days: 2555, // 7 years
-            }
-        }
-    }
-    
-    pub struct ReportingService;
-    pub struct RegulatoryReport;
-    pub struct ReportTemplate;
-    pub struct ReportScheduler;
-    pub struct ReportDistribution;
-}
-
-pub mod monitoring {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct MonitoringConfig {
-        pub real_time_monitoring: bool,
-        pub monitoring_interval_seconds: u64,
-        pub alert_thresholds: HashMap<String, f64>,
-        pub escalation_rules: Vec<String>,
-    }
-    
-    impl Default for MonitoringConfig {
-        fn default() -> Self {
-            Self {
-                real_time_monitoring: true,
-                monitoring_interval_seconds: 60,
-                alert_thresholds: HashMap::new(),
-                escalation_rules: vec![],
-            }
-        }
-    }
-    
-    pub struct ComplianceMonitor;
-    pub struct ComplianceMetrics;
-    pub struct AlertManager;
-    pub struct ViolationDetector;
-}
-
-pub mod travel_rule {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct TravelRuleConfig {
-        pub threshold_amount: Decimal,
-        pub vasp_identifier: String,
-        pub enable_automated_compliance: bool,
-    }
-    
-    impl Default for TravelRuleConfig {
-        fn default() -> Self {
-            Self {
-                threshold_amount: Decimal::new(100000, 2), // $1,000
-                vasp_identifier: "STABLERWA".to_string(),
-                enable_automated_compliance: true,
-            }
-        }
-    }
-    
-    pub struct TravelRuleService;
-    pub struct TravelRuleMessage;
-    pub struct VASPDirectory;
-    pub struct TravelRuleCompliance;
-}
-
-pub mod sanctions {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct SanctionsConfig {
-        pub watchlist_sources: Vec<String>,
-        pub screening_threshold: f64,
-        pub update_frequency_hours: u32,
-    }
-    
-    impl Default for SanctionsConfig {
-        fn default() -> Self {
-            Self {
-                watchlist_sources: vec![
-                    "OFAC".to_string(),
-                    "UN".to_string(),
-                    "EU".to_string(),
-                ],
-                screening_threshold: 0.9,
-                update_frequency_hours: 24,
-            }
-        }
-    }
-    
-    pub struct SanctionsService;
-    pub struct SanctionsScreening;
-    pub struct WatchlistManager;
-    pub struct SanctionsAlert;
-}
-
-pub mod risk_assessment {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct RiskConfig {
-        pub risk_model_version: String,
-        pub assessment_frequency_hours: u32,
-        pub risk_factors: Vec<String>,
-    }
-    
-    impl Default for RiskConfig {
-        fn default() -> Self {
-            Self {
-                risk_model_version: "v2.1".to_string(),
-                assessment_frequency_hours: 24,
-                risk_factors: vec![
-                    "transaction_volume".to_string(),
-                    "geographic_risk".to_string(),
-                    "customer_type".to_string(),
-                ],
-            }
-        }
-    }
-    
-    pub struct RiskAssessmentService;
-    pub struct RiskModel;
-    pub struct RiskScore;
-    pub struct RiskFactors;
-    pub struct RiskMatrix;
-}
-
-pub mod document_analysis {
-    use super::*;
-    
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct DocumentConfig {
-        pub supported_formats: Vec<String>,
-        pub max_file_size_mb: u32,
-        pub enable_ocr: bool,
-        pub enable_ai_classification: bool,
-    }
-    
-    impl Default for DocumentConfig {
-        fn default() -> Self {
-            Self {
-                supported_formats: vec!["pdf".to_string(), "jpg".to_string(), "png".to_string()],
-                max_file_size_mb: 50,
-                enable_ocr: true,
-                enable_ai_classification: true,
-            }
-        }
-    }
-    
-    pub struct DocumentAnalyzer;
-    pub struct DocumentClassification;
-    pub struct TextExtraction;
-    pub struct DocumentValidation;
-}
-
-pub mod regulatory_calendar {
-    use super::*;
-    
-    pub struct RegulatoryCalendar;
-    pub struct CalendarConfig;
-    pub struct RegulatoryEvent;
-    pub struct ComplianceDeadline;
-    pub struct RegulatoryUpdate;
-}
-
-pub mod audit_trail {
-    use super::*;
-    
-    pub struct AuditTrail;
-    pub struct AuditConfig;
-    pub struct AuditEvent;
-    pub struct ComplianceAudit;
-    pub struct AuditReport;
-}
-
-pub mod notification {
-    use super::*;
-    
-    pub struct NotificationService;
-    pub struct NotificationConfig;
-    pub struct ComplianceNotification;
-    pub struct AlertNotification;
-    pub struct ReportNotification;
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -468,11 +188,14 @@ mod tests {
     #[test]
     fn test_regtech_config_default() {
         let config = RegTechServiceConfig::default();
-        assert_eq!(config.aml_config.transaction_threshold, Decimal::new(1000000, 2));
-        assert!(config.aml_config.enable_ml_detection);
-        assert!(config.kyc_config.enable_biometric_verification);
-        assert!(config.reporting_config.enable_automated_generation);
-        assert!(config.monitoring_config.real_time_monitoring);
+        assert_eq!(
+            config.aml_config.transaction_threshold,
+            Decimal::new(1000000, 2)
+        );
+        assert!(config.aml_config.pattern_detection_enabled);
+        assert!(config.kyc_config.biometric_verification);
+        assert_eq!(config.reporting_config.report_types.len(), 2);
+        assert!(config.monitoring_config.real_time_alerts);
     }
 
     #[test]
@@ -481,17 +204,20 @@ mod tests {
         assert!(settings.enable_real_time_monitoring);
         assert!(settings.enable_automated_reporting);
         assert!(settings.enable_ai_analysis);
-        assert_eq!(settings.default_regulatory_framework, RegulatoryFramework::FATF);
+        assert_eq!(
+            settings.default_regulatory_framework,
+            RegulatoryFramework::FATF
+        );
         assert_eq!(settings.compliance_threshold, Decimal::new(95, 2));
         assert_eq!(settings.data_retention_days, 2555);
     }
 
     #[test]
     fn test_aml_config() {
-        let config = aml::AMLConfig::default();
+        let config = AMLConfig::default();
         assert_eq!(config.transaction_threshold, Decimal::new(1000000, 2));
-        assert_eq!(config.monitoring_window_hours, 24);
-        assert_eq!(config.suspicious_pattern_threshold, 0.8);
-        assert!(config.enable_ml_detection);
+        assert!(config.pattern_detection_enabled);
+        assert!(config.real_time_monitoring);
+        assert_eq!(config.suspicious_patterns.len(), 2);
     }
 }

@@ -16,7 +16,10 @@ struct TestAppState {
 }
 
 /// Mock AI completion handler for testing
-async fn mock_ai_complete(_data: web::Data<TestAppState>, _req: web::Json<CompletionRequest>) -> impl Responder {
+async fn mock_ai_complete(
+    _data: web::Data<TestAppState>,
+    _req: web::Json<CompletionRequest>,
+) -> impl Responder {
     HttpResponse::Ok().json(serde_json::json!({
         "choices": [{
             "text": "This is a test completion response",
@@ -59,17 +62,16 @@ async fn test_ai_complete_success() {
         api_url: "https://api.openai.com/v1".to_string(),
         client: Client::new(),
     });
-    
+
     let state = TestAppState { client };
-    
+
     // Initialize test service
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(state.clone()))
-            .service(web::scope("/ai")
-                .service(web::resource("/complete").to(mock_ai_complete))
-            )
-    ).await;
+            .service(web::scope("/ai").service(web::resource("/complete").to(mock_ai_complete))),
+    )
+    .await;
 
     // Create test request
     let request = CompletionRequest {
@@ -86,13 +88,13 @@ async fn test_ai_complete_success() {
         .to_request();
 
     let resp = test::call_service(&app, req).await;
-    
+
     // Assert response
     assert!(resp.status().is_success());
-    
+
     let body = test::read_body(resp).await;
     let response_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    
+
     assert!(response_json.get("choices").is_some());
     assert!(response_json.get("usage").is_some());
 }
@@ -105,25 +107,24 @@ async fn test_ai_model_info() {
         api_url: "https://api.openai.com/v1".to_string(),
         client: Client::new(),
     });
-    
+
     let state = TestAppState { client };
-    
+
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(state.clone()))
-            .service(web::scope("/ai")
-                .service(web::resource("/model").to(mock_ai_model))
-            )
-    ).await;
+            .service(web::scope("/ai").service(web::resource("/model").to(mock_ai_model))),
+    )
+    .await;
 
     let req = test::TestRequest::get().uri("/ai/model").to_request();
     let resp = test::call_service(&app, req).await;
-    
+
     assert!(resp.status().is_success());
-    
+
     let body = test::read_body(resp).await;
     let response_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    
+
     assert_eq!(response_json["model"], "gpt-3.5-turbo");
     assert!(response_json.get("capabilities").is_some());
 }
@@ -136,11 +137,14 @@ async fn test_ai_complete_invalid_request() {
         api_url: "https://api.openai.com/v1".to_string(),
         client: Client::new(),
     });
-    
+
     let state = TestAppState { client };
-    
+
     // Mock handler that returns error for empty prompt
-    async fn mock_ai_complete_error(_data: web::Data<TestAppState>, req: web::Json<CompletionRequest>) -> impl Responder {
+    async fn mock_ai_complete_error(
+        _data: web::Data<TestAppState>,
+        req: web::Json<CompletionRequest>,
+    ) -> impl Responder {
         if req.prompt.is_empty() {
             return HttpResponse::BadRequest().body("Empty prompt not allowed");
         }
@@ -148,14 +152,12 @@ async fn test_ai_complete_invalid_request() {
             "choices": [{"text": "Response", "index": 0, "finish_reason": "stop"}]
         }))
     }
-    
-    let app = test::init_service(
-        App::new()
-            .app_data(web::Data::new(state.clone()))
-            .service(web::scope("/ai")
-                .service(web::resource("/complete").to(mock_ai_complete_error))
-            )
-    ).await;
+
+    let app =
+        test::init_service(App::new().app_data(web::Data::new(state.clone())).service(
+            web::scope("/ai").service(web::resource("/complete").to(mock_ai_complete_error)),
+        ))
+        .await;
 
     // Test with empty prompt
     let request = CompletionRequest {
@@ -171,7 +173,7 @@ async fn test_ai_complete_invalid_request() {
         .to_request();
 
     let resp = test::call_service(&app, req).await;
-    
+
     // Should return bad request for empty prompt
     assert_eq!(resp.status().as_u16(), 400);
 }
@@ -184,23 +186,24 @@ async fn test_health_check() {
         api_url: "https://api.openai.com/v1".to_string(),
         client: Client::new(),
     });
-    
+
     let state = TestAppState { client };
-    
+
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(state.clone()))
-            .service(web::resource("/health").to(mock_health_check))
-    ).await;
+            .service(web::resource("/health").to(mock_health_check)),
+    )
+    .await;
 
     let req = test::TestRequest::get().uri("/health").to_request();
     let resp = test::call_service(&app, req).await;
-    
+
     assert!(resp.status().is_success());
-    
+
     let body = test::read_body(resp).await;
     let response_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    
+
     assert_eq!(response_json["status"], "healthy");
     assert_eq!(response_json["service"], "ai-service");
-} 
+}

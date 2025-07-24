@@ -1,18 +1,18 @@
 // =====================================================================================
 // DID Key Management
-// 
+//
 // Cryptographic key generation, storage, and management for DID operations
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use crate::{DidError, DidResult, VerificationMethod, PublicKeyMaterial};
-use ed25519_dalek::{SigningKey, VerifyingKey, Signature, Signer, Verifier};
+use crate::{DidError, DidResult, PublicKeyMaterial, VerificationMethod};
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 
 /// Key type enumeration
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -106,14 +106,16 @@ impl KeyPair {
     pub fn sign(&self, data: &[u8]) -> DidResult<Vec<u8>> {
         match self.key_type {
             KeyType::Ed25519 => {
-                let signing_key = SigningKey::from_bytes(&self.private_key.clone().try_into()
-                    .map_err(|_| DidError::CryptographicError("Invalid private key length".to_string()))?);
+                let signing_key =
+                    SigningKey::from_bytes(&self.private_key.clone().try_into().map_err(|_| {
+                        DidError::CryptographicError("Invalid private key length".to_string())
+                    })?);
 
                 let signature = signing_key.sign(data);
                 Ok(signature.to_bytes().to_vec())
             }
             _ => Err(DidError::CryptographicError(
-                "Key type does not support signing".to_string()
+                "Key type does not support signing".to_string(),
             )),
         }
     }
@@ -122,12 +124,15 @@ impl KeyPair {
     pub fn verify(&self, data: &[u8], signature: &[u8]) -> DidResult<bool> {
         match self.key_type {
             KeyType::Ed25519 => {
-                let verifying_key = VerifyingKey::from_bytes(&self.public_key.clone().try_into()
-                    .map_err(|_| DidError::CryptographicError("Invalid public key length".to_string()))?)
+                let verifying_key =
+                    VerifyingKey::from_bytes(&self.public_key.clone().try_into().map_err(
+                        |_| DidError::CryptographicError("Invalid public key length".to_string()),
+                    )?)
                     .map_err(|e| DidError::CryptographicError(e.to_string()))?;
 
-                let signature = Signature::from_bytes(&signature.try_into()
-                    .map_err(|_| DidError::InvalidSignature("Invalid signature length".to_string()))?);
+                let signature = Signature::from_bytes(&signature.try_into().map_err(|_| {
+                    DidError::InvalidSignature("Invalid signature length".to_string())
+                })?);
 
                 match verifying_key.verify(data, &signature) {
                     Ok(()) => Ok(true),
@@ -135,7 +140,7 @@ impl KeyPair {
                 }
             }
             _ => Err(DidError::CryptographicError(
-                "Key type does not support verification".to_string()
+                "Key type does not support verification".to_string(),
             )),
         }
     }
@@ -143,16 +148,12 @@ impl KeyPair {
     /// Convert to verification method
     pub fn to_verification_method(&self, controller: String) -> VerificationMethod {
         let public_key_material = match self.key_type {
-            KeyType::Ed25519 | KeyType::X25519 => {
-                PublicKeyMaterial::Multibase {
-                    public_key_multibase: format!("z{}", BASE64.encode(&self.public_key)),
-                }
-            }
-            KeyType::Secp256k1 => {
-                PublicKeyMaterial::Base58 {
-                    public_key_base58: BASE64.encode(&self.public_key),
-                }
-            }
+            KeyType::Ed25519 | KeyType::X25519 => PublicKeyMaterial::Multibase {
+                public_key_multibase: format!("z{}", BASE64.encode(&self.public_key)),
+            },
+            KeyType::Secp256k1 => PublicKeyMaterial::Base58 {
+                public_key_base58: BASE64.encode(&self.public_key),
+            },
         };
 
         VerificationMethod::new(
@@ -178,7 +179,7 @@ impl KeyManager {
     pub fn new() -> Self {
         // In production, this should be derived from a secure source
         let kek = vec![0u8; 32]; // Placeholder
-        
+
         Self {
             keys: Arc::new(RwLock::new(HashMap::new())),
             kek,
@@ -197,7 +198,7 @@ impl KeyManager {
             KeyType::X25519 => KeyPair::generate_x25519(id.clone(), purpose)?,
             KeyType::Secp256k1 => {
                 return Err(DidError::CryptographicError(
-                    "Secp256k1 key generation not implemented".to_string()
+                    "Secp256k1 key generation not implemented".to_string(),
                 ));
             }
         };
@@ -229,18 +230,20 @@ impl KeyManager {
     /// Sign data with a specific key
     pub async fn sign(&self, key_id: &str, data: &[u8]) -> DidResult<Vec<u8>> {
         let keys = self.keys.read().await;
-        let keypair = keys.get(key_id)
+        let keypair = keys
+            .get(key_id)
             .ok_or_else(|| DidError::KeyNotFound(key_id.to_string()))?;
-        
+
         keypair.sign(data)
     }
 
     /// Verify signature with a specific key
     pub async fn verify(&self, key_id: &str, data: &[u8], signature: &[u8]) -> DidResult<bool> {
         let keys = self.keys.read().await;
-        let keypair = keys.get(key_id)
+        let keypair = keys
+            .get(key_id)
             .ok_or_else(|| DidError::KeyNotFound(key_id.to_string()))?;
-        
+
         keypair.verify(data, signature)
     }
 }
@@ -258,9 +261,18 @@ mod tests {
 
     #[test]
     fn test_key_type_verification_method_type() {
-        assert_eq!(KeyType::Ed25519.verification_method_type(), "Ed25519VerificationKey2020");
-        assert_eq!(KeyType::X25519.verification_method_type(), "X25519KeyAgreementKey2020");
-        assert_eq!(KeyType::Secp256k1.verification_method_type(), "EcdsaSecp256k1VerificationKey2019");
+        assert_eq!(
+            KeyType::Ed25519.verification_method_type(),
+            "Ed25519VerificationKey2020"
+        );
+        assert_eq!(
+            KeyType::X25519.verification_method_type(),
+            "X25519KeyAgreementKey2020"
+        );
+        assert_eq!(
+            KeyType::Secp256k1.verification_method_type(),
+            "EcdsaSecp256k1VerificationKey2019"
+        );
     }
 
     #[test]
@@ -278,10 +290,9 @@ mod tests {
 
     #[test]
     fn test_keypair_generate_ed25519() {
-        let keypair = KeyPair::generate_ed25519(
-            "test-key".to_string(),
-            vec![KeyPurpose::Authentication],
-        ).unwrap();
+        let keypair =
+            KeyPair::generate_ed25519("test-key".to_string(), vec![KeyPurpose::Authentication])
+                .unwrap();
 
         assert_eq!(keypair.id, "test-key");
         assert_eq!(keypair.key_type, KeyType::Ed25519);
@@ -293,10 +304,9 @@ mod tests {
 
     #[test]
     fn test_keypair_generate_x25519() {
-        let keypair = KeyPair::generate_x25519(
-            "test-key".to_string(),
-            vec![KeyPurpose::KeyAgreement],
-        ).unwrap();
+        let keypair =
+            KeyPair::generate_x25519("test-key".to_string(), vec![KeyPurpose::KeyAgreement])
+                .unwrap();
 
         assert_eq!(keypair.id, "test-key");
         assert_eq!(keypair.key_type, KeyType::X25519);
@@ -307,10 +317,9 @@ mod tests {
 
     #[test]
     fn test_keypair_sign_ed25519() {
-        let keypair = KeyPair::generate_ed25519(
-            "signing-key".to_string(),
-            vec![KeyPurpose::AssertionMethod],
-        ).unwrap();
+        let keypair =
+            KeyPair::generate_ed25519("signing-key".to_string(), vec![KeyPurpose::AssertionMethod])
+                .unwrap();
 
         let data = b"test message for signing";
         let signature = keypair.sign(data).unwrap();
@@ -320,24 +329,25 @@ mod tests {
 
     #[test]
     fn test_keypair_sign_unsupported_key_type() {
-        let keypair = KeyPair::generate_x25519(
-            "x25519-key".to_string(),
-            vec![KeyPurpose::KeyAgreement],
-        ).unwrap();
+        let keypair =
+            KeyPair::generate_x25519("x25519-key".to_string(), vec![KeyPurpose::KeyAgreement])
+                .unwrap();
 
         let data = b"test message";
         let result = keypair.sign(data);
 
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), DidError::CryptographicError(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            DidError::CryptographicError(_)
+        ));
     }
 
     #[test]
     fn test_keypair_verify_ed25519() {
-        let keypair = KeyPair::generate_ed25519(
-            "verify-key".to_string(),
-            vec![KeyPurpose::AssertionMethod],
-        ).unwrap();
+        let keypair =
+            KeyPair::generate_ed25519("verify-key".to_string(), vec![KeyPurpose::AssertionMethod])
+                .unwrap();
 
         let data = b"test message for verification";
         let signature = keypair.sign(data).unwrap();
@@ -348,10 +358,9 @@ mod tests {
 
     #[test]
     fn test_keypair_verify_invalid_signature() {
-        let keypair = KeyPair::generate_ed25519(
-            "verify-key".to_string(),
-            vec![KeyPurpose::AssertionMethod],
-        ).unwrap();
+        let keypair =
+            KeyPair::generate_ed25519("verify-key".to_string(), vec![KeyPurpose::AssertionMethod])
+                .unwrap();
 
         let data = b"test message";
         let invalid_signature = vec![0u8; 64]; // Invalid signature
@@ -362,10 +371,9 @@ mod tests {
 
     #[test]
     fn test_keypair_verify_wrong_data() {
-        let keypair = KeyPair::generate_ed25519(
-            "verify-key".to_string(),
-            vec![KeyPurpose::AssertionMethod],
-        ).unwrap();
+        let keypair =
+            KeyPair::generate_ed25519("verify-key".to_string(), vec![KeyPurpose::AssertionMethod])
+                .unwrap();
 
         let original_data = b"original message";
         let different_data = b"different message";
@@ -377,25 +385,26 @@ mod tests {
 
     #[test]
     fn test_keypair_verify_unsupported_key_type() {
-        let keypair = KeyPair::generate_x25519(
-            "x25519-key".to_string(),
-            vec![KeyPurpose::KeyAgreement],
-        ).unwrap();
+        let keypair =
+            KeyPair::generate_x25519("x25519-key".to_string(), vec![KeyPurpose::KeyAgreement])
+                .unwrap();
 
         let data = b"test message";
         let signature = vec![0u8; 64];
         let result = keypair.verify(data, &signature);
 
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), DidError::CryptographicError(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            DidError::CryptographicError(_)
+        ));
     }
 
     #[test]
     fn test_keypair_to_verification_method_ed25519() {
-        let keypair = KeyPair::generate_ed25519(
-            "test-key".to_string(),
-            vec![KeyPurpose::Authentication],
-        ).unwrap();
+        let keypair =
+            KeyPair::generate_ed25519("test-key".to_string(), vec![KeyPurpose::Authentication])
+                .unwrap();
 
         let vm = keypair.to_verification_method("did:rwa:123".to_string());
 
@@ -404,7 +413,9 @@ mod tests {
         assert_eq!(vm.controller, "did:rwa:123");
 
         match vm.public_key {
-            PublicKeyMaterial::Multibase { public_key_multibase } => {
+            PublicKeyMaterial::Multibase {
+                public_key_multibase,
+            } => {
                 assert!(public_key_multibase.starts_with('z'));
             }
             _ => panic!("Expected Multibase public key for Ed25519"),
@@ -413,10 +424,9 @@ mod tests {
 
     #[test]
     fn test_keypair_to_verification_method_x25519() {
-        let keypair = KeyPair::generate_x25519(
-            "test-key".to_string(),
-            vec![KeyPurpose::KeyAgreement],
-        ).unwrap();
+        let keypair =
+            KeyPair::generate_x25519("test-key".to_string(), vec![KeyPurpose::KeyAgreement])
+                .unwrap();
 
         let vm = keypair.to_verification_method("did:rwa:123".to_string());
 
@@ -425,7 +435,9 @@ mod tests {
         assert_eq!(vm.controller, "did:rwa:123");
 
         match vm.public_key {
-            PublicKeyMaterial::Multibase { public_key_multibase } => {
+            PublicKeyMaterial::Multibase {
+                public_key_multibase,
+            } => {
                 assert!(public_key_multibase.starts_with('z'));
             }
             _ => panic!("Expected Multibase public key for X25519"),
@@ -449,11 +461,14 @@ mod tests {
     async fn test_key_manager_generate_key_ed25519() {
         let key_manager = KeyManager::new();
 
-        let keypair = key_manager.generate_key(
-            "test-key".to_string(),
-            KeyType::Ed25519,
-            vec![KeyPurpose::Authentication],
-        ).await.unwrap();
+        let keypair = key_manager
+            .generate_key(
+                "test-key".to_string(),
+                KeyType::Ed25519,
+                vec![KeyPurpose::Authentication],
+            )
+            .await
+            .unwrap();
 
         assert_eq!(keypair.id, "test-key");
         assert_eq!(keypair.key_type, KeyType::Ed25519);
@@ -464,11 +479,14 @@ mod tests {
     async fn test_key_manager_generate_key_x25519() {
         let key_manager = KeyManager::new();
 
-        let keypair = key_manager.generate_key(
-            "test-key".to_string(),
-            KeyType::X25519,
-            vec![KeyPurpose::KeyAgreement],
-        ).await.unwrap();
+        let keypair = key_manager
+            .generate_key(
+                "test-key".to_string(),
+                KeyType::X25519,
+                vec![KeyPurpose::KeyAgreement],
+            )
+            .await
+            .unwrap();
 
         assert_eq!(keypair.id, "test-key");
         assert_eq!(keypair.key_type, KeyType::X25519);
@@ -479,25 +497,33 @@ mod tests {
     async fn test_key_manager_generate_key_secp256k1() {
         let key_manager = KeyManager::new();
 
-        let result = key_manager.generate_key(
-            "test-key".to_string(),
-            KeyType::Secp256k1,
-            vec![KeyPurpose::Authentication],
-        ).await;
+        let result = key_manager
+            .generate_key(
+                "test-key".to_string(),
+                KeyType::Secp256k1,
+                vec![KeyPurpose::Authentication],
+            )
+            .await;
 
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), DidError::CryptographicError(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            DidError::CryptographicError(_)
+        ));
     }
 
     #[tokio::test]
     async fn test_key_manager_get_key() {
         let key_manager = KeyManager::new();
 
-        let keypair = key_manager.generate_key(
-            "test-key".to_string(),
-            KeyType::Ed25519,
-            vec![KeyPurpose::Authentication],
-        ).await.unwrap();
+        let keypair = key_manager
+            .generate_key(
+                "test-key".to_string(),
+                KeyType::Ed25519,
+                vec![KeyPurpose::Authentication],
+            )
+            .await
+            .unwrap();
 
         let retrieved = key_manager.get_key("test-key").await;
         assert!(retrieved.is_some());
@@ -516,17 +542,23 @@ mod tests {
         assert!(keys.is_empty());
 
         // Add some keys
-        key_manager.generate_key(
-            "key1".to_string(),
-            KeyType::Ed25519,
-            vec![KeyPurpose::Authentication],
-        ).await.unwrap();
+        key_manager
+            .generate_key(
+                "key1".to_string(),
+                KeyType::Ed25519,
+                vec![KeyPurpose::Authentication],
+            )
+            .await
+            .unwrap();
 
-        key_manager.generate_key(
-            "key2".to_string(),
-            KeyType::X25519,
-            vec![KeyPurpose::KeyAgreement],
-        ).await.unwrap();
+        key_manager
+            .generate_key(
+                "key2".to_string(),
+                KeyType::X25519,
+                vec![KeyPurpose::KeyAgreement],
+            )
+            .await
+            .unwrap();
 
         let keys = key_manager.list_keys().await;
         assert_eq!(keys.len(), 2);
@@ -538,11 +570,14 @@ mod tests {
     async fn test_key_manager_remove_key() {
         let key_manager = KeyManager::new();
 
-        key_manager.generate_key(
-            "test-key".to_string(),
-            KeyType::Ed25519,
-            vec![KeyPurpose::Authentication],
-        ).await.unwrap();
+        key_manager
+            .generate_key(
+                "test-key".to_string(),
+                KeyType::Ed25519,
+                vec![KeyPurpose::Authentication],
+            )
+            .await
+            .unwrap();
 
         // Key should exist
         assert!(key_manager.get_key("test-key").await.is_some());
@@ -563,11 +598,14 @@ mod tests {
     async fn test_key_manager_sign() {
         let key_manager = KeyManager::new();
 
-        key_manager.generate_key(
-            "signing-key".to_string(),
-            KeyType::Ed25519,
-            vec![KeyPurpose::AssertionMethod],
-        ).await.unwrap();
+        key_manager
+            .generate_key(
+                "signing-key".to_string(),
+                KeyType::Ed25519,
+                vec![KeyPurpose::AssertionMethod],
+            )
+            .await
+            .unwrap();
 
         let data = b"test message for signing";
         let signature = key_manager.sign("signing-key", data).await.unwrap();
@@ -590,15 +628,21 @@ mod tests {
     async fn test_key_manager_verify() {
         let key_manager = KeyManager::new();
 
-        key_manager.generate_key(
-            "verify-key".to_string(),
-            KeyType::Ed25519,
-            vec![KeyPurpose::AssertionMethod],
-        ).await.unwrap();
+        key_manager
+            .generate_key(
+                "verify-key".to_string(),
+                KeyType::Ed25519,
+                vec![KeyPurpose::AssertionMethod],
+            )
+            .await
+            .unwrap();
 
         let data = b"test message for verification";
         let signature = key_manager.sign("verify-key", data).await.unwrap();
-        let is_valid = key_manager.verify("verify-key", data, &signature).await.unwrap();
+        let is_valid = key_manager
+            .verify("verify-key", data, &signature)
+            .await
+            .unwrap();
 
         assert!(is_valid);
     }
@@ -619,11 +663,14 @@ mod tests {
     async fn test_key_manager_sign_verify_roundtrip() {
         let key_manager = KeyManager::new();
 
-        key_manager.generate_key(
-            "roundtrip-key".to_string(),
-            KeyType::Ed25519,
-            vec![KeyPurpose::AssertionMethod],
-        ).await.unwrap();
+        key_manager
+            .generate_key(
+                "roundtrip-key".to_string(),
+                KeyType::Ed25519,
+                vec![KeyPurpose::AssertionMethod],
+            )
+            .await
+            .unwrap();
 
         let test_messages = vec![
             b"short".as_slice(),
@@ -635,7 +682,10 @@ mod tests {
 
         for message in test_messages {
             let signature = key_manager.sign("roundtrip-key", message).await.unwrap();
-            let is_valid = key_manager.verify("roundtrip-key", message, &signature).await.unwrap();
+            let is_valid = key_manager
+                .verify("roundtrip-key", message, &signature)
+                .await
+                .unwrap();
             assert!(is_valid, "Failed for message length: {}", message.len());
         }
     }
@@ -646,19 +696,38 @@ mod tests {
 
         // Generate multiple keys with different purposes
         let key_configs = vec![
-            ("auth-key", KeyType::Ed25519, vec![KeyPurpose::Authentication]),
-            ("assert-key", KeyType::Ed25519, vec![KeyPurpose::AssertionMethod]),
-            ("agreement-key", KeyType::X25519, vec![KeyPurpose::KeyAgreement]),
-            ("invoke-key", KeyType::Ed25519, vec![KeyPurpose::CapabilityInvocation]),
-            ("delegate-key", KeyType::Ed25519, vec![KeyPurpose::CapabilityDelegation]),
+            (
+                "auth-key",
+                KeyType::Ed25519,
+                vec![KeyPurpose::Authentication],
+            ),
+            (
+                "assert-key",
+                KeyType::Ed25519,
+                vec![KeyPurpose::AssertionMethod],
+            ),
+            (
+                "agreement-key",
+                KeyType::X25519,
+                vec![KeyPurpose::KeyAgreement],
+            ),
+            (
+                "invoke-key",
+                KeyType::Ed25519,
+                vec![KeyPurpose::CapabilityInvocation],
+            ),
+            (
+                "delegate-key",
+                KeyType::Ed25519,
+                vec![KeyPurpose::CapabilityDelegation],
+            ),
         ];
 
         for (id, key_type, purposes) in key_configs {
-            key_manager.generate_key(
-                id.to_string(),
-                key_type,
-                purposes,
-            ).await.unwrap();
+            key_manager
+                .generate_key(id.to_string(), key_type, purposes)
+                .await
+                .unwrap();
         }
 
         let keys = key_manager.list_keys().await;
@@ -684,7 +753,8 @@ mod tests {
                     format!("concurrent-key-{}", i),
                     KeyType::Ed25519,
                     vec![KeyPurpose::Authentication],
-                ).await
+                )
+                .await
             });
             handles.push(handle);
         }

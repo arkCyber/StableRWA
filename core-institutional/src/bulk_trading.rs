@@ -5,11 +5,11 @@
 // =====================================================================================
 
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc, Duration};
-use uuid::Uuid;
+use chrono::{DateTime, Duration, Utc};
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 use crate::{
     error::{InstitutionalError, InstitutionalResult},
@@ -46,10 +46,10 @@ impl Default for BulkTradingConfig {
         Self {
             max_orders_per_batch: 1000,
             max_batch_size_usd: Decimal::new(10000000000, 2), // $100M
-            batch_timeout_seconds: 3600, // 1 hour
+            batch_timeout_seconds: 3600,                      // 1 hour
             enable_order_splitting: true,
             max_order_size_for_splitting: Decimal::new(1000000000, 2), // $10M
-            min_order_size: Decimal::new(10000, 2), // $100
+            min_order_size: Decimal::new(10000, 2),                    // $100
             enable_twap: true,
             enable_vwap: true,
             enable_dark_pools: true,
@@ -132,13 +132,13 @@ pub struct ExecutionStrategy {
 /// Strategy type enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StrategyType {
-    TWAP,        // Time Weighted Average Price
-    VWAP,        // Volume Weighted Average Price
+    TWAP,           // Time Weighted Average Price
+    VWAP,           // Volume Weighted Average Price
     Implementation, // Implementation Shortfall
-    POV,         // Percentage of Volume
-    Iceberg,     // Iceberg orders
-    Sniper,      // Opportunistic execution
-    Custom,      // Custom algorithm
+    POV,            // Percentage of Volume
+    Iceberg,        // Iceberg orders
+    Sniper,         // Opportunistic execution
+    Custom,         // Custom algorithm
 }
 
 /// Venue preference
@@ -302,14 +302,20 @@ pub struct VenueStats {
 #[async_trait]
 pub trait BulkTradingService: Send + Sync {
     /// Submit bulk order request
-    async fn submit_bulk_order(&self, request: BulkOrderRequest) -> InstitutionalResult<BulkOrderResult>;
-    
+    async fn submit_bulk_order(
+        &self,
+        request: BulkOrderRequest,
+    ) -> InstitutionalResult<BulkOrderResult>;
+
     /// Get bulk order status
-    async fn get_bulk_order_status(&self, request_id: Uuid) -> InstitutionalResult<Option<BulkOrderResult>>;
-    
+    async fn get_bulk_order_status(
+        &self,
+        request_id: Uuid,
+    ) -> InstitutionalResult<Option<BulkOrderResult>>;
+
     /// Cancel bulk order
     async fn cancel_bulk_order(&self, request_id: Uuid) -> InstitutionalResult<()>;
-    
+
     /// Get bulk order history
     async fn get_bulk_order_history(
         &self,
@@ -317,13 +323,16 @@ pub trait BulkTradingService: Send + Sync {
         limit: Option<usize>,
         offset: Option<usize>,
     ) -> InstitutionalResult<Vec<BulkOrderResult>>;
-    
+
     /// Validate bulk order request
-    async fn validate_bulk_order(&self, request: &BulkOrderRequest) -> InstitutionalResult<ValidationResult>;
-    
+    async fn validate_bulk_order(
+        &self,
+        request: &BulkOrderRequest,
+    ) -> InstitutionalResult<ValidationResult>;
+
     /// Get execution venues
     async fn get_execution_venues(&self) -> InstitutionalResult<Vec<ExecutionVenue>>;
-    
+
     /// Get trading statistics
     async fn get_trading_statistics(
         &self,
@@ -331,7 +340,7 @@ pub trait BulkTradingService: Send + Sync {
         start_date: DateTime<Utc>,
         end_date: DateTime<Utc>,
     ) -> InstitutionalResult<TradingStatistics>;
-    
+
     /// Health check
     async fn health_check(&self) -> InstitutionalResult<BulkTradingHealthStatus>;
 }
@@ -462,7 +471,10 @@ mod tests {
 
         assert_eq!(strategy.strategy_type, StrategyType::TWAP);
         assert!(strategy.dark_pool_participation);
-        assert_eq!(strategy.maximum_participation_rate, Some(Decimal::new(20, 2)));
+        assert_eq!(
+            strategy.maximum_participation_rate,
+            Some(Decimal::new(20, 2))
+        );
     }
 
     #[test]

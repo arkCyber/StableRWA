@@ -5,22 +5,24 @@
 // =====================================================================================
 
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use uuid::Uuid;
 
 use crate::{
+    api_gateway::{ApiEndpoint, ApiGatewayService, ApiMetrics, ApiRequest, ApiResponse},
+    bulk_trading::{BulkOrderRequest, BulkOrderResult, BulkTradingService},
+    custody::{
+        CustodyAccount, CustodyService, CustodyTransactionRequest, CustodyTransactionResult,
+    },
     error::{InstitutionalError, InstitutionalResult},
     types::{Institution, InstitutionalAccount, InstitutionalUser},
-    custody::{CustodyService, CustodyAccount, CustodyTransactionRequest, CustodyTransactionResult},
-    bulk_trading::{BulkTradingService, BulkOrderRequest, BulkOrderResult},
-    whitelabel::{WhiteLabelService, WhiteLabelPlatform, WhiteLabelDeployment},
-    api_gateway::{ApiGatewayService, ApiEndpoint, ApiRequest, ApiResponse, ApiMetrics},
-    InstitutionalServiceConfig, InstitutionalMetrics, InstitutionalHealthStatus,
-    InstitutionalOnboardingRequest, OnboardingStatus,
+    whitelabel::{WhiteLabelDeployment, WhiteLabelPlatform, WhiteLabelService},
+    InstitutionalHealthStatus, InstitutionalMetrics, InstitutionalOnboardingRequest,
+    InstitutionalServiceConfig, OnboardingStatus,
 };
 
 /// Main institutional service implementation
@@ -56,11 +58,12 @@ impl InstitutionalService {
         request: InstitutionalOnboardingRequest,
     ) -> InstitutionalResult<InstitutionalOnboardingResult> {
         // Step 1: Validate institution information
-        self.validate_institution_info(&request.institution_info).await?;
+        self.validate_institution_info(&request.institution_info)
+            .await?;
 
         // Step 2: Perform compliance checks
         let compliance_result = self.perform_compliance_checks(&request).await?;
-        
+
         if !compliance_result.passed {
             return Ok(InstitutionalOnboardingResult {
                 request_id: request.id,
@@ -75,13 +78,14 @@ impl InstitutionalService {
         }
 
         // Step 3: Create institution record
-        let institution = self.create_institution_record(request.institution_info).await?;
+        let institution = self
+            .create_institution_record(request.institution_info)
+            .await?;
 
         // Step 4: Set up initial services based on requested services
-        let service_setup_results = self.setup_requested_services(
-            institution.id,
-            &request.requested_services,
-        ).await?;
+        let service_setup_results = self
+            .setup_requested_services(institution.id, &request.requested_services)
+            .await?;
 
         // Step 5: Create onboarding result
         let result = InstitutionalOnboardingResult {
@@ -110,13 +114,13 @@ impl InstitutionalService {
         let api_health = self.api_gateway_service.health_check().await?;
 
         Ok(InstitutionalMetrics {
-            total_institutions: 0, // Would be fetched from database
-            active_institutions: 0, // Would be fetched from database
+            total_institutions: 0,    // Would be fetched from database
+            active_institutions: 0,   // Would be fetched from database
             total_aum: Decimal::ZERO, // Would be calculated from all institutions
             total_custody_accounts: custody_health.total_accounts,
             total_trading_volume_24h: Decimal::ZERO, // Would be calculated
-            active_api_keys: 0, // Would be fetched from database
-            api_requests_24h: 0, // Would be calculated
+            active_api_keys: 0,                      // Would be fetched from database
+            api_requests_24h: 0,                     // Would be calculated
             whitelabel_deployments: whitelabel_health.active_platforms,
             average_response_time_ms: api_health.average_response_time_ms,
             uptime_percentage: Decimal::new(9999, 4), // 99.99%
@@ -125,16 +129,19 @@ impl InstitutionalService {
     }
 
     /// Perform comprehensive health check
-    pub async fn comprehensive_health_check(&self) -> InstitutionalResult<InstitutionalHealthStatus> {
+    pub async fn comprehensive_health_check(
+        &self,
+    ) -> InstitutionalResult<InstitutionalHealthStatus> {
         let custody_health = self.custody_service.health_check().await?;
         let trading_health = self.bulk_trading_service.health_check().await?;
         let whitelabel_health = self.whitelabel_service.health_check().await?;
         let api_health = self.api_gateway_service.health_check().await?;
 
-        let overall_status = if custody_health.status == "healthy" &&
-                               trading_health.status == "healthy" &&
-                               whitelabel_health.status == "healthy" &&
-                               api_health.status == "healthy" {
+        let overall_status = if custody_health.status == "healthy"
+            && trading_health.status == "healthy"
+            && whitelabel_health.status == "healthy"
+            && api_health.status == "healthy"
+        {
             "healthy".to_string()
         } else {
             "degraded".to_string()
@@ -153,7 +160,10 @@ impl InstitutionalService {
     }
 
     /// Update service configuration
-    pub async fn update_config(&self, new_config: InstitutionalServiceConfig) -> InstitutionalResult<()> {
+    pub async fn update_config(
+        &self,
+        new_config: InstitutionalServiceConfig,
+    ) -> InstitutionalResult<()> {
         let mut config = self.config.write().await;
         *config = new_config;
         Ok(())
@@ -166,7 +176,10 @@ impl InstitutionalService {
 
     // Private helper methods
 
-    async fn validate_institution_info(&self, institution: &Institution) -> InstitutionalResult<()> {
+    async fn validate_institution_info(
+        &self,
+        institution: &Institution,
+    ) -> InstitutionalResult<()> {
         if institution.name.is_empty() {
             return Err(InstitutionalError::validation_error(
                 "name",
@@ -198,7 +211,10 @@ impl InstitutionalService {
         })
     }
 
-    async fn create_institution_record(&self, mut institution: Institution) -> InstitutionalResult<Institution> {
+    async fn create_institution_record(
+        &self,
+        mut institution: Institution,
+    ) -> InstitutionalResult<Institution> {
         institution.id = Uuid::new_v4();
         institution.created_at = Utc::now();
         institution.updated_at = Utc::now();
@@ -239,7 +255,10 @@ impl InstitutionalService {
         Ok(results)
     }
 
-    async fn setup_custody_service(&self, institution_id: Uuid) -> InstitutionalResult<ServiceSetupResult> {
+    async fn setup_custody_service(
+        &self,
+        institution_id: Uuid,
+    ) -> InstitutionalResult<ServiceSetupResult> {
         // Create default custody account
         let custody_account = CustodyAccount {
             id: Uuid::new_v4(),
@@ -268,7 +287,10 @@ impl InstitutionalService {
         })
     }
 
-    async fn setup_bulk_trading_service(&self, _institution_id: Uuid) -> InstitutionalResult<ServiceSetupResult> {
+    async fn setup_bulk_trading_service(
+        &self,
+        _institution_id: Uuid,
+    ) -> InstitutionalResult<ServiceSetupResult> {
         // Setup bulk trading configuration
         Ok(ServiceSetupResult {
             service_type: "BulkTrading".to_string(),
@@ -277,7 +299,10 @@ impl InstitutionalService {
         })
     }
 
-    async fn setup_whitelabel_service(&self, _institution_id: Uuid) -> InstitutionalResult<ServiceSetupResult> {
+    async fn setup_whitelabel_service(
+        &self,
+        _institution_id: Uuid,
+    ) -> InstitutionalResult<ServiceSetupResult> {
         // Setup white label platform template
         Ok(ServiceSetupResult {
             service_type: "WhiteLabel".to_string(),
@@ -324,13 +349,13 @@ pub trait InstitutionalServiceTrait: Send + Sync {
         &self,
         request: InstitutionalOnboardingRequest,
     ) -> InstitutionalResult<InstitutionalOnboardingResult>;
-    
+
     /// Get institutional metrics
     async fn get_metrics(&self) -> InstitutionalResult<InstitutionalMetrics>;
-    
+
     /// Health check
     async fn health_check(&self) -> InstitutionalResult<InstitutionalHealthStatus>;
-    
+
     /// Update configuration
     async fn update_config(&self, config: InstitutionalServiceConfig) -> InstitutionalResult<()>;
 }
@@ -343,15 +368,15 @@ impl InstitutionalServiceTrait for InstitutionalService {
     ) -> InstitutionalResult<InstitutionalOnboardingResult> {
         self.onboard_institution(request).await
     }
-    
+
     async fn get_metrics(&self) -> InstitutionalResult<InstitutionalMetrics> {
         self.get_institutional_metrics().await
     }
-    
+
     async fn health_check(&self) -> InstitutionalResult<InstitutionalHealthStatus> {
         self.comprehensive_health_check().await
     }
-    
+
     async fn update_config(&self, config: InstitutionalServiceConfig) -> InstitutionalResult<()> {
         self.update_config(config).await
     }

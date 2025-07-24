@@ -1,0 +1,106 @@
+# =====================================================================================
+# File: tests/test_config.toml
+# Description: Enterprise-grade test configuration for StableRWA Platform
+# Author: arkSong (arksong2018@gmail.com)
+# Framework: StableRWA - Enterprise RWA Tokenization Technology Framework Platform
+# =====================================================================================
+
+[test_environment]
+# Test database configuration
+database_url = "postgresql://test_user:test_pass@localhost:5432/stablerwa_test"
+redis_url = "redis://localhost:6379/1"
+
+# Test blockchain networks
+ethereum_rpc_url = "http://localhost:8545"
+solana_rpc_url = "http://localhost:8899"
+polkadot_rpc_url = "ws://localhost:9944"
+
+# Test service endpoints
+oracle_service_url = "http://localhost:8080"
+gateway_service_url = "http://localhost:8081"
+asset_service_url = "http://localhost:8082"
+custody_service_url = "http://localhost:8083"
+
+[test_data]
+# Test asset configurations
+test_asset_count = 100
+test_transaction_count = 1000
+test_user_count = 50
+
+# Test performance thresholds
+max_response_time_ms = 1000
+max_memory_usage_mb = 512
+max_cpu_usage_percent = 80
+
+[integration_tests]
+# External service timeouts
+external_service_timeout_seconds = 30
+blockchain_confirmation_timeout_seconds = 60
+
+# Test data cleanup
+cleanup_after_tests = true
+preserve_test_data = false
+
+[performance_tests]
+# Load testing configuration
+concurrent_users = 100
+test_duration_seconds = 300
+ramp_up_time_seconds = 60
+
+# Performance benchmarks
+target_tps = 1000
+target_latency_p95_ms = 500
+target_latency_p99_ms = 1000
+
+[security_tests]
+# Security testing configuration
+enable_penetration_tests = true
+enable_vulnerability_scans = true
+enable_compliance_checks = true
+
+# Test credentials (for testing only)
+test_api_key = "test_api_key_12345"
+test_jwt_secret = "test_jwt_secret_67890"
+test_encryption_key = "test_encryption_key_abcdef"
+
+[monitoring_tests]
+# Monitoring and observability tests
+enable_metrics_tests = true
+enable_tracing_tests = true
+enable_logging_tests = true
+
+# Test thresholds
+metrics_collection_interval_seconds = 10
+log_retention_days = 7
+trace_sampling_rate = 0.1
+
+[chaos_engineering]
+# Chaos engineering configuration
+enable_chaos_tests = false
+failure_injection_rate = 0.05
+network_latency_injection_ms = 100
+service_failure_duration_seconds = 30
+
+[compliance_tests]
+# Regulatory compliance testing
+enable_gdpr_tests = true
+enable_sox_tests = true
+enable_pci_dss_tests = true
+enable_iso27001_tests = true
+
+# Data protection tests
+enable_encryption_tests = true
+enable_access_control_tests = true
+enable_audit_log_tests = true
+
+[test_reporting]
+# Test result reporting
+output_format = "junit"
+output_directory = "target/test-results"
+generate_coverage_report = true
+coverage_threshold_percent = 90
+
+# Test documentation
+generate_test_docs = true
+include_performance_metrics = true
+include_security_scan_results = true

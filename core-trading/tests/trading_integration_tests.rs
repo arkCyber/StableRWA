@@ -4,12 +4,12 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use core_trading::*;
 use chrono::{DateTime, Utc};
+use core_trading::*;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
-use uuid::Uuid;
 use tokio_test;
+use uuid::Uuid;
 
 #[tokio::test]
 async fn test_order_book_integration() {
@@ -24,7 +24,7 @@ async fn test_order_book_integration() {
         OrderSide::Buy,
         OrderType::Limit,
         Decimal::new(49000, 0), // $49,000
-        Decimal::new(1, 0), // 1 BTC
+        Decimal::new(1, 0),     // 1 BTC
     );
 
     let buy_order2 = order_book::Order::new(
@@ -33,7 +33,7 @@ async fn test_order_book_integration() {
         OrderSide::Buy,
         OrderType::Limit,
         Decimal::new(48500, 0), // $48,500
-        Decimal::new(2, 0), // 2 BTC
+        Decimal::new(2, 0),     // 2 BTC
     );
 
     // Create sell orders
@@ -43,7 +43,7 @@ async fn test_order_book_integration() {
         OrderSide::Sell,
         OrderType::Limit,
         Decimal::new(51000, 0), // $51,000
-        Decimal::new(1, 0), // 1 BTC
+        Decimal::new(1, 0),     // 1 BTC
     );
 
     let sell_order2 = order_book::Order::new(
@@ -52,7 +52,7 @@ async fn test_order_book_integration() {
         OrderSide::Sell,
         OrderType::Limit,
         Decimal::new(51500, 0), // $51,500
-        Decimal::new(1, 0), // 1 BTC
+        Decimal::new(1, 0),     // 1 BTC
     );
 
     // Add orders to order book
@@ -90,7 +90,7 @@ async fn test_matching_engine_integration() {
         OrderSide::Buy,
         OrderType::Limit,
         Decimal::new(50000, 0), // $50,000
-        Decimal::new(1, 0), // 1 BTC
+        Decimal::new(1, 0),     // 1 BTC
     );
 
     let sell_order = order_book::Order::new(
@@ -99,7 +99,7 @@ async fn test_matching_engine_integration() {
         OrderSide::Sell,
         OrderType::Limit,
         Decimal::new(50000, 0), // $50,000
-        Decimal::new(1, 0), // 1 BTC
+        Decimal::new(1, 0),     // 1 BTC
     );
 
     // Create trade
@@ -108,9 +108,9 @@ async fn test_matching_engine_integration() {
         &buy_order,
         &sell_order,
         Decimal::new(50000, 0), // $50,000 execution price
-        Decimal::new(1, 0), // 1 BTC quantity
-        Decimal::new(50, 0), // $50 buyer fee
-        Decimal::new(50, 0), // $50 seller fee
+        Decimal::new(1, 0),     // 1 BTC quantity
+        Decimal::new(50, 0),    // $50 buyer fee
+        Decimal::new(50, 0),    // $50 seller fee
     );
 
     assert_eq!(trade.price, Decimal::new(50000, 0));
@@ -186,9 +186,9 @@ async fn test_liquidity_management_integration() {
     let provider = liquidity::LiquidityProvider::new(
         "provider123".to_string(),
         trading_pair.clone(),
-        Decimal::new(10, 0), // 10 BTC
+        Decimal::new(10, 0),     // 10 BTC
         Decimal::new(500000, 0), // $500,000
-        Decimal::new(100, 4), // 1.00% spread
+        Decimal::new(100, 4),    // 1.00% spread
     );
 
     assert_eq!(provider.user_id, "provider123");
@@ -206,10 +206,10 @@ async fn test_liquidity_management_integration() {
         provider.id,
         trading_pair,
         Decimal::new(50000, 0), // $50,000 mid price
-        Decimal::new(100, 0), // $100 spread
-        Decimal::new(1, 0), // 1 BTC bid size
-        Decimal::new(1, 0), // 1 BTC ask size
-        30, // 30 seconds validity
+        Decimal::new(100, 0),   // $100 spread
+        Decimal::new(1, 0),     // 1 BTC bid size
+        Decimal::new(1, 0),     // 1 BTC ask size
+        30,                     // 30 seconds validity
     );
 
     assert_eq!(quote.mid_price, Decimal::new(50000, 0));
@@ -228,9 +228,9 @@ async fn test_amm_pool_integration() {
     let trading_pair = TradingPair::new("BTC".to_string(), "USD".to_string());
     let pool = liquidity::AMMPool::new(
         trading_pair,
-        Decimal::new(100, 0), // 100 BTC
+        Decimal::new(100, 0),     // 100 BTC
         Decimal::new(5000000, 0), // $5,000,000
-        Decimal::new(30, 4), // 0.30% fee
+        Decimal::new(30, 4),      // 0.30% fee
     );
 
     // Test current price calculation
@@ -271,7 +271,8 @@ async fn test_market_data_integration() {
     };
 
     // Test candlestick creation
-    let candlestick = market_data::Candlestick::new(&trade, market_data::CandlestickInterval::OneMinute);
+    let candlestick =
+        market_data::Candlestick::new(&trade, market_data::CandlestickInterval::OneMinute);
     assert_eq!(candlestick.trading_pair, trading_pair);
     assert_eq!(candlestick.open_price, Decimal::new(50000, 0));
     assert_eq!(candlestick.close_price, Decimal::new(50000, 0));
@@ -285,18 +286,30 @@ async fn test_market_data_integration() {
     assert_eq!(trade_data.quantity, Decimal::new(1, 0));
 
     // Test candlestick interval durations
-    assert_eq!(market_data::CandlestickInterval::OneMinute.duration_seconds(), 60);
-    assert_eq!(market_data::CandlestickInterval::OneHour.duration_seconds(), 3600);
-    assert_eq!(market_data::CandlestickInterval::OneDay.duration_seconds(), 86400);
+    assert_eq!(
+        market_data::CandlestickInterval::OneMinute.duration_seconds(),
+        60
+    );
+    assert_eq!(
+        market_data::CandlestickInterval::OneHour.duration_seconds(),
+        3600
+    );
+    assert_eq!(
+        market_data::CandlestickInterval::OneDay.duration_seconds(),
+        86400
+    );
 }
 
 #[tokio::test]
 async fn test_trading_service_integration() {
     let config = TradingServiceConfig::default();
-    
+
     // Test configuration validation
     assert!(config.order_book_config.enable_aggregation);
-    assert_eq!(config.matching_config.matching_fee_percentage, Decimal::new(10, 4));
+    assert_eq!(
+        config.matching_config.matching_fee_percentage,
+        Decimal::new(10, 4)
+    );
     assert!(config.settlement_config.atomic_settlement);
     assert!(config.liquidity_config.enable_dynamic_pricing);
 
@@ -334,13 +347,43 @@ async fn test_complex_trading_scenario() {
     // Add multiple orders at different price levels
     let orders = vec![
         // Buy orders
-        ("user1", OrderSide::Buy, Decimal::new(2900, 0), Decimal::new(10, 0)),
-        ("user2", OrderSide::Buy, Decimal::new(2950, 0), Decimal::new(5, 0)),
-        ("user3", OrderSide::Buy, Decimal::new(2980, 0), Decimal::new(2, 0)),
+        (
+            "user1",
+            OrderSide::Buy,
+            Decimal::new(2900, 0),
+            Decimal::new(10, 0),
+        ),
+        (
+            "user2",
+            OrderSide::Buy,
+            Decimal::new(2950, 0),
+            Decimal::new(5, 0),
+        ),
+        (
+            "user3",
+            OrderSide::Buy,
+            Decimal::new(2980, 0),
+            Decimal::new(2, 0),
+        ),
         // Sell orders
-        ("user4", OrderSide::Sell, Decimal::new(3020, 0), Decimal::new(3, 0)),
-        ("user5", OrderSide::Sell, Decimal::new(3050, 0), Decimal::new(7, 0)),
-        ("user6", OrderSide::Sell, Decimal::new(3100, 0), Decimal::new(15, 0)),
+        (
+            "user4",
+            OrderSide::Sell,
+            Decimal::new(3020, 0),
+            Decimal::new(3, 0),
+        ),
+        (
+            "user5",
+            OrderSide::Sell,
+            Decimal::new(3050, 0),
+            Decimal::new(7, 0),
+        ),
+        (
+            "user6",
+            OrderSide::Sell,
+            Decimal::new(3100, 0),
+            Decimal::new(15, 0),
+        ),
     ];
 
     for (user, side, price, quantity) in orders {
@@ -367,7 +410,7 @@ async fn test_complex_trading_scenario() {
         OrderSide::Buy,
         OrderType::Market,
         Decimal::new(3100, 0), // High price to ensure execution
-        Decimal::new(5, 0), // 5 ETH
+        Decimal::new(5, 0),    // 5 ETH
     );
 
     // This would normally be processed by the matching engine
@@ -387,7 +430,11 @@ async fn test_performance_and_scalability() {
     for i in 0..1000 {
         let price = Decimal::new(50000 + (i % 100), 0); // Vary prices
         let quantity = Decimal::new(1, 0);
-        let side = if i % 2 == 0 { OrderSide::Buy } else { OrderSide::Sell };
+        let side = if i % 2 == 0 {
+            OrderSide::Buy
+        } else {
+            OrderSide::Sell
+        };
 
         let order = order_book::Order::new(
             format!("user{}", i),

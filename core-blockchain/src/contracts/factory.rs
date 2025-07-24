@@ -5,7 +5,7 @@
 // =====================================================================================
 
 use crate::error::{BlockchainError, BlockchainResult};
-use crate::types::{Address, TransactionHash};
+use crate::types::Address;
 use crate::contracts::{ContractDeployConfig, DeploymentResult, ContractRegistry, ContractInfo};
 use async_trait::async_trait;
 use ethers::prelude::*;

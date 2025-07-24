@@ -10,8 +10,9 @@ use uuid::Uuid;
 use rust_decimal::Decimal;
 
 /// Layer 2 network enumeration
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Layer2Network {
+    Ethereum,
     Polygon,
     Arbitrum,
     Optimism,
@@ -24,6 +25,7 @@ pub enum Layer2Network {
 impl Layer2Network {
     pub fn name(&self) -> &'static str {
         match self {
+            Layer2Network::Ethereum => "Ethereum",
             Layer2Network::Polygon => "Polygon",
             Layer2Network::Arbitrum => "Arbitrum",
             Layer2Network::Optimism => "Optimism",
@@ -36,6 +38,7 @@ impl Layer2Network {
 
     pub fn chain_id(&self) -> u64 {
         match self {
+            Layer2Network::Ethereum => 1,
             Layer2Network::Polygon => 137,
             Layer2Network::Arbitrum => 42161,
             Layer2Network::Optimism => 10,
@@ -74,7 +77,10 @@ pub enum MessageStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BridgeTransaction {
     pub id: Uuid,
+    pub hash: String,
     pub user_id: String,
+    pub from_chain: Layer2Network,
+    pub to_chain: Layer2Network,
     pub source_network: Layer2Network,
     pub destination_network: Layer2Network,
     pub token_address: String,
@@ -82,19 +88,32 @@ pub struct BridgeTransaction {
     pub source_tx_hash: Option<String>,
     pub destination_tx_hash: Option<String>,
     pub status: BridgeStatus,
+    pub initiated_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
+    pub confirmations: u32,
+    pub required_confirmations: u32,
 }
 
 /// Bridge status
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BridgeStatus {
+    Pending,
     Initiated,
     Locked,
     Relayed,
     Minted,
     Completed,
     Failed,
+}
+
+/// Bridge health status
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum BridgeHealthStatus {
+    Operational,
+    Degraded,
+    Maintenance,
+    Offline,
 }
 
 /// State update
@@ -123,9 +142,13 @@ pub struct GasEstimate {
 pub struct NetworkStatus {
     pub network: Layer2Network,
     pub is_online: bool,
+    pub is_healthy: bool,
     pub block_height: u64,
+    pub latest_block: u64,
     pub gas_price: u64,
     pub tps: f64,
+    pub finality_time_seconds: u32,
+    pub bridge_status: BridgeHealthStatus,
     pub last_updated: DateTime<Utc>,
 }
 

@@ -218,7 +218,7 @@ impl ConfigLoader {
     /// Load configuration from files and environment variables
     pub fn load() -> Result<AppConfig, ConfigError> {
         let run_mode = env::var("RUN_MODE").unwrap_or_else(|_| "development".into());
-        
+
         info!("Loading configuration for environment: {}", run_mode);
 
         let config = Config::builder()
@@ -233,10 +233,10 @@ impl ConfigLoader {
             .build()?;
 
         let app_config: AppConfig = config.try_deserialize()?;
-        
+
         // Validate critical configuration
         Self::validate_config(&app_config)?;
-        
+
         info!("Configuration loaded successfully");
         Ok(app_config)
     }
@@ -247,9 +247,11 @@ impl ConfigLoader {
             warn!("Using default JWT secret - this should be changed in production!");
         }
 
-        if config.database.url.contains("localhost") && env::var("RUN_MODE").unwrap_or_default() == "production" {
+        if config.database.url.contains("localhost")
+            && env::var("RUN_MODE").unwrap_or_default() == "production"
+        {
             return Err(ConfigError::Message(
-                "Database URL should not use localhost in production".to_string()
+                "Database URL should not use localhost in production".to_string(),
             ));
         }
 

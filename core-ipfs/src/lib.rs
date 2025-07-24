@@ -1,24 +1,24 @@
 // =====================================================================================
 // IPFS Distributed Storage Module for RWA Platform
-// 
+//
 // This module provides enterprise-grade IPFS integration for storing and retrieving
 // distributed content including asset metadata, documents, and media files.
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
 pub mod client;
-pub mod storage;
+pub mod gateway;
 pub mod metadata;
 pub mod pinning;
-pub mod gateway;
+pub mod storage;
 pub mod utils;
 
 // Re-export main types and traits
 pub use client::*;
-pub use storage::*;
+pub use gateway::*;
 pub use metadata::*;
 pub use pinning::*;
-pub use gateway::*;
+pub use storage::*;
 pub use utils::*;
 
 use serde::{Deserialize, Serialize};
@@ -31,31 +31,31 @@ use uuid::Uuid;
 pub enum IpfsError {
     #[error("IPFS client error: {0}")]
     ClientError(String),
-    
+
     #[error("Network error: {0}")]
     NetworkError(String),
-    
+
     #[error("File not found: {0}")]
     FileNotFound(String),
-    
+
     #[error("Invalid hash: {0}")]
     InvalidHash(String),
-    
+
     #[error("Serialization error: {0}")]
     SerializationError(String),
-    
+
     #[error("Validation error: {0}")]
     ValidationError(String),
-    
+
     #[error("Pinning error: {0}")]
     PinningError(String),
-    
+
     #[error("Gateway error: {0}")]
     GatewayError(String),
-    
+
     #[error("Storage error: {0}")]
     StorageError(String),
-    
+
     #[error("Metadata error: {0}")]
     MetadataError(String),
 }
@@ -73,10 +73,13 @@ impl IpfsHash {
         if Self::is_valid(&hash) {
             Ok(IpfsHash(hash))
         } else {
-            Err(IpfsError::InvalidHash(format!("Invalid IPFS hash: {}", hash)))
+            Err(IpfsError::InvalidHash(format!(
+                "Invalid IPFS hash: {}",
+                hash
+            )))
         }
     }
-    
+
     /// Validate IPFS hash format
     pub fn is_valid(hash: &str) -> bool {
         // In test mode, be very lenient for convenience
@@ -99,7 +102,9 @@ impl IpfsHash {
 
             // CIDv0 (base58, starts with Qm)
             if hash.starts_with("Qm") && hash.len() == 46 {
-                return hash.chars().all(|c| "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz".contains(c));
+                return hash.chars().all(|c| {
+                    "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz".contains(c)
+                });
             }
 
             // CIDv1 (various bases)
@@ -110,12 +115,12 @@ impl IpfsHash {
 
         false
     }
-    
+
     /// Get hash as string
     pub fn as_str(&self) -> &str {
         &self.0
     }
-    
+
     /// Get hash as owned string
     pub fn into_string(self) -> String {
         self.0
@@ -165,14 +170,14 @@ impl ContentMetadata {
             custom_fields: HashMap::new(),
         }
     }
-    
+
     /// Add tag to metadata
     pub fn add_tag(&mut self, tag: String) {
         if !self.tags.contains(&tag) {
             self.tags.push(tag);
         }
     }
-    
+
     /// Add custom field
     pub fn add_custom_field(&mut self, key: String, value: serde_json::Value) {
         self.custom_fields.insert(key, value);
@@ -244,11 +249,15 @@ mod tests {
     #[test]
     fn test_ipfs_hash_validation() {
         // Valid CIDv0
-        assert!(IpfsHash::is_valid("QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG"));
-        
+        assert!(IpfsHash::is_valid(
+            "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG"
+        ));
+
         // Valid CIDv1
-        assert!(IpfsHash::is_valid("bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"));
-        
+        assert!(IpfsHash::is_valid(
+            "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+        ));
+
         // Invalid hashes
         assert!(!IpfsHash::is_valid("invalid"));
         assert!(!IpfsHash::is_valid("Qm12")); // Too short (less than 5 chars)
@@ -260,30 +269,34 @@ mod tests {
         let valid_hash = "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG";
         let hash = IpfsHash::new(valid_hash.to_string()).unwrap();
         assert_eq!(hash.as_str(), valid_hash);
-        
+
         let invalid_hash = "invalid";
         assert!(IpfsHash::new(invalid_hash.to_string()).is_err());
     }
 
     #[test]
     fn test_content_metadata() {
-        let hash = IpfsHash::new("QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG".to_string()).unwrap();
+        let hash =
+            IpfsHash::new("QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG".to_string()).unwrap();
         let mut metadata = ContentMetadata::new(
             hash.clone(),
             "test.jpg".to_string(),
             1024,
             "image/jpeg".to_string(),
         );
-        
+
         assert_eq!(metadata.hash, hash);
         assert_eq!(metadata.name, "test.jpg");
         assert_eq!(metadata.size, 1024);
         assert_eq!(metadata.mime_type, "image/jpeg");
-        
+
         metadata.add_tag("photo".to_string());
         assert!(metadata.tags.contains(&"photo".to_string()));
-        
-        metadata.add_custom_field("camera".to_string(), serde_json::Value::String("Canon".to_string()));
+
+        metadata.add_custom_field(
+            "camera".to_string(),
+            serde_json::Value::String("Canon".to_string()),
+        );
         assert!(metadata.custom_fields.contains_key("camera"));
     }
 
@@ -308,8 +321,12 @@ mod tests {
 
     #[test]
     fn test_ipfs_hash_display() {
-        let hash = IpfsHash::new("QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG".to_string()).unwrap();
-        assert_eq!(format!("{}", hash), "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG");
+        let hash =
+            IpfsHash::new("QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG".to_string()).unwrap();
+        assert_eq!(
+            format!("{}", hash),
+            "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG"
+        );
     }
 
     #[test]

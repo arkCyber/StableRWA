@@ -20,18 +20,17 @@ pub mod transaction_processor;
 
 // Re-export main types and traits
 pub use adapters::*;
-pub use types::*;
+pub use types::{
+    Address, Balance, Block, BlockchainNetwork, Transaction, TransactionHash,
+    TransactionReceipt, TransactionStatus, TokenInfo
+};
 pub use error::*;
-pub use wallet::*;
-pub use contracts::*;
+pub use wallet::{Wallet as BlockchainWallet, WalletManager, InMemoryWalletManager};
+pub use contracts::{ContractManager, ContractCallConfig, ContractDeployConfig};
 pub use transaction_processor::*;
 
-use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use thiserror::Error;
-use tracing::{debug, error, info, warn};
 
 
 
@@ -154,23 +153,23 @@ pub mod utils {
         match network {
             BlockchainNetwork::EthereumMainnet | BlockchainNetwork::EthereumTestnet => {
                 if address.len() != 42 || !address.starts_with("0x") {
-                    return Err(BlockchainError::InvalidAddress(
-                        "Ethereum address must be 42 characters starting with 0x".to_string()
-                    ));
+                    return Err(BlockchainError::InvalidAddress {
+                        address: "Ethereum address must be 42 characters starting with 0x".to_string()
+                    });
                 }
             }
             BlockchainNetwork::SolanaMainnet | BlockchainNetwork::SolanaTestnet => {
                 if address.len() < 32 || address.len() > 44 {
-                    return Err(BlockchainError::InvalidAddress(
-                        "Solana address must be 32-44 characters".to_string()
-                    ));
+                    return Err(BlockchainError::InvalidAddress {
+                        address: "Solana address must be 32-44 characters".to_string()
+                    });
                 }
             }
             BlockchainNetwork::PolkadotMainnet | BlockchainNetwork::PolkadotTestnet => {
                 if address.len() < 47 || address.len() > 48 {
-                    return Err(BlockchainError::InvalidAddress(
-                        "Polkadot address must be 47-48 characters".to_string()
-                    ));
+                    return Err(BlockchainError::InvalidAddress {
+                        address: "Polkadot address must be 47-48 characters".to_string()
+                    });
                 }
             }
         }
@@ -180,7 +179,7 @@ pub mod utils {
     /// Convert amount to blockchain-specific format
     pub fn format_amount(amount: &str, network: &BlockchainNetwork) -> BlockchainResult<String> {
         let parsed_amount: f64 = amount.parse()
-            .map_err(|_| BlockchainError::InvalidTransaction("Invalid amount format".to_string()))?;
+            .map_err(|_| BlockchainError::InvalidTransaction { message: "Invalid amount format".to_string() })?;
 
         match network {
             BlockchainNetwork::EthereumMainnet | BlockchainNetwork::EthereumTestnet => {
@@ -208,7 +207,7 @@ mod tests {
 
     #[test]
     fn test_blockchain_error_display() {
-        let error = BlockchainError::ConnectionError("Test error".to_string());
+        let error = BlockchainError::ConnectionError { message: "Test error".to_string() };
         assert_eq!(error.to_string(), "Connection error: Test error");
     }
 

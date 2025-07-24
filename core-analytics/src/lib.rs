@@ -5,34 +5,34 @@
 // =====================================================================================
 
 //! # Core Analytics Module
-//! 
+//!
 //! This module provides comprehensive data analytics and reporting functionality for the
 //! StableRWA platform, including real-time metrics, historical analysis, predictive
 //! modeling, and automated report generation.
 
-pub mod error;
-pub mod types;
-pub mod metrics;
 pub mod aggregation;
+pub mod error;
+pub mod metrics;
 pub mod reporting;
 pub mod service;
+pub mod types;
 
 // Re-export main types and traits
-pub use error::{AnalyticsError, AnalyticsResult};
-pub use types::{
-    Metric, MetricType, MetricValue, TimeSeriesData, AnalyticsReport,
-    ReportType, ReportFormat, Dashboard, Widget, WidgetType
-};
-pub use service::{AnalyticsService, DefaultAnalyticsService};
-pub use metrics::{MetricsCollector, MetricDefinition, InMemoryMetricsCollector};
 pub use aggregation::{AggregationEngine, AggregationType, InMemoryAggregationEngine};
-pub use reporting::{ReportGenerator, ReportTemplate, InMemoryReportGenerator};
+pub use error::{AnalyticsError, AnalyticsResult};
+pub use metrics::{InMemoryMetricsCollector, MetricDefinition, MetricsCollector};
+pub use reporting::{InMemoryReportGenerator, ReportGenerator, ReportTemplate};
+pub use service::{AnalyticsService, DefaultAnalyticsService};
+pub use types::{
+    AnalyticsReport, Dashboard, Metric, MetricType, MetricValue, ReportFormat, ReportType,
+    TimeSeriesData, Widget, WidgetType,
+};
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 /// Main analytics configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,9 +83,9 @@ pub struct DataRetentionConfig {
 impl Default for DataRetentionConfig {
     fn default() -> Self {
         Self {
-            raw_data_retention_days: 90,      // 3 months
+            raw_data_retention_days: 90,          // 3 months
             aggregated_data_retention_days: 1095, // 3 years
-            report_retention_days: 2555,      // 7 years
+            report_retention_days: 2555,          // 7 years
             auto_cleanup: true,
             cleanup_schedule: "0 2 * * *".to_string(), // Daily at 2 AM
             archive_old_data: true,
@@ -115,7 +115,7 @@ impl Default for RealTimeConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            window_size_seconds: 60,    // 1 minute windows
+            window_size_seconds: 60, // 1 minute windows
             max_batch_size: 1000,
             processing_timeout_seconds: 30,
             streaming_analytics: true,
@@ -310,7 +310,11 @@ impl AnalyticsEvent {
     }
 
     /// Add a property to the event
-    pub fn with_property<K: Into<String>, V: Into<serde_json::Value>>(mut self, key: K, value: V) -> Self {
+    pub fn with_property<K: Into<String>, V: Into<serde_json::Value>>(
+        mut self,
+        key: K,
+        value: V,
+    ) -> Self {
         self.properties.insert(key.into(), value.into());
         self
     }

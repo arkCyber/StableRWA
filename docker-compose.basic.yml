@@ -1,0 +1,93 @@
+# =====================================================================================
+# File: docker-compose.basic.yml
+# Description: Basic Docker Compose for StableRWA Platform Testing
+# Author: arkSong (arksong2018@gmail.com)
+# Framework: StableRWA - Enterprise RWA Tokenization Technology Framework Platform
+# =====================================================================================
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: stablerwa-postgres
+    environment:
+      POSTGRES_DB: stablerwa
+      POSTGRES_USER: stablerwa
+      POSTGRES_PASSWORD: StableRWA2024!
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stablerwa -d stablerwa"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - stablerwa-network
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: stablerwa-redis
+    command: redis-server --appendonly yes --requirepass StableRWA2024!
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    networks:
+      - stablerwa-network
+    restart: unless-stopped
+
+  # Frontend Application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=production
+    container_name: stablerwa-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - REACT_APP_DOCKER_MODE=true
+      - REACT_APP_API_BASE_URL=http://localhost:8080
+      - REACT_APP_WS_URL=ws://localhost:8080/ws
+    volumes:
+      - ./frontend/.env.docker:/app/.env
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - stablerwa-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  stablerwa-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

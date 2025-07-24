@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use tracing::{debug, info};
+use tracing::info;
 
 /// Test environment configuration
 #[derive(Debug, Clone)]
@@ -69,13 +69,16 @@ impl TestContext {
             .max_connections(5)
             .connect(&self.config.database_url)
             .await
-            .map_err(|e| UtilError::ProcessingError(format!("Failed to create test DB pool: {}", e)))
+            .map_err(|e| {
+                UtilError::ProcessingError(format!("Failed to create test DB pool: {}", e))
+            })
     }
 
     /// Create a test Redis connection
     pub async fn create_test_redis_client(&self) -> Result<redis::Client, UtilError> {
-        redis::Client::open(self.config.redis_url.as_str())
-            .map_err(|e| UtilError::ProcessingError(format!("Failed to create test Redis client: {}", e)))
+        redis::Client::open(self.config.redis_url.as_str()).map_err(|e| {
+            UtilError::ProcessingError(format!("Failed to create test Redis client: {}", e))
+        })
     }
 }
 
@@ -112,7 +115,8 @@ impl TestHttpClient {
     }
 
     pub fn with_header(mut self, key: &str, value: &str) -> Self {
-        self.default_headers.insert(key.to_string(), value.to_string());
+        self.default_headers
+            .insert(key.to_string(), value.to_string());
         self
     }
 
@@ -129,14 +133,20 @@ impl TestHttpClient {
             request = request.header(key, value);
         }
 
-        let response = request.send().await
+        let response = request
+            .send()
+            .await
             .map_err(|e| UtilError::NetworkError(e.to_string()))?;
 
         Ok(TestResponse::new(response).await?)
     }
 
     /// Make a POST request
-    pub async fn post<T: Serialize>(&self, path: &str, body: &T) -> Result<TestResponse, UtilError> {
+    pub async fn post<T: Serialize>(
+        &self,
+        path: &str,
+        body: &T,
+    ) -> Result<TestResponse, UtilError> {
         let url = format!("{}{}", self.base_url, path);
         let mut request = self.client.post(&url).json(body);
 
@@ -144,7 +154,9 @@ impl TestHttpClient {
             request = request.header(key, value);
         }
 
-        let response = request.send().await
+        let response = request
+            .send()
+            .await
             .map_err(|e| UtilError::NetworkError(e.to_string()))?;
 
         Ok(TestResponse::new(response).await?)
@@ -159,7 +171,9 @@ impl TestHttpClient {
             request = request.header(key, value);
         }
 
-        let response = request.send().await
+        let response = request
+            .send()
+            .await
             .map_err(|e| UtilError::NetworkError(e.to_string()))?;
 
         Ok(TestResponse::new(response).await?)
@@ -174,7 +188,9 @@ impl TestHttpClient {
             request = request.header(key, value);
         }
 
-        let response = request.send().await
+        let response = request
+            .send()
+            .await
             .map_err(|e| UtilError::NetworkError(e.to_string()))?;
 
         Ok(TestResponse::new(response).await?)
@@ -191,7 +207,7 @@ pub struct TestResponse {
 impl TestResponse {
     async fn new(response: reqwest::Response) -> Result<Self, UtilError> {
         let status = response.status().as_u16();
-        
+
         let mut headers = HashMap::new();
         for (key, value) in response.headers() {
             if let Ok(value_str) = value.to_str() {
@@ -199,7 +215,9 @@ impl TestResponse {
             }
         }
 
-        let body = response.text().await
+        let body = response
+            .text()
+            .await
             .map_err(|e| UtilError::NetworkError(e.to_string()))?;
 
         Ok(Self {
@@ -211,8 +229,7 @@ impl TestResponse {
 
     /// Parse response body as JSON
     pub fn json<T: for<'de> Deserialize<'de>>(&self) -> Result<T, UtilError> {
-        serde_json::from_str(&self.body)
-            .map_err(|e| UtilError::SerializationError(e.to_string()))
+        serde_json::from_str(&self.body).map_err(|e| UtilError::SerializationError(e.to_string()))
     }
 
     /// Check if response is successful (2xx status)
@@ -222,21 +239,35 @@ impl TestResponse {
 
     /// Assert response status
     pub fn assert_status(&self, expected: u16) -> &Self {
-        assert_eq!(self.status, expected, "Expected status {}, got {}", expected, self.status);
+        assert_eq!(
+            self.status, expected,
+            "Expected status {}, got {}",
+            expected, self.status
+        );
         self
     }
 
     /// Assert response contains text
     pub fn assert_contains(&self, text: &str) -> &Self {
-        assert!(self.body.contains(text), "Response body does not contain '{}'", text);
+        assert!(
+            self.body.contains(text),
+            "Response body does not contain '{}'",
+            text
+        );
         self
     }
 
     /// Assert response header exists
     pub fn assert_header(&self, key: &str, value: &str) -> &Self {
-        let actual = self.headers.get(key)
+        let actual = self
+            .headers
+            .get(key)
             .unwrap_or_else(|| panic!("Header '{}' not found", key));
-        assert_eq!(actual, value, "Expected header '{}' to be '{}', got '{}'", key, value, actual);
+        assert_eq!(
+            actual, value,
+            "Expected header '{}' to be '{}', got '{}'",
+            key, value, actual
+        );
         self
     }
 }
@@ -263,12 +294,11 @@ impl TestDatabase {
     /// Truncate all tables (for test cleanup)
     pub async fn truncate_all_tables(&self) -> Result<(), UtilError> {
         // Get all table names
-        let tables: Vec<(String,)> = sqlx::query_as(
-            "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
-        )
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|e| UtilError::ProcessingError(e.to_string()))?;
+        let tables: Vec<(String,)> =
+            sqlx::query_as("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+                .fetch_all(&self.pool)
+                .await
+                .map_err(|e| UtilError::ProcessingError(e.to_string()))?;
 
         // Truncate each table
         for (table_name,) in tables {
@@ -405,20 +435,26 @@ mod tests {
         let client = TestHttpClient::new("http://localhost:8080".to_string())
             .with_header("Content-Type", "application/json")
             .with_auth_token("test-token");
-        
+
         assert_eq!(client.base_url, "http://localhost:8080");
-        assert_eq!(client.default_headers.get("Content-Type"), Some(&"application/json".to_string()));
-        assert_eq!(client.default_headers.get("Authorization"), Some(&"Bearer test-token".to_string()));
+        assert_eq!(
+            client.default_headers.get("Content-Type"),
+            Some(&"application/json".to_string())
+        );
+        assert_eq!(
+            client.default_headers.get("Authorization"),
+            Some(&"Bearer test-token".to_string())
+        );
     }
 
     #[test]
     fn test_performance_test() {
         let mut perf_test = PerformanceTest::new("test_operation".to_string());
-        
+
         perf_test.record(Duration::from_millis(100));
         perf_test.record(Duration::from_millis(200));
         perf_test.record(Duration::from_millis(150));
-        
+
         let stats = perf_test.stats();
         assert_eq!(stats.count, 3);
         assert_eq!(stats.min, Duration::from_millis(100));

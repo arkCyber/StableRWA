@@ -56,14 +56,15 @@ impl MetricsCollector {
     pub async fn collect_metrics(&self) -> Result<String, ObservabilityError> {
         let encoder = TextEncoder::new();
         let metric_families = self.registry.gather();
-        
+
         let mut buffer = Vec::new();
         encoder
             .encode(&metric_families, &mut buffer)
             .map_err(|e| ObservabilityError::Metrics(format!("Failed to encode metrics: {}", e)))?;
 
-        String::from_utf8(buffer)
-            .map_err(|e| ObservabilityError::Metrics(format!("Failed to convert metrics to string: {}", e)))
+        String::from_utf8(buffer).map_err(|e| {
+            ObservabilityError::Metrics(format!("Failed to convert metrics to string: {}", e))
+        })
     }
 
     /// Record HTTP request metrics
@@ -75,7 +76,7 @@ impl MetricsCollector {
         duration: Duration,
     ) {
         let status = status_code.to_string();
-        
+
         self.business_metrics
             .http_requests_total
             .with_label_values(&[method, endpoint, &status])
@@ -98,7 +99,7 @@ impl MetricsCollector {
     /// Record database operation metrics
     pub fn record_database_operation(&self, operation: &str, duration: Duration, success: bool) {
         let status = if success { "success" } else { "error" };
-        
+
         // You would add database-specific metrics here
         info!(
             operation = operation,
@@ -117,7 +118,7 @@ impl MetricsCollector {
         duration: Duration,
     ) {
         let status = if success { "success" } else { "error" };
-        
+
         match operation {
             "transaction" => {
                 self.business_metrics
@@ -146,7 +147,7 @@ impl MetricsCollector {
     /// Update connection status metrics
     pub fn update_connection_status(&self, service: &str, connected: bool) {
         let status = if connected { 1.0 } else { 0.0 };
-        
+
         match service {
             "database" => {
                 self.business_metrics.database_connections.set(status);
@@ -227,14 +228,14 @@ impl PerformanceTimer {
 
     pub fn finish(self) -> Duration {
         let duration = self.start.elapsed();
-        
+
         info!(
             operation = %self.operation,
             duration_ms = duration.as_millis(),
             labels = ?self.labels,
             "Operation completed"
         );
-        
+
         duration
     }
 
@@ -245,7 +246,7 @@ impl PerformanceTimer {
     {
         let duration = self.start.elapsed();
         let success = result.is_ok();
-        
+
         if success {
             info!(
                 operation = %self.operation,
@@ -264,7 +265,7 @@ impl PerformanceTimer {
                 "Operation failed"
             );
         }
-        
+
         duration
     }
 }
@@ -322,11 +323,19 @@ impl MetricsMiddleware {
             "active_sessions" => self.collector.business_metrics.user_sessions.set(value),
             "total_asset_value" => self.collector.business_metrics.asset_value_total.set(value),
             _ => {
-                debug!(metric_name = metric_name, value = value, "Unknown gauge metric");
+                debug!(
+                    metric_name = metric_name,
+                    value = value,
+                    "Unknown gauge metric"
+                );
             }
         }
 
-        debug!(metric_name = metric_name, value = value, "Gauge metric updated");
+        debug!(
+            metric_name = metric_name,
+            value = value,
+            "Gauge metric updated"
+        );
     }
 }
 
@@ -341,12 +350,8 @@ pub struct HttpRequestTimer {
 impl HttpRequestTimer {
     pub fn finish(self, status_code: u16) {
         let duration = self.start.elapsed();
-        self.collector.record_http_request(
-            &self.method,
-            &self.endpoint,
-            status_code,
-            duration,
-        );
+        self.collector
+            .record_http_request(&self.method, &self.endpoint, status_code, duration);
     }
 }
 
@@ -364,12 +369,15 @@ impl HealthMetrics {
 
         let last_health_check = IntGauge::new(
             "last_health_check_timestamp",
-            "Timestamp of the last health check"
-        ).map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
+            "Timestamp of the last health check",
+        )
+        .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
 
-        let health_check_duration = Histogram::with_opts(
-            HistogramOpts::new("health_check_duration_seconds", "Duration of health checks")
-        ).map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
+        let health_check_duration = Histogram::with_opts(HistogramOpts::new(
+            "health_check_duration_seconds",
+            "Duration of health checks",
+        ))
+        .map_err(|e| ObservabilityError::Metrics(e.to_string()))?;
 
         Ok(Self {
             service_up,
@@ -399,20 +407,25 @@ mod tests {
             return;
         }
         let collector = collector_result.unwrap();
-        
+
         // Test HTTP request recording
         collector.record_http_request("GET", "/api/v1/assets", 200, Duration::from_millis(150));
-        
+
         // Test blockchain operation recording
-        collector.record_blockchain_operation("ethereum", "transaction", true, Duration::from_millis(500));
-        
+        collector.record_blockchain_operation(
+            "ethereum",
+            "transaction",
+            true,
+            Duration::from_millis(500),
+        );
+
         // Test connection status update
         collector.update_connection_status("database", true);
-        
+
         // Test cache operation recording
         collector.record_cache_operation(true);
         collector.record_cache_operation(false);
-        
+
         // Test metrics collection
         let metrics_text = collector.collect_metrics().await.unwrap();
         assert!(!metrics_text.is_empty());
@@ -420,22 +433,22 @@ mod tests {
 
     #[test]
     fn test_performance_timer() {
-        let timer = PerformanceTimer::new("test_operation".to_string())
-            .with_label("component", "test");
-        
+        let timer =
+            PerformanceTimer::new("test_operation".to_string()).with_label("component", "test");
+
         std::thread::sleep(Duration::from_millis(10));
         let duration = timer.finish();
-        
+
         assert!(duration.as_millis() >= 10);
     }
 
     #[test]
     fn test_performance_timer_with_result() {
         let timer = PerformanceTimer::new("test_operation".to_string());
-        
+
         let result: Result<(), &str> = Ok(());
         let duration = timer.finish_with_result(&result);
-        
+
         assert!(duration.as_nanos() > 0);
     }
 
@@ -449,16 +462,16 @@ mod tests {
         }
         let collector = Arc::new(collector_result.unwrap());
         let middleware = MetricsMiddleware::new(collector);
-        
+
         // Test HTTP timer
         let timer = middleware.start_http_timer("GET", "/test");
         std::thread::sleep(Duration::from_millis(1));
         timer.finish(200);
-        
+
         // Test business event recording
         middleware.record_business_event("created", "asset");
         middleware.record_business_event("registered", "user");
-        
+
         // Test gauge updates
         middleware.update_gauge("active_users", 42.0);
         middleware.update_gauge("total_asset_value", 1000000.0);
@@ -467,10 +480,10 @@ mod tests {
     #[test]
     fn test_health_metrics() {
         let health_metrics = HealthMetrics::new().unwrap();
-        
+
         health_metrics.record_health_check(true, Duration::from_millis(50));
         assert_eq!(health_metrics.service_up.get(), 1);
-        
+
         health_metrics.record_health_check(false, Duration::from_millis(100));
         assert_eq!(health_metrics.service_up.get(), 0);
     }

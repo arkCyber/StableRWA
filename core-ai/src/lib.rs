@@ -5,17 +5,17 @@
 // Framework: StableRWA - AI-Powered Enterprise RWA Tokenization Technology Framework Platform
 // =====================================================================================
 
-pub mod openai;
-pub mod models;
-pub mod plugins;
 pub mod analytics;
+pub mod models;
+pub mod openai;
+pub mod plugins;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
+use tracing::error;
 use uuid::Uuid;
-use tracing::{info, error};
 
 /// AI service errors
 #[derive(Error, Debug)]
@@ -198,12 +198,15 @@ impl AIService {
     }
 
     pub async fn process_request(&self, request: AIRequest) -> AIResult<AIResponse> {
-        let provider_name = request.model.as_ref()
+        let provider_name = request
+            .model
+            .as_ref()
             .or(self.default_provider.as_ref())
             .ok_or_else(|| AIError::ConfigError("No provider specified".to_string()))?;
 
-        let provider = self.providers.get(provider_name)
-            .ok_or_else(|| AIError::ModelNotFound(format!("Provider '{}' not found", provider_name)))?;
+        let provider = self.providers.get(provider_name).ok_or_else(|| {
+            AIError::ModelNotFound(format!("Provider '{}' not found", provider_name))
+        })?;
 
         provider.validate_request(&request)?;
         provider.process(request).await

@@ -4,7 +4,7 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use crate::UtilError;
+// use crate::UtilError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -50,10 +50,13 @@ impl ValidationError {
 
 impl std::fmt::Display for ValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let messages: Vec<String> = self.errors
+        let messages: Vec<String> = self
+            .errors
             .iter()
             .flat_map(|(field, errors)| {
-                errors.iter().map(move |error| format!("{}: {}", field, error))
+                errors
+                    .iter()
+                    .map(move |error| format!("{}: {}", field, error))
             })
             .collect();
         write!(f, "{}", messages.join(", "))
@@ -83,19 +86,30 @@ impl Validate {
     }
 
     /// Validate string length
-    pub fn length(value: &str, field: &str, min: Option<usize>, max: Option<usize>) -> ValidationResult {
+    pub fn length(
+        value: &str,
+        field: &str,
+        min: Option<usize>,
+        max: Option<usize>,
+    ) -> ValidationResult {
         let len = value.len();
         let mut error = ValidationError::new();
 
         if let Some(min_len) = min {
             if len < min_len {
-                error.add_error(field, &format!("must be at least {} characters long", min_len));
+                error.add_error(
+                    field,
+                    &format!("must be at least {} characters long", min_len),
+                );
             }
         }
 
         if let Some(max_len) = max {
             if len > max_len {
-                error.add_error(field, &format!("must be at most {} characters long", max_len));
+                error.add_error(
+                    field,
+                    &format!("must be at most {} characters long", max_len),
+                );
             }
         }
 
@@ -108,8 +122,9 @@ impl Validate {
 
     /// Validate email format
     pub fn email(value: &str, field: &str) -> ValidationResult {
-        let email_regex = regex::Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap();
-        
+        let email_regex =
+            regex::Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap();
+
         if !email_regex.is_match(value) {
             let mut error = ValidationError::new();
             error.add_error(field, "must be a valid email address");
@@ -164,7 +179,10 @@ impl Validate {
         } else {
             let mut error = ValidationError::new();
             let allowed_str: Vec<String> = allowed.iter().map(|v| v.to_string()).collect();
-            error.add_error(field, &format!("must be one of: {}", allowed_str.join(", ")));
+            error.add_error(
+                field,
+                &format!("must be one of: {}", allowed_str.join(", ")),
+            );
             Err(error)
         }
     }
@@ -185,7 +203,7 @@ impl Validate {
     pub fn phone(value: &str, field: &str) -> ValidationResult {
         let phone_regex = regex::Regex::new(r"^\+?[1-9]\d{1,14}$").unwrap();
         let cleaned = value.replace(&[' ', '-', '(', ')', '.'][..], "");
-        
+
         if !phone_regex.is_match(&cleaned) {
             let mut error = ValidationError::new();
             error.add_error(field, "must be a valid phone number");
@@ -352,11 +370,7 @@ impl RwaValidate {
     }
 
     /// Validate payment data
-    pub fn payment_data(
-        amount: f64,
-        currency: &str,
-        payment_method: &str,
-    ) -> ValidationResult {
+    pub fn payment_data(amount: f64, currency: &str, payment_method: &str) -> ValidationResult {
         let allowed_currencies = ["USD", "EUR", "GBP", "JPY"];
         let allowed_methods = ["credit_card", "bank_transfer", "crypto"];
 
@@ -478,20 +492,11 @@ mod tests {
 
     #[test]
     fn test_rwa_validate_user_registration() {
-        let result = RwaValidate::user_registration(
-            "user@example.com",
-            "StrongPass123!",
-            "John",
-            "Doe"
-        );
+        let result =
+            RwaValidate::user_registration("user@example.com", "StrongPass123!", "John", "Doe");
         assert!(result.is_ok());
 
-        let result = RwaValidate::user_registration(
-            "invalid-email",
-            "weak",
-            "",
-            ""
-        );
+        let result = RwaValidate::user_registration("invalid-email", "weak", "", "");
         assert!(result.is_err());
     }
 }

@@ -1,0 +1,328 @@
+# =====================================================================================
+# File: docker-compose.enterprise.yml
+# Description: Enterprise-grade Docker Compose for StableRWA Platform
+# Author: arkSong (arksong2018@gmail.com)
+# Framework: StableRWA - Enterprise RWA Tokenization Technology Framework Platform
+# =====================================================================================
+
+version: '3.8'
+
+services:
+  # PostgreSQL Enterprise Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: stablerwa-postgres
+    environment:
+      POSTGRES_DB: stablerwa
+      POSTGRES_USER: stablerwa
+      POSTGRES_PASSWORD: StableRWA2024!
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stablerwa -d stablerwa"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - stablerwa-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  # Redis Enterprise Cache
+  redis:
+    image: redis:7-alpine
+    container_name: stablerwa-redis
+    command: redis-server --appendonly yes --requirepass StableRWA2024!
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    networks:
+      - stablerwa-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  # Ganache Blockchain for Testing
+  ganache:
+    image: trufflesuite/ganache:latest
+    container_name: stablerwa-ganache
+    ports:
+      - "8545:8545"
+    command: >
+      ganache
+      --host 0.0.0.0
+      --port 8545
+      --networkId 1337
+      --chainId 1337
+      --accounts 10
+      --deterministic
+      --mnemonic "test test test test test test test test test test test junk"
+      --gasLimit 12000000
+      --gasPrice 1000000000
+    networks:
+      - stablerwa-network
+    restart: unless-stopped
+
+  # MinIO S3-compatible Storage
+  minio:
+    image: minio/minio:latest
+    container_name: stablerwa-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: stablerwa
+      MINIO_ROOT_PASSWORD: StableRWA2024!
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
+    networks:
+      - stablerwa-network
+    restart: unless-stopped
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: stablerwa-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    networks:
+      - stablerwa-network
+    restart: unless-stopped
+
+  # Grafana Visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: stablerwa-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: StableRWA2024!
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - stablerwa-network
+    restart: unless-stopped
+
+  # Jaeger Distributed Tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: stablerwa-jaeger
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+    networks:
+      - stablerwa-network
+    restart: unless-stopped
+
+  # WebUI Frontend
+  webui:
+    build:
+      context: ./webui
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=production
+    container_name: stablerwa-webui
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_DOCKER_MODE=true
+      - NEXT_PUBLIC_GATEWAY_URL=http://localhost:8080
+      - NEXT_PUBLIC_ASSETS_URL=http://localhost:8081
+      - NEXT_PUBLIC_ORACLE_URL=http://localhost:8082
+      - NEXT_PUBLIC_AI_URL=http://localhost:8083
+      - NEXT_PUBLIC_WS_URL=ws://localhost:8080/ws
+    volumes:
+      - ./webui/.env.docker:/app/.env.local
+    depends_on:
+      - postgres
+      - redis
+      - ganache
+      - minio
+    networks:
+      - stablerwa-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # NGINX Load Balancer
+  nginx:
+    image: nginx:alpine
+    container_name: stablerwa-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - gateway
+    networks:
+      - stablerwa-network
+    restart: unless-stopped
+
+  # Gateway Service
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    container_name: stablerwa-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgresql://stablerwa:StableRWA2024!@postgres:5432/stablerwa
+      REDIS_URL: redis://:StableRWA2024!@redis:6379
+      RUST_LOG: info
+      RUST_BACKTRACE: 1
+      SERVICE_NAME: gateway
+      METRICS_ENABLED: "true"
+      TRACING_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - stablerwa-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Asset Service
+  asset-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.asset
+    container_name: stablerwa-asset
+    ports:
+      - "8081:8080"
+    environment:
+      DATABASE_URL: postgresql://stablerwa:StableRWA2024!@postgres:5432/stablerwa
+      REDIS_URL: redis://:StableRWA2024!@redis:6379
+      BLOCKCHAIN_RPC_URL: http://ganache:8545
+      RUST_LOG: info
+      SERVICE_NAME: asset
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ganache:
+        condition: service_started
+    networks:
+      - stablerwa-network
+    restart: unless-stopped
+
+  # Oracle Service
+  oracle-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.oracle
+    container_name: stablerwa-oracle
+    ports:
+      - "8082:8080"
+    environment:
+      DATABASE_URL: postgresql://stablerwa:StableRWA2024!@postgres:5432/stablerwa
+      REDIS_URL: redis://:StableRWA2024!@redis:6379
+      RUST_LOG: info
+      SERVICE_NAME: oracle
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - stablerwa-network
+    restart: unless-stopped
+
+  # AI Service
+  ai-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.ai
+    container_name: stablerwa-ai
+    ports:
+      - "8083:8080"
+    environment:
+      DATABASE_URL: postgresql://stablerwa:StableRWA2024!@postgres:5432/stablerwa
+      REDIS_URL: redis://:StableRWA2024!@redis:6379
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-test}
+      RUST_LOG: info
+      SERVICE_NAME: ai
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - stablerwa-network
+    restart: unless-stopped
+
+networks:
+  stablerwa-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local

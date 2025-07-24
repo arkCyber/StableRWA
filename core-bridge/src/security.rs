@@ -5,11 +5,11 @@
 // =====================================================================================
 
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc, Duration};
-use uuid::Uuid;
+use chrono::{DateTime, Duration, Utc};
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 use crate::{
     error::{BridgeError, BridgeResult},
@@ -155,8 +155,11 @@ pub struct SecurityMetrics {
 #[async_trait]
 pub trait SecurityService: Send + Sync {
     /// Perform security check on a transaction
-    async fn check_transaction(&self, request: SecurityCheckRequest) -> BridgeResult<SecurityCheckResult>;
-    
+    async fn check_transaction(
+        &self,
+        request: SecurityCheckRequest,
+    ) -> BridgeResult<SecurityCheckResult>;
+
     /// Report suspicious activity
     async fn report_suspicious_activity(
         &self,
@@ -164,38 +167,47 @@ pub trait SecurityService: Send + Sync {
         pattern_type: PatternType,
         details: String,
     ) -> BridgeResult<()>;
-    
+
     /// Get security alerts
     async fn get_alerts(
         &self,
         severity: Option<ThreatLevel>,
         limit: Option<usize>,
     ) -> BridgeResult<Vec<SecurityAlert>>;
-    
+
     /// Update security configuration
     async fn update_config(&self, config: SecurityConfig) -> BridgeResult<()>;
-    
+
     /// Get security metrics
     async fn get_metrics(&self, time_range: Duration) -> BridgeResult<SecurityMetrics>;
-    
+
     /// Whitelist an address
     async fn whitelist_address(&self, address: String, chain_id: ChainId) -> BridgeResult<()>;
-    
+
     /// Blacklist an address
-    async fn blacklist_address(&self, address: String, chain_id: ChainId, reason: String) -> BridgeResult<()>;
-    
+    async fn blacklist_address(
+        &self,
+        address: String,
+        chain_id: ChainId,
+        reason: String,
+    ) -> BridgeResult<()>;
+
     /// Check if address is whitelisted
     async fn is_whitelisted(&self, address: &str, chain_id: ChainId) -> BridgeResult<bool>;
-    
+
     /// Check if address is blacklisted
     async fn is_blacklisted(&self, address: &str, chain_id: ChainId) -> BridgeResult<bool>;
-    
+
     /// Get user risk profile
     async fn get_user_risk_profile(&self, user_id: &str) -> BridgeResult<UserRiskProfile>;
-    
+
     /// Update user risk profile
-    async fn update_user_risk_profile(&self, user_id: &str, profile: UserRiskProfile) -> BridgeResult<()>;
-    
+    async fn update_user_risk_profile(
+        &self,
+        user_id: &str,
+        profile: UserRiskProfile,
+    ) -> BridgeResult<()>;
+
     /// Health check
     async fn health_check(&self) -> BridgeResult<SecurityHealthStatus>;
 }
@@ -272,15 +284,13 @@ impl SecurityMonitor {
                 description: "Unusual transaction velocity detected".to_string(),
                 risk_weight: 0.7,
                 enabled: true,
-                detection_rules: vec![
-                    DetectionRule {
-                        rule_id: "high_frequency".to_string(),
-                        condition: "transactions_per_hour > 20".to_string(),
-                        threshold: Decimal::new(20, 0),
-                        time_window: Duration::hours(1),
-                        action: SecurityAction::RequireReview,
-                    },
-                ],
+                detection_rules: vec![DetectionRule {
+                    rule_id: "high_frequency".to_string(),
+                    condition: "transactions_per_hour > 20".to_string(),
+                    threshold: Decimal::new(20, 0),
+                    time_window: Duration::hours(1),
+                    action: SecurityAction::RequireReview,
+                }],
             },
             SuspiciousPattern {
                 pattern_id: "amount_anomaly".to_string(),
@@ -288,15 +298,13 @@ impl SecurityMonitor {
                 description: "Unusual transaction amount detected".to_string(),
                 risk_weight: 0.8,
                 enabled: true,
-                detection_rules: vec![
-                    DetectionRule {
-                        rule_id: "large_amount".to_string(),
-                        condition: "amount > 1000000".to_string(),
-                        threshold: Decimal::new(100000000, 2), // $1,000,000
-                        time_window: Duration::hours(24),
-                        action: SecurityAction::RequireReview,
-                    },
-                ],
+                detection_rules: vec![DetectionRule {
+                    rule_id: "large_amount".to_string(),
+                    condition: "amount > 1000000".to_string(),
+                    threshold: Decimal::new(100000000, 2), // $1,000,000
+                    time_window: Duration::hours(24),
+                    action: SecurityAction::RequireReview,
+                }],
             },
         ]
     }
@@ -325,8 +333,11 @@ impl SecurityMonitor {
         }
 
         // Address blacklist check
-        if self.blacklist.get(&request.source_chain)
-            .map_or(false, |list| list.contains(&request.source_address)) {
+        if self
+            .blacklist
+            .get(&request.source_chain)
+            .map_or(false, |list| list.contains(&request.source_address))
+        {
             risk_score += 1.0;
         }
 
@@ -351,7 +362,7 @@ mod tests {
     fn test_risk_score_calculation() {
         let config = SecurityConfig::default();
         let monitor = SecurityMonitor::new(config);
-        
+
         let request = SecurityCheckRequest {
             transaction_id: Uuid::new_v4(),
             user_id: "test_user".to_string(),

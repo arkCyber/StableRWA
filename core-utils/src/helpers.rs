@@ -4,7 +4,7 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use crate::UtilError;
+// use crate::UtilError;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -22,7 +22,7 @@ pub struct Pagination {
 impl Pagination {
     pub fn new(page: u32, per_page: u32) -> Self {
         Self {
-            page: page.max(1), // Ensure page is at least 1
+            page: page.max(1),                // Ensure page is at least 1
             per_page: per_page.clamp(1, 100), // Limit per_page between 1 and 100
             total: None,
             total_pages: None,
@@ -128,8 +128,11 @@ impl ApiError {
 
     pub fn validation_error(field: &str, message: &str) -> Self {
         let mut details = HashMap::new();
-        details.insert("field".to_string(), serde_json::Value::String(field.to_string()));
-        
+        details.insert(
+            "field".to_string(),
+            serde_json::Value::String(field.to_string()),
+        );
+
         Self {
             code: "VALIDATION_ERROR".to_string(),
             message: message.to_string(),
@@ -139,9 +142,12 @@ impl ApiError {
 
     pub fn not_found(resource: &str, id: &str) -> Self {
         let mut details = HashMap::new();
-        details.insert("resource".to_string(), serde_json::Value::String(resource.to_string()));
+        details.insert(
+            "resource".to_string(),
+            serde_json::Value::String(resource.to_string()),
+        );
         details.insert("id".to_string(), serde_json::Value::String(id.to_string()));
-        
+
         Self {
             code: "NOT_FOUND".to_string(),
             message: format!("{} with id '{}' not found", resource, id),
@@ -176,7 +182,7 @@ impl StringUtils {
     pub fn to_snake_case(input: &str) -> String {
         let mut result = String::new();
         let mut prev_char_was_uppercase = false;
-        
+
         for (i, ch) in input.chars().enumerate() {
             if ch.is_uppercase() {
                 if i > 0 && !prev_char_was_uppercase {
@@ -189,7 +195,7 @@ impl StringUtils {
                 prev_char_was_uppercase = false;
             }
         }
-        
+
         result
     }
 
@@ -197,7 +203,7 @@ impl StringUtils {
     pub fn to_camel_case(input: &str) -> String {
         let words: Vec<&str> = input.split('_').collect();
         let mut result = String::new();
-        
+
         for (i, word) in words.iter().enumerate() {
             if i == 0 {
                 result.push_str(&word.to_lowercase());
@@ -205,13 +211,14 @@ impl StringUtils {
                 result.push_str(&Self::capitalize_first(word));
             }
         }
-        
+
         result
     }
 
     /// Convert string to PascalCase
     pub fn to_pascal_case(input: &str) -> String {
-        input.split('_')
+        input
+            .split('_')
             .map(|word| Self::capitalize_first(word))
             .collect::<Vec<String>>()
             .join("")
@@ -257,14 +264,14 @@ impl NumberUtils {
     pub fn format_with_commas(number: u64) -> String {
         let num_str = number.to_string();
         let mut result = String::new();
-        
+
         for (i, digit) in num_str.chars().rev().enumerate() {
             if i > 0 && i % 3 == 0 {
                 result.push(',');
             }
             result.push(digit);
         }
-        
+
         result.chars().rev().collect()
     }
 
@@ -349,7 +356,7 @@ impl HashUtils {
     pub fn simple_hash(input: &str) -> u64 {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
-        
+
         let mut hasher = DefaultHasher::new();
         input.hash(&mut hasher);
         hasher.finish()
@@ -394,7 +401,7 @@ mod tests {
     #[test]
     fn test_pagination() {
         let pagination = Pagination::new(2, 10).with_total(95);
-        
+
         assert_eq!(pagination.page, 2);
         assert_eq!(pagination.per_page, 10);
         assert_eq!(pagination.offset(), 10);
@@ -440,10 +447,10 @@ mod tests {
     fn test_date_utils() {
         let now = Utc::now();
         assert!(DateUtils::is_today(&now));
-        
+
         let formatted = DateUtils::format_date(&now);
         assert!(formatted.contains('-'));
-        
+
         let start = DateUtils::start_of_day(&now);
         assert_eq!(start.hour(), 0);
         assert_eq!(start.minute(), 0);
@@ -455,10 +462,10 @@ mod tests {
         let hash1 = HashUtils::simple_hash("test");
         let hash2 = HashUtils::simple_hash("test");
         let hash3 = HashUtils::simple_hash("different");
-        
+
         assert_eq!(hash1, hash2);
         assert_ne!(hash1, hash3);
-        
+
         let short_hash = HashUtils::short_hash("test");
         assert_eq!(short_hash.len(), 8);
     }

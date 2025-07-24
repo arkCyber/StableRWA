@@ -70,11 +70,10 @@ curve25519-dalek = { version = "4.1", optional = true }
 # Homomorphic encryption
 concrete = { version = "0.2", optional = true }
 
-# Secure multi-party computation
-fancy-garbling = { version = "0.3", optional = true }
+# Secure multi-party computation (placeholder for future implementation)
 
 # Differential privacy
-smartnoise-runtime = { version = "0.3", optional = true }
+smartnoise_runtime = { version = "0.2", optional = true }
 
 # Advanced encryption
 aes-gcm = "0.10"
@@ -83,7 +82,7 @@ x25519-dalek = "2.0"
 ed25519-dalek = "2.0"
 
 # Merkle trees
-merkle = "2.0"
+merkle = "1.11"
 rs_merkle = "1.4"
 
 # Configuration
@@ -122,10 +121,10 @@ mockall = "0.12"
 tempfile = "3.8"
 
 [features]
-default = ["zkp", "homomorphic", "differential-privacy", "secure-computation"]
+default = ["zkp", "homomorphic", "secure-computation"]
 zkp = ["ark-std", "ark-ff", "ark-ec", "ark-poly", "ark-relations", "ark-r1cs-std", "ark-groth16", "ark-bn254"]
 bulletproofs = ["dep:bulletproofs", "curve25519-dalek"]
 homomorphic = ["concrete"]
-secure-computation = ["fancy-garbling"]
-differential-privacy = ["smartnoise-runtime"]
+secure-computation = []
+differential-privacy = ["smartnoise_runtime"]
 advanced-crypto = []

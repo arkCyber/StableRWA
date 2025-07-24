@@ -13,7 +13,7 @@ use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
 /// Service instance information
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ServiceInstance {
     pub id: String,
     pub name: String,
@@ -28,13 +28,42 @@ pub struct ServiceInstance {
     pub weight: u32,
 }
 
+impl<'de> Deserialize<'de> for ServiceInstance {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct ServiceInstanceHelper {
+            id: String,
+            name: String,
+            host: String,
+            port: u16,
+            protocol: String,
+            health_check_url: Option<String>,
+            metadata: HashMap<String, String>,
+            status: ServiceStatus,
+            weight: u32,
+        }
+
+        let helper = ServiceInstanceHelper::deserialize(deserializer)?;
+        Ok(ServiceInstance {
+            id: helper.id,
+            name: helper.name,
+            host: helper.host,
+            port: helper.port,
+            protocol: helper.protocol,
+            health_check_url: helper.health_check_url,
+            metadata: helper.metadata,
+            last_heartbeat: Instant::now(),
+            status: helper.status,
+            weight: helper.weight,
+        })
+    }
+}
+
 impl ServiceInstance {
-    pub fn new(
-        id: String,
-        name: String,
-        host: String,
-        port: u16,
-    ) -> Self {
+    pub fn new(id: String, name: String, host: String, port: u16) -> Self {
         Self {
             id,
             name,
@@ -130,15 +159,17 @@ impl ServiceRegistry {
     pub async fn register(&self, instance: ServiceInstance) -> Result<(), GatewayError> {
         let mut services = self.services.write().await;
         let service_name = instance.name.clone();
-        
-        let instances = services.entry(service_name.clone()).or_insert_with(Vec::new);
-        
+
+        let instances = services
+            .entry(service_name.clone())
+            .or_insert_with(Vec::new);
+
         // Remove existing instance with same ID
         instances.retain(|i| i.id != instance.id);
-        
+
         // Add new instance
         instances.push(instance.clone());
-        
+
         info!(
             service_name = %service_name,
             instance_id = %instance.id,
@@ -150,13 +181,17 @@ impl ServiceRegistry {
     }
 
     /// Deregister a service instance
-    pub async fn deregister(&self, service_name: &str, instance_id: &str) -> Result<(), GatewayError> {
+    pub async fn deregister(
+        &self,
+        service_name: &str,
+        instance_id: &str,
+    ) -> Result<(), GatewayError> {
         let mut services = self.services.write().await;
-        
+
         if let Some(instances) = services.get_mut(service_name) {
             let initial_count = instances.len();
             instances.retain(|i| i.id != instance_id);
-            
+
             if instances.len() < initial_count {
                 info!(
                     service_name = %service_name,
@@ -164,7 +199,7 @@ impl ServiceRegistry {
                     "Service instance deregistered"
                 );
             }
-            
+
             // Remove service entry if no instances left
             if instances.is_empty() {
                 services.remove(service_name);
@@ -178,12 +213,10 @@ impl ServiceRegistry {
     pub async fn get_service_url(&self, service_name: &str) -> Option<String> {
         let services = self.services.read().await;
         let instances = services.get(service_name)?;
-        
+
         // Filter healthy instances
-        let healthy_instances: Vec<&ServiceInstance> = instances
-            .iter()
-            .filter(|i| i.is_healthy())
-            .collect();
+        let healthy_instances: Vec<&ServiceInstance> =
+            instances.iter().filter(|i| i.is_healthy()).collect();
 
         if healthy_instances.is_empty() {
             warn!("No healthy instances found for service: {}", service_name);
@@ -192,8 +225,10 @@ impl ServiceRegistry {
 
         // Use round-robin load balancing
         let mut lb_state = self.load_balancer_state.write().await;
-        let state = lb_state.entry(service_name.to_string()).or_insert_with(LoadBalancerState::new);
-        
+        let state = lb_state
+            .entry(service_name.to_string())
+            .or_insert_with(LoadBalancerState::new);
+
         let selected_instance = match state.strategy {
             LoadBalancingStrategy::RoundRobin => {
                 let index = state.round_robin_index % healthy_instances.len();
@@ -228,13 +263,13 @@ impl ServiceRegistry {
         state: &mut LoadBalancerState,
     ) -> &'a ServiceInstance {
         let total_weight: u32 = instances.iter().map(|i| i.weight).sum();
-        
+
         if total_weight == 0 {
             return instances[0];
         }
 
         state.current_weight += total_weight;
-        
+
         let mut selected = instances[0];
         let mut max_weight = 0;
 
@@ -251,9 +286,13 @@ impl ServiceRegistry {
     }
 
     /// Update service instance heartbeat
-    pub async fn heartbeat(&self, service_name: &str, instance_id: &str) -> Result<(), GatewayError> {
+    pub async fn heartbeat(
+        &self,
+        service_name: &str,
+        instance_id: &str,
+    ) -> Result<(), GatewayError> {
         let mut services = self.services.write().await;
-        
+
         if let Some(instances) = services.get_mut(service_name) {
             if let Some(instance) = instances.iter_mut().find(|i| i.id == instance_id) {
                 instance.update_heartbeat();
@@ -294,7 +333,7 @@ impl ServiceRegistry {
         let registry = Arc::clone(&self);
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(registry.health_check_interval);
-            
+
             loop {
                 interval.tick().await;
                 registry.perform_health_checks().await;
@@ -306,11 +345,12 @@ impl ServiceRegistry {
     /// Perform health checks on all instances
     async fn perform_health_checks(&self) {
         let services = self.services.read().await.clone();
-        
+
         for (service_name, instances) in services {
             for instance in instances {
                 if let Some(health_url) = &instance.health_check_url {
-                    self.check_instance_health(&service_name, &instance.id, health_url).await;
+                    self.check_instance_health(&service_name, &instance.id, health_url)
+                        .await;
                 }
             }
         }
@@ -319,17 +359,24 @@ impl ServiceRegistry {
     /// Check health of a specific instance
     async fn check_instance_health(&self, service_name: &str, instance_id: &str, health_url: &str) {
         let client = reqwest::Client::new();
-        
-        match client.get(health_url).timeout(Duration::from_secs(5)).send().await {
+
+        match client
+            .get(health_url)
+            .timeout(Duration::from_secs(5))
+            .send()
+            .await
+        {
             Ok(response) => {
                 if response.status().is_success() {
                     self.mark_instance_healthy(service_name, instance_id).await;
                 } else {
-                    self.mark_instance_unhealthy(service_name, instance_id).await;
+                    self.mark_instance_unhealthy(service_name, instance_id)
+                        .await;
                 }
             }
             Err(_) => {
-                self.mark_instance_unhealthy(service_name, instance_id).await;
+                self.mark_instance_unhealthy(service_name, instance_id)
+                    .await;
             }
         }
     }
@@ -337,7 +384,7 @@ impl ServiceRegistry {
     /// Mark instance as healthy
     async fn mark_instance_healthy(&self, service_name: &str, instance_id: &str) {
         let mut services = self.services.write().await;
-        
+
         if let Some(instances) = services.get_mut(service_name) {
             if let Some(instance) = instances.iter_mut().find(|i| i.id == instance_id) {
                 if instance.status != ServiceStatus::Healthy {
@@ -355,7 +402,7 @@ impl ServiceRegistry {
     /// Mark instance as unhealthy
     async fn mark_instance_unhealthy(&self, service_name: &str, instance_id: &str) {
         let mut services = self.services.write().await;
-        
+
         if let Some(instances) = services.get_mut(service_name) {
             if let Some(instance) = instances.iter_mut().find(|i| i.id == instance_id) {
                 if instance.status != ServiceStatus::Unhealthy {
@@ -426,7 +473,7 @@ mod tests {
     #[tokio::test]
     async fn test_service_registration() {
         let registry = ServiceRegistry::new();
-        
+
         let instance = ServiceInstance::new(
             "test-1".to_string(),
             "test-service".to_string(),
@@ -435,8 +482,11 @@ mod tests {
         );
 
         registry.register(instance).await.unwrap();
-        
-        let instances = registry.get_service_instances("test-service").await.unwrap();
+
+        let instances = registry
+            .get_service_instances("test-service")
+            .await
+            .unwrap();
         assert_eq!(instances.len(), 1);
         assert_eq!(instances[0].id, "test-1");
     }
@@ -444,7 +494,7 @@ mod tests {
     #[tokio::test]
     async fn test_service_deregistration() {
         let registry = ServiceRegistry::new();
-        
+
         let instance = ServiceInstance::new(
             "test-1".to_string(),
             "test-service".to_string(),
@@ -454,7 +504,7 @@ mod tests {
 
         registry.register(instance).await.unwrap();
         registry.deregister("test-service", "test-1").await.unwrap();
-        
+
         let instances = registry.get_service_instances("test-service").await;
         assert!(instances.is_none());
     }
@@ -462,7 +512,7 @@ mod tests {
     #[tokio::test]
     async fn test_load_balancing() {
         let registry = ServiceRegistry::new();
-        
+
         // Register multiple instances
         for i in 1..=3 {
             let instance = ServiceInstance::new(
@@ -492,7 +542,7 @@ mod tests {
     #[tokio::test]
     async fn test_heartbeat() {
         let registry = ServiceRegistry::new();
-        
+
         let instance = ServiceInstance::new(
             "test-1".to_string(),
             "test-service".to_string(),
@@ -501,11 +551,11 @@ mod tests {
         );
 
         registry.register(instance).await.unwrap();
-        
+
         // Test heartbeat
         let result = registry.heartbeat("test-service", "test-1").await;
         assert!(result.is_ok());
-        
+
         // Test heartbeat for non-existent instance
         let result = registry.heartbeat("test-service", "non-existent").await;
         assert!(result.is_err());

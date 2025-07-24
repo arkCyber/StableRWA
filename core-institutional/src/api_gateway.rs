@@ -5,15 +5,15 @@
 // =====================================================================================
 
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc, Duration};
-use uuid::Uuid;
+use chrono::{DateTime, Duration, Utc};
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 use crate::{
     error::{InstitutionalError, InstitutionalResult},
-    types::{Permission, ApiKey},
+    types::{ApiKey, Permission},
 };
 
 /// API Gateway configuration
@@ -351,22 +351,25 @@ pub struct EndpointMetrics {
 pub trait ApiGatewayService: Send + Sync {
     /// Register a new API endpoint
     async fn register_endpoint(&self, endpoint: ApiEndpoint) -> InstitutionalResult<ApiEndpoint>;
-    
+
     /// Get endpoint by ID
     async fn get_endpoint(&self, endpoint_id: Uuid) -> InstitutionalResult<Option<ApiEndpoint>>;
-    
+
     /// Get all endpoints for an institution
-    async fn get_institution_endpoints(&self, institution_id: Uuid) -> InstitutionalResult<Vec<ApiEndpoint>>;
-    
+    async fn get_institution_endpoints(
+        &self,
+        institution_id: Uuid,
+    ) -> InstitutionalResult<Vec<ApiEndpoint>>;
+
     /// Update endpoint configuration
     async fn update_endpoint(&self, endpoint: ApiEndpoint) -> InstitutionalResult<ApiEndpoint>;
-    
+
     /// Delete endpoint
     async fn delete_endpoint(&self, endpoint_id: Uuid) -> InstitutionalResult<()>;
-    
+
     /// Process API request
     async fn process_request(&self, request: ApiRequest) -> InstitutionalResult<ApiResponse>;
-    
+
     /// Get API metrics
     async fn get_api_metrics(
         &self,
@@ -374,7 +377,7 @@ pub trait ApiGatewayService: Send + Sync {
         start_date: DateTime<Utc>,
         end_date: DateTime<Utc>,
     ) -> InstitutionalResult<ApiMetrics>;
-    
+
     /// Get request logs
     async fn get_request_logs(
         &self,
@@ -382,10 +385,10 @@ pub trait ApiGatewayService: Send + Sync {
         limit: Option<usize>,
         offset: Option<usize>,
     ) -> InstitutionalResult<Vec<ApiRequest>>;
-    
+
     /// Validate API key
     async fn validate_api_key(&self, api_key: &str) -> InstitutionalResult<Option<ApiKey>>;
-    
+
     /// Health check
     async fn health_check(&self) -> InstitutionalResult<ApiGatewayHealthStatus>;
 }

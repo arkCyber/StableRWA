@@ -1,0 +1,384 @@
+# =====================================================================================
+# RWA Tokenization Platform - Oracle Service CI/CD Pipeline
+# 
+# Author: arkSong (arksong2018@gmail.com)
+# =====================================================================================
+
+name: Oracle Service Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'service-oracle/**'
+      - '.github/workflows/test.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'service-oracle/**'
+      - '.github/workflows/test.yml'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  COVERAGE_THRESHOLD: 80
+
+jobs:
+  # Code quality checks
+  quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          components: rustfmt, clippy
+          override: true
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            service-oracle/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('service-oracle/Cargo.lock') }}
+
+      - name: Check formatting
+        working-directory: service-oracle
+        run: cargo fmt -- --check
+
+      - name: Run clippy
+        working-directory: service-oracle
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Security audit
+        working-directory: service-oracle
+        run: |
+          cargo install cargo-audit
+          cargo audit
+
+  # Unit tests
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [stable, beta]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          profile: minimal
+          override: true
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            service-oracle/target
+          key: ${{ runner.os }}-${{ matrix.rust }}-cargo-${{ hashFiles('service-oracle/Cargo.lock') }}
+
+      - name: Run unit tests
+        working-directory: service-oracle
+        run: cargo test --lib --verbose
+
+      - name: Run doc tests
+        working-directory: service-oracle
+        run: cargo test --doc --verbose
+
+  # Integration tests with services
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: oracle_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/oracle_test
+      TEST_REDIS_URL: redis://localhost:6379/1
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            service-oracle/target
+          key: ${{ runner.os }}-integration-cargo-${{ hashFiles('service-oracle/Cargo.lock') }}
+
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli --features postgres
+
+      - name: Run database migrations
+        working-directory: service-oracle
+        run: sqlx migrate run --database-url $TEST_DATABASE_URL
+
+      - name: Run integration tests
+        working-directory: service-oracle
+        run: cargo test --test integration_tests --verbose
+
+  # Coverage analysis
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: oracle_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/oracle_test
+      TEST_REDIS_URL: redis://localhost:6379/1
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            service-oracle/target
+          key: ${{ runner.os }}-coverage-cargo-${{ hashFiles('service-oracle/Cargo.lock') }}
+
+      - name: Install tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli --features postgres
+
+      - name: Run database migrations
+        working-directory: service-oracle
+        run: sqlx migrate run --database-url $TEST_DATABASE_URL
+
+      - name: Generate coverage report
+        working-directory: service-oracle
+        run: |
+          cargo tarpaulin --out Xml --output-dir coverage --verbose
+          
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: service-oracle/coverage/cobertura.xml
+          flags: oracle-service
+          name: oracle-service-coverage
+
+      - name: Check coverage threshold
+        working-directory: service-oracle
+        run: |
+          COVERAGE=$(grep -o 'line-rate="[0-9.]*"' coverage/cobertura.xml | head -1 | grep -o '[0-9.]*')
+          COVERAGE_PERCENT=$(echo "$COVERAGE * 100" | bc -l | cut -d. -f1)
+          echo "Coverage: ${COVERAGE_PERCENT}%"
+          if [ "$COVERAGE_PERCENT" -lt "$COVERAGE_THRESHOLD" ]; then
+            echo "Coverage ${COVERAGE_PERCENT}% is below threshold ${COVERAGE_THRESHOLD}%"
+            exit 1
+          fi
+
+  # Performance tests
+  performance:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            service-oracle/target
+          key: ${{ runner.os }}-perf-cargo-${{ hashFiles('service-oracle/Cargo.lock') }}
+
+      - name: Run benchmark tests
+        working-directory: service-oracle
+        run: cargo test --release bench --verbose
+
+  # Build and test Docker image
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        working-directory: service-oracle
+        run: |
+          docker build -t oracle-service:test .
+
+      - name: Test Docker image
+        run: |
+          # Start the container
+          docker run -d --name oracle-test \
+            -e DATABASE_URL=postgresql://test:test@localhost/test \
+            -e REDIS_URL=redis://localhost:6379 \
+            -e JWT_SECRET=test-secret-key-for-testing-only \
+            oracle-service:test
+          
+          # Wait for startup
+          sleep 10
+          
+          # Check if container is running
+          docker ps | grep oracle-test
+          
+          # Clean up
+          docker stop oracle-test
+          docker rm oracle-test
+
+  # Security scanning
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'service-oracle'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Dependency check
+  dependencies:
+    name: Dependency Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Check for outdated dependencies
+        working-directory: service-oracle
+        run: |
+          cargo install cargo-outdated
+          cargo outdated --exit-code 1
+
+      - name: Check for unused dependencies
+        working-directory: service-oracle
+        run: |
+          cargo install cargo-udeps --locked
+          cargo +nightly udeps
+
+  # Final status check
+  test-status:
+    name: Test Status
+    runs-on: ubuntu-latest
+    needs: [quality, unit-tests, integration-tests, coverage]
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          if [[ "${{ needs.quality.result }}" == "success" && \
+                "${{ needs.unit-tests.result }}" == "success" && \
+                "${{ needs.integration-tests.result }}" == "success" && \
+                "${{ needs.coverage.result }}" == "success" ]]; then
+            echo "✅ All tests passed!"
+            exit 0
+          else
+            echo "❌ Some tests failed!"
+            echo "Quality: ${{ needs.quality.result }}"
+            echo "Unit Tests: ${{ needs.unit-tests.result }}"
+            echo "Integration Tests: ${{ needs.integration-tests.result }}"
+            echo "Coverage: ${{ needs.coverage.result }}"
+            exit 1
+          fi

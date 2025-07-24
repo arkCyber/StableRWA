@@ -4,11 +4,11 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 /// Institution type enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -338,8 +338,14 @@ impl Institution {
         // This would be implemented based on the institution's compliance tier
         // and specific agreements
         match self.compliance_tier {
-            ComplianceTier::Basic => matches!(permission, Permission::ViewBalances | Permission::ViewTransactions),
-            ComplianceTier::Enhanced => !matches!(permission, Permission::AdminAccess | Permission::ManageCompliance),
+            ComplianceTier::Basic => matches!(
+                permission,
+                Permission::ViewBalances | Permission::ViewTransactions
+            ),
+            ComplianceTier::Enhanced => !matches!(
+                permission,
+                Permission::AdminAccess | Permission::ManageCompliance
+            ),
             ComplianceTier::Premium | ComplianceTier::Enterprise => true,
         }
     }
@@ -408,8 +414,11 @@ mod tests {
         assert!(institution.has_permission(Permission::ViewBalances));
         assert!(institution.has_permission(Permission::PlaceOrders));
         assert!(!institution.has_permission(Permission::AdminAccess));
-        
-        assert_eq!(institution.max_transaction_amount(), Decimal::new(10000000, 2));
+
+        assert_eq!(
+            institution.max_transaction_amount(),
+            Decimal::new(10000000, 2)
+        );
     }
 
     #[test]

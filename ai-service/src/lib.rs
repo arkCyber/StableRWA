@@ -7,28 +7,71 @@
 
 pub mod handlers;
 pub mod models;
-pub mod service;
 pub mod openai;
+pub mod service;
 
 use axum::{
     routing::{get, post},
     Router,
 };
-use core_utils::config::Config;
 use core_ai::AIService as CoreAIService;
+// use core_utils::config::Config; // Disabled until core_utils config is available
 use std::sync::Arc;
 use tower::ServiceBuilder;
-use tower_http::{
-    cors::CorsLayer,
-    trace::TraceLayer,
-};
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::info;
+
+/// Simple configuration structure
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Config {
+    pub server: ServerConfig,
+    pub ai: AIConfig,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ServerConfig {
+    pub host: String,
+    pub port: u16,
+    pub workers: usize,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AIConfig {
+    pub openai_api_key: String,
+    pub model: String,
+    pub max_tokens: u32,
+}
 
 /// Application state for AI service
 #[derive(Clone)]
 pub struct AppState {
     pub config: Config,
     pub ai_service: Arc<AIServiceWrapper>,
+    pub metrics: Arc<AIMetrics>,
+}
+
+/// Simple metrics collector
+pub struct AIMetrics {
+    // Placeholder for metrics
+}
+
+impl AIMetrics {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    pub fn record_histogram(&self, _name: &str, _value: f64) {
+        // Placeholder implementation
+    }
+
+    pub fn increment_counter(&self, _name: &str, _labels: &[(&str, &str)]) {
+        // Placeholder implementation
+        tracing::debug!("Counter incremented: {} with labels: {:?}", _name, _labels);
+    }
+
+    pub fn export_metrics(&self) -> Result<String, String> {
+        Ok("# AI Service Metrics\n".to_string())
+    }
 }
 
 /// AI service wrapper implementation
@@ -39,8 +82,8 @@ pub struct AIServiceWrapper {
 
 impl AIServiceWrapper {
     pub async fn new(config: &Config) -> Result<Self, Box<dyn std::error::Error>> {
-        let openai_client = if config.get_bool("ai.enabled").unwrap_or(false) {
-            let api_key = config.get_string("ai.openai_api_key").unwrap_or_default();
+        let openai_client = if !config.ai.openai_api_key.is_empty() {
+            let api_key = config.ai.openai_api_key.clone();
             Some(openai::OpenAIClient::new(&api_key)?)
         } else {
             None
@@ -72,7 +115,7 @@ pub async fn create_app(state: AppState) -> Result<Router, Box<dyn std::error::E
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
-                .layer(CorsLayer::permissive())
+                .layer(CorsLayer::permissive()),
         )
         .with_state(state);
 

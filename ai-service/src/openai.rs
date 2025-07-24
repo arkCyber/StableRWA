@@ -9,7 +9,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use thiserror::Error;
-use tracing::{info, error, instrument};
+use tracing::{error, info, instrument};
 
 /// OpenAI API errors
 #[derive(Error, Debug)]
@@ -42,9 +42,7 @@ impl OpenAIClient {
             return Err(OpenAIError::ApiKeyMissing);
         }
 
-        let client = Client::builder()
-            .timeout(Duration::from_secs(60))
-            .build()?;
+        let client = Client::builder().timeout(Duration::from_secs(60)).build()?;
 
         Ok(Self {
             client,
@@ -64,7 +62,7 @@ impl OpenAIClient {
     #[instrument(skip(self))]
     pub async fn health_check(&self) -> Result<(), OpenAIError> {
         info!("Performing OpenAI health check");
-        
+
         let url = format!("{}/models", self.base_url);
         let response = self
             .client
@@ -99,7 +97,7 @@ impl OpenAIClient {
         self.validate_model(&request.model)?;
 
         let url = format!("{}/chat/completions", self.base_url);
-        
+
         // Convert to OpenAI chat format
         let chat_request = OpenAIChatRequest {
             model: request.model.clone(),
@@ -131,12 +129,12 @@ impl OpenAIClient {
 
         if !status.is_success() {
             error!("OpenAI API error: {} - {}", status, response_text);
-            
+
             // Handle specific error cases
             if status.as_u16() == 429 {
                 return Err(OpenAIError::RateLimitExceeded);
             }
-            
+
             return Err(OpenAIError::ApiError {
                 status: status.as_u16(),
                 message: response_text,
@@ -144,7 +142,7 @@ impl OpenAIClient {
         }
 
         let openai_response: OpenAIChatResponse = serde_json::from_str(&response_text)?;
-        
+
         // Extract the completion content
         let content = openai_response
             .choices
@@ -279,7 +277,7 @@ mod tests {
     #[test]
     fn test_model_validation() {
         let client = OpenAIClient::new("test-key").unwrap();
-        
+
         assert!(client.validate_model("gpt-3.5-turbo").is_ok());
         assert!(client.validate_model("gpt-4").is_ok());
         assert!(client.validate_model("invalid-model").is_err());
@@ -289,7 +287,7 @@ mod tests {
     fn test_custom_base_url() {
         let client = OpenAIClient::with_base_url("test-key", "https://custom.api.com/v1");
         assert!(client.is_ok());
-        
+
         let client = client.unwrap();
         assert_eq!(client.base_url, "https://custom.api.com/v1");
     }

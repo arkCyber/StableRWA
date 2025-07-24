@@ -1,14 +1,14 @@
 // =====================================================================================
 // DID Service Implementation
-// 
+//
 // High-level DID service for the RWA platform
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
 use crate::{
-    DidService, DidDocument, DidError, DidResult, DidRegistry, DidResolver, DidVerifier,
-    KeyManager, KeyType, KeyPurpose, VerifiableCredential, VerifiablePresentation,
-    CredentialIssuer, CredentialSubject, Did, VerificationMethodReference,
+    CredentialIssuer, CredentialSubject, Did, DidDocument, DidError, DidRegistry, DidResolver,
+    DidResult, DidService, DidVerifier, KeyManager, KeyPurpose, KeyType, VerifiableCredential,
+    VerifiablePresentation, VerificationMethodReference,
 };
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -60,13 +60,12 @@ impl RwaDidService {
         // Generate keys and add to document
         for (i, (key_type, purposes)) in key_configs.into_iter().enumerate() {
             let key_id = format!("{}#key-{}", did.to_string(), i + 1);
-            
+
             // Generate key pair
-            let keypair = self.key_manager.generate_key(
-                key_id.clone(),
-                key_type,
-                purposes.clone(),
-            ).await?;
+            let keypair = self
+                .key_manager
+                .generate_key(key_id.clone(), key_type, purposes.clone())
+                .await?;
 
             // Add verification method to document
             let vm = keypair.to_verification_method(did.to_string());
@@ -96,7 +95,9 @@ impl RwaDidService {
         }
 
         // Store in registry
-        self.registry.create(did.to_string(), document.clone()).await?;
+        self.registry
+            .create(did.to_string(), document.clone())
+            .await?;
 
         Ok((did, document))
     }
@@ -110,7 +111,10 @@ impl RwaDidService {
         service_endpoint: crate::ServiceEndpointUrl,
     ) -> DidResult<()> {
         // Resolve current document
-        let mut document = self.registry.read(did).await?
+        let mut document = self
+            .registry
+            .read(did)
+            .await?
             .ok_or_else(|| DidError::DidNotFound(did.to_string()))?;
 
         // Add service endpoint
@@ -132,19 +136,23 @@ impl RwaDidService {
         purposes: Vec<KeyPurpose>,
     ) -> DidResult<String> {
         // Resolve current document
-        let mut document = self.registry.read(did).await?
+        let mut document = self
+            .registry
+            .read(did)
+            .await?
             .ok_or_else(|| DidError::DidNotFound(did.to_string()))?;
 
         // Generate new key
         let new_key_id = format!("{}#key-{}", did, chrono::Utc::now().timestamp());
-        let keypair = self.key_manager.generate_key(
-            new_key_id.clone(),
-            new_key_type,
-            purposes.clone(),
-        ).await?;
+        let keypair = self
+            .key_manager
+            .generate_key(new_key_id.clone(), new_key_type, purposes.clone())
+            .await?;
 
         // Remove old verification method
-        document.verification_method.retain(|vm| vm.id != old_key_id);
+        document
+            .verification_method
+            .retain(|vm| vm.id != old_key_id);
 
         // Add new verification method
         let vm = keypair.to_verification_method(did.to_string());
@@ -152,53 +160,49 @@ impl RwaDidService {
 
         // Update verification relationships
         let new_vm_ref = VerificationMethodReference::Id(new_key_id.clone());
-        
+
         // Remove old references and add new ones
         for purpose in purposes {
             match purpose {
                 KeyPurpose::Authentication => {
-                    document.authentication.retain(|auth| {
-                        match auth {
-                            VerificationMethodReference::Id(id) => id != old_key_id,
-                            _ => true,
-                        }
+                    document.authentication.retain(|auth| match auth {
+                        VerificationMethodReference::Id(id) => id != old_key_id,
+                        _ => true,
                     });
                     document.add_authentication(new_vm_ref.clone());
                 }
                 KeyPurpose::AssertionMethod => {
-                    document.assertion_method.retain(|assertion| {
-                        match assertion {
+                    document
+                        .assertion_method
+                        .retain(|assertion| match assertion {
                             VerificationMethodReference::Id(id) => id != old_key_id,
                             _ => true,
-                        }
-                    });
+                        });
                     document.add_assertion_method(new_vm_ref.clone());
                 }
                 KeyPurpose::KeyAgreement => {
-                    document.key_agreement.retain(|agreement| {
-                        match agreement {
-                            VerificationMethodReference::Id(id) => id != old_key_id,
-                            _ => true,
-                        }
+                    document.key_agreement.retain(|agreement| match agreement {
+                        VerificationMethodReference::Id(id) => id != old_key_id,
+                        _ => true,
                     });
                     document.add_key_agreement(new_vm_ref.clone());
                 }
                 KeyPurpose::CapabilityInvocation => {
-                    document.capability_invocation.retain(|invocation| {
-                        match invocation {
+                    document
+                        .capability_invocation
+                        .retain(|invocation| match invocation {
                             VerificationMethodReference::Id(id) => id != old_key_id,
                             _ => true,
-                        }
-                    });
+                        });
                     document.add_capability_invocation(new_vm_ref.clone());
                 }
                 KeyPurpose::CapabilityDelegation => {
-                    document.capability_delegation.retain(|delegation| {
-                        match delegation {
+                    document
+                        .capability_delegation
+                        .retain(|delegation| match delegation {
                             VerificationMethodReference::Id(id) => id != old_key_id,
                             _ => true,
-                        }
-                    });
+                        });
                     document.add_capability_delegation(new_vm_ref.clone());
                 }
             }
@@ -219,7 +223,10 @@ impl DidService for RwaDidService {
     async fn create_did(&self, controller: Option<String>) -> DidResult<DidDocument> {
         // Create DID with default key configuration
         let key_configs = vec![
-            (KeyType::Ed25519, vec![KeyPurpose::Authentication, KeyPurpose::AssertionMethod]),
+            (
+                KeyType::Ed25519,
+                vec![KeyPurpose::Authentication, KeyPurpose::AssertionMethod],
+            ),
             (KeyType::X25519, vec![KeyPurpose::KeyAgreement]),
         ];
 
@@ -229,7 +236,8 @@ impl DidService for RwaDidService {
 
     async fn resolve_did(&self, did: &str) -> DidResult<DidDocument> {
         let resolution_result = self.resolver.resolve(did).await?;
-        resolution_result.did_document
+        resolution_result
+            .did_document
             .ok_or_else(|| DidError::DidNotFound(did.to_string()))
     }
 
@@ -283,10 +291,7 @@ impl DidService for RwaDidService {
         holder_did: &str,
         credentials: Vec<VerifiableCredential>,
     ) -> DidResult<VerifiablePresentation> {
-        let presentation = VerifiablePresentation::new(
-            Some(holder_did.to_string()),
-            credentials,
-        );
+        let presentation = VerifiablePresentation::new(Some(holder_did.to_string()), credentials);
 
         // TODO: Add proof by signing with holder's key
 

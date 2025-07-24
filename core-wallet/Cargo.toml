@@ -45,7 +45,7 @@ sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chron
 redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
 
 # Ethereum integration
-ethers = { version = "2.0", features = ["ws", "rustls", "contract"] }
+ethers = { version = "2.0", features = ["ws", "rustls"] }
 
 # Cryptography
 ring = "0.17"
@@ -90,7 +90,7 @@ qrcode = "0.14"
 
 # Hardware wallet support
 ledger-transport = { version = "0.10", optional = true }
-trezor-client = { version = "0.8", optional = true }
+trezor-client = { version = "0.1", optional = true }
 
 # Internal dependencies
 core-utils = { path = "../core-utils" }

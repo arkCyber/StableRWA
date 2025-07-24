@@ -5,7 +5,7 @@
 // =====================================================================================
 
 use crate::{ObservabilityError, TraceContext};
-use core_config::TracingConfig;
+use crate::logging::TracingConfig;
 use std::collections::HashMap;
 use tracing::{span, Instrument, Level, Span};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -51,7 +51,9 @@ impl TracingSetup {
                 .with_service_name(&config.service_name)
                 .with_endpoint(jaeger_endpoint)
                 .install_simple()
-                .map_err(|e| ObservabilityError::Tracing(format!("Failed to init Jaeger: {}", e)))?;
+                .map_err(|e| {
+                    ObservabilityError::Tracing(format!("Failed to init Jaeger: {}", e))
+                })?;
 
             registry.with(OpenTelemetryLayer::new(tracer))
         } else {
@@ -95,11 +97,11 @@ impl SpanUtils {
         fields: Option<HashMap<String, String>>,
     ) -> Span {
         let mut span = span!(Level::INFO, "operation", operation = name);
-        
+
         // Add trace context fields
         span.record("trace_id", &trace_context.trace_id.as_str());
         span.record("span_id", &trace_context.span_id.as_str());
-        
+
         if let Some(parent_span_id) = &trace_context.parent_span_id {
             span.record("parent_span_id", parent_span_id.as_str());
         }
@@ -115,11 +117,7 @@ impl SpanUtils {
     }
 
     /// Create HTTP request span
-    pub fn create_http_span(
-        method: &str,
-        path: &str,
-        trace_context: &TraceContext,
-    ) -> Span {
+    pub fn create_http_span(method: &str, path: &str, trace_context: &TraceContext) -> Span {
         let mut fields = HashMap::new();
         fields.insert("http.method".to_string(), method.to_string());
         fields.insert("http.path".to_string(), path.to_string());
@@ -129,11 +127,7 @@ impl SpanUtils {
     }
 
     /// Create database operation span
-    pub fn create_db_span(
-        operation: &str,
-        table: &str,
-        trace_context: &TraceContext,
-    ) -> Span {
+    pub fn create_db_span(operation: &str, table: &str, trace_context: &TraceContext) -> Span {
         let mut fields = HashMap::new();
         fields.insert("db.operation".to_string(), operation.to_string());
         fields.insert("db.table".to_string(), table.to_string());
@@ -274,14 +268,14 @@ impl AsyncInstrumentation {
         E: std::fmt::Display,
     {
         let span = SpanUtils::create_span(operation_name, trace_context, None);
-        
+
         let result = future.instrument(span.clone()).await;
-        
+
         match &result {
             Ok(_) => SpanUtils::record_success(&span),
             Err(e) => SpanUtils::record_error(&span, e),
         }
-        
+
         result
     }
 }
@@ -307,7 +301,8 @@ impl Default for SamplingConfig {
 impl SamplingConfig {
     /// Check if a trace should be sampled
     pub fn should_sample(&self, service: &str, trace_id: &str) -> bool {
-        let rate = self.service_specific_rates
+        let rate = self
+            .service_specific_rates
             .get(service)
             .copied()
             .unwrap_or(self.sample_rate);
@@ -343,7 +338,7 @@ mod tests {
     fn test_child_trace_context() {
         let parent = TracingSetup::new_trace_context();
         let child = TracingSetup::child_trace_context(&parent);
-        
+
         assert_eq!(child.trace_id, parent.trace_id);
         assert_ne!(child.span_id, parent.span_id);
         assert_eq!(child.parent_span_id, Some(parent.span_id));
@@ -353,7 +348,7 @@ mod tests {
     fn test_span_creation() {
         let context = TracingSetup::new_trace_context();
         let span = SpanUtils::create_span("test_operation", &context, None);
-        
+
         // Span should be created successfully
         assert_eq!(span.metadata().unwrap().name(), "operation");
     }
@@ -361,57 +356,62 @@ mod tests {
     #[test]
     fn test_tracing_middleware() {
         let middleware = TracingMiddleware::new("test-service".to_string());
-        
+
         let mut headers = HashMap::new();
         headers.insert("x-trace-id".to_string(), "test-trace-123".to_string());
-        
+
         let context = middleware.extract_trace_context(&headers);
         assert_eq!(context.trace_id, "test-trace-123");
-        
+
         let mut new_headers = HashMap::new();
         middleware.inject_trace_context(&context, &mut new_headers);
-        assert_eq!(new_headers.get("x-trace-id"), Some(&"test-trace-123".to_string()));
+        assert_eq!(
+            new_headers.get("x-trace-id"),
+            Some(&"test-trace-123".to_string())
+        );
     }
 
     #[test]
     fn test_sampling_config() {
         let mut config = SamplingConfig::default();
         config.sample_rate = 0.5; // 50% sampling
-        
+
         // Test should be deterministic for same trace ID
         let trace_id = "test-trace-123";
         let result1 = config.should_sample("test-service", trace_id);
         let result2 = config.should_sample("test-service", trace_id);
         assert_eq!(result1, result2);
-        
+
         // Test service-specific rates
-        config.service_specific_rates.insert("special-service".to_string(), 1.0);
+        config
+            .service_specific_rates
+            .insert("special-service".to_string(), 1.0);
         assert!(config.should_sample("special-service", trace_id));
     }
 
     #[tokio::test]
     async fn test_async_instrumentation() {
         let context = TracingSetup::new_trace_context();
-        
-        let result = AsyncInstrumentation::instrument(
-            "test_async_operation",
-            &context,
-            async { "test_result" }
-        ).await;
-        
+
+        let result = AsyncInstrumentation::instrument("test_async_operation", &context, async {
+            "test_result"
+        })
+        .await;
+
         assert_eq!(result, "test_result");
     }
 
     #[tokio::test]
     async fn test_async_instrumentation_with_error() {
         let context = TracingSetup::new_trace_context();
-        
+
         let result: Result<&str, &str> = AsyncInstrumentation::instrument_with_error_handling(
             "test_async_operation",
             &context,
-            async { Err("test_error") }
-        ).await;
-        
+            async { Err("test_error") },
+        )
+        .await;
+
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "test_error");
     }

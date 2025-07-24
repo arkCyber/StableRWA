@@ -53,7 +53,7 @@ impl TokenBucket {
 
     fn try_consume(&mut self, tokens: f64) -> bool {
         self.refill();
-        
+
         if self.tokens >= tokens {
             self.tokens -= tokens;
             true
@@ -65,7 +65,7 @@ impl TokenBucket {
     fn refill(&mut self) {
         let now = Instant::now();
         let elapsed = now.duration_since(self.last_refill).as_secs_f64();
-        
+
         if elapsed > 0.0 {
             let new_tokens = elapsed * self.refill_rate;
             self.tokens = (self.tokens + new_tokens).min(self.max_tokens);
@@ -100,7 +100,7 @@ impl RateLimiter {
         self.cleanup_if_needed().await;
 
         let mut buckets = self.buckets.lock().unwrap();
-        
+
         let bucket = buckets.entry(identifier.to_string()).or_insert_with(|| {
             TokenBucket::new(
                 self.config.burst_size as f64,
@@ -120,7 +120,7 @@ impl RateLimiter {
     /// Get current rate limit status for identifier
     pub async fn get_rate_limit_status(&self, identifier: &str) -> RateLimitStatus {
         let mut buckets = self.buckets.lock().unwrap();
-        
+
         if let Some(bucket) = buckets.get_mut(identifier) {
             let tokens_available = bucket.tokens_available();
             let requests_remaining = tokens_available.floor() as u32;
@@ -151,8 +151,8 @@ impl RateLimiter {
     /// Extract identifier from request (IP address, user ID, API key, etc.)
     pub fn extract_identifier(&self, req: &actix_web::dev::ServiceRequest) -> String {
         // Try to get user ID from authentication first
-        if let Some(user_claims) = req.extensions().get::<crate::auth::UserClaims>() {
-            return format!("user:{}", user_claims.user_id);
+        if let Some(user_claims) = req.extensions().get::<core_security::UserClaims>() {
+            return format!("user:{}", user_claims.sub);
         }
 
         // Try to get API key from headers
@@ -168,7 +168,7 @@ impl RateLimiter {
             .realip_remote_addr()
             .unwrap_or("unknown")
             .to_string();
-        
+
         format!("ip:{}", ip)
     }
 
@@ -211,10 +211,13 @@ impl RateLimiter {
     async fn cleanup_old_buckets(&self) {
         let mut buckets = self.buckets.lock().unwrap();
         let cutoff = Instant::now() - self.config.cleanup_interval;
-        
+
         buckets.retain(|_, bucket| bucket.last_refill > cutoff);
-        
-        debug!("Cleaned up old rate limit buckets, {} remaining", buckets.len());
+
+        debug!(
+            "Cleaned up old rate limit buckets, {} remaining",
+            buckets.len()
+        );
     }
 
     /// Reset rate limit for specific identifier (admin function)
@@ -240,12 +243,15 @@ impl RateLimiter {
                 None
             };
 
-            statuses.insert(identifier.clone(), RateLimitStatus {
-                requests_remaining,
-                reset_time,
-                limit: self.config.requests_per_minute,
-                window_size: self.config.window_size,
-            });
+            statuses.insert(
+                identifier.clone(),
+                RateLimitStatus {
+                    requests_remaining,
+                    reset_time,
+                    limit: self.config.requests_per_minute,
+                    window_size: self.config.window_size,
+                },
+            );
         }
 
         statuses
@@ -266,8 +272,14 @@ impl RateLimitStatus {
     pub fn to_headers(&self) -> Vec<(String, String)> {
         let mut headers = vec![
             ("X-RateLimit-Limit".to_string(), self.limit.to_string()),
-            ("X-RateLimit-Remaining".to_string(), self.requests_remaining.to_string()),
-            ("X-RateLimit-Window".to_string(), self.window_size.as_secs().to_string()),
+            (
+                "X-RateLimit-Remaining".to_string(),
+                self.requests_remaining.to_string(),
+            ),
+            (
+                "X-RateLimit-Window".to_string(),
+                self.window_size.as_secs().to_string(),
+            ),
         ];
 
         if let Some(reset_time) = self.reset_time {
@@ -291,18 +303,20 @@ impl AdaptiveRateLimiter {
         Self {
             base_limiter: RateLimiter::new(config),
             system_load_threshold: 0.8, // 80% CPU usage
-            load_reduction_factor: 0.5,  // Reduce limits by 50% under high load
+            load_reduction_factor: 0.5, // Reduce limits by 50% under high load
         }
     }
 
     /// Check rate limit with adaptive adjustment based on system load
     pub async fn check_adaptive_rate_limit(&self, identifier: &str) -> Result<(), GatewayError> {
         let system_load = self.get_system_load().await;
-        
+
         if system_load > self.system_load_threshold {
             // Under high load, apply stricter rate limiting
             let adjusted_identifier = format!("high_load:{}", identifier);
-            self.base_limiter.check_rate_limit(&adjusted_identifier).await
+            self.base_limiter
+                .check_rate_limit(&adjusted_identifier)
+                .await
         } else {
             self.base_limiter.check_rate_limit(identifier).await
         }
@@ -324,14 +338,14 @@ mod tests {
     #[tokio::test]
     async fn test_token_bucket() {
         let mut bucket = TokenBucket::new(10.0, 1.0); // 10 tokens, 1 token per second
-        
+
         // Should be able to consume initial tokens
         assert!(bucket.try_consume(5.0));
         assert_eq!(bucket.tokens, 5.0);
-        
+
         // Should not be able to consume more than available
         assert!(!bucket.try_consume(10.0));
-        
+
         // Wait and check refill
         sleep(Duration::from_millis(1100)).await;
         bucket.refill();
@@ -346,18 +360,18 @@ mod tests {
             window_size: Duration::from_secs(60),
             cleanup_interval: Duration::from_secs(300),
         };
-        
+
         let limiter = RateLimiter::new(config);
         let identifier = "test_user";
-        
+
         // Should allow initial requests up to burst size
         for _ in 0..5 {
             assert!(limiter.check_rate_limit(identifier).await.is_ok());
         }
-        
+
         // Should reject additional requests
         assert!(limiter.check_rate_limit(identifier).await.is_err());
-        
+
         // Check status
         let status = limiter.get_rate_limit_status(identifier).await;
         assert_eq!(status.requests_remaining, 0);
@@ -371,9 +385,13 @@ mod tests {
             limit: 60,
             window_size: Duration::from_secs(60),
         };
-        
+
         let headers = status.to_headers();
-        assert!(headers.iter().any(|(k, v)| k == "X-RateLimit-Limit" && v == "60"));
-        assert!(headers.iter().any(|(k, v)| k == "X-RateLimit-Remaining" && v == "45"));
+        assert!(headers
+            .iter()
+            .any(|(k, v)| k == "X-RateLimit-Limit" && v == "60"));
+        assert!(headers
+            .iter()
+            .any(|(k, v)| k == "X-RateLimit-Remaining" && v == "45"));
     }
 }

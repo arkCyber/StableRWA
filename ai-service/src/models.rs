@@ -5,9 +5,9 @@
 // Framework: StableRWA - AI-Powered Enterprise RWA Tokenization Technology Framework Platform
 // =====================================================================================
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 /// AI completion request model
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -310,18 +310,15 @@ mod tests {
         let empty_request = CompletionRequest::new("".to_string());
         assert!(empty_request.validate().is_err());
 
-        let invalid_temp_request = CompletionRequest::new("Test".to_string())
-            .with_temperature(3.0);
+        let invalid_temp_request = CompletionRequest::new("Test".to_string()).with_temperature(3.0);
         assert!(invalid_temp_request.validate().is_err());
     }
 
     #[test]
     fn test_completion_response_creation() {
-        let response = CompletionResponse::new(
-            "Test completion".to_string(),
-            "gpt-3.5-turbo".to_string(),
-        );
-        
+        let response =
+            CompletionResponse::new("Test completion".to_string(), "gpt-3.5-turbo".to_string());
+
         assert_eq!(response.content, "Test completion");
         assert_eq!(response.model, "gpt-3.5-turbo");
         assert!(response.usage.is_none());

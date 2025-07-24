@@ -1,0 +1,261 @@
+# =====================================================================================
+# RWA Tokenization Platform - Asset Service Alert Rules
+# 
+# Author: arkSong (arksong2018@gmail.com)
+# =====================================================================================
+
+groups:
+  # Application Health Alerts
+  - name: asset-service-health
+    rules:
+    - alert: AssetServiceDown
+      expr: up{job="asset-service"} == 0
+      for: 1m
+      labels:
+        severity: critical
+        service: asset-service
+        team: backend
+      annotations:
+        summary: "Asset Service is down"
+        description: "Asset Service has been down for more than 1 minute. Instance: {{ $labels.instance }}"
+        runbook_url: "https://runbooks.company.com/asset-service-down"
+
+    - alert: AssetServiceHighErrorRate
+      expr: rate(http_requests_total{job="asset-service",status=~"5.."}[5m]) / rate(http_requests_total{job="asset-service"}[5m]) > 0.05
+      for: 5m
+      labels:
+        severity: warning
+        service: asset-service
+        team: backend
+      annotations:
+        summary: "High error rate in Asset Service"
+        description: "Asset Service error rate is {{ $value | humanizePercentage }} for the last 5 minutes"
+
+    - alert: AssetServiceHealthCheckFailing
+      expr: probe_success{job="blackbox",instance=~".*asset-service.*health.*"} == 0
+      for: 2m
+      labels:
+        severity: critical
+        service: asset-service
+        team: backend
+      annotations:
+        summary: "Asset Service health check failing"
+        description: "Health check for {{ $labels.instance }} has been failing for more than 2 minutes"
+
+  # Performance Alerts
+  - name: asset-service-performance
+    rules:
+    - alert: AssetServiceHighLatency
+      expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="asset-service"}[5m])) > 2
+      for: 10m
+      labels:
+        severity: warning
+        service: asset-service
+        team: backend
+      annotations:
+        summary: "High latency in Asset Service"
+        description: "95th percentile latency is {{ $value }}s for the last 10 minutes"
+
+    - alert: AssetServiceHighMemoryUsage
+      expr: container_memory_usage_bytes{pod=~"asset-service-.*"} / container_spec_memory_limit_bytes > 0.8
+      for: 5m
+      labels:
+        severity: warning
+        service: asset-service
+        team: backend
+      annotations:
+        summary: "High memory usage in Asset Service"
+        description: "Memory usage is {{ $value | humanizePercentage }} on pod {{ $labels.pod }}"
+
+    - alert: AssetServiceHighCPUUsage
+      expr: rate(container_cpu_usage_seconds_total{pod=~"asset-service-.*"}[5m]) / container_spec_cpu_quota * 100 > 80
+      for: 10m
+      labels:
+        severity: warning
+        service: asset-service
+        team: backend
+      annotations:
+        summary: "High CPU usage in Asset Service"
+        description: "CPU usage is {{ $value }}% on pod {{ $labels.pod }}"
+
+  # Business Logic Alerts
+  - name: asset-service-business
+    rules:
+    - alert: AssetCreationRateDropped
+      expr: rate(asset_created_total[10m]) < 0.1
+      for: 15m
+      labels:
+        severity: warning
+        service: asset-service
+        team: product
+      annotations:
+        summary: "Asset creation rate has dropped significantly"
+        description: "Asset creation rate is {{ $value }} per second, which is below normal threshold"
+
+    - alert: TokenizationFailureRateHigh
+      expr: rate(asset_tokenization_failed_total[5m]) / rate(asset_tokenization_attempted_total[5m]) > 0.1
+      for: 5m
+      labels:
+        severity: warning
+        service: asset-service
+        team: blockchain
+      annotations:
+        summary: "High tokenization failure rate"
+        description: "Tokenization failure rate is {{ $value | humanizePercentage }}"
+
+    - alert: DatabaseConnectionPoolExhausted
+      expr: database_connections_active / database_connections_max > 0.9
+      for: 2m
+      labels:
+        severity: critical
+        service: asset-service
+        team: backend
+      annotations:
+        summary: "Database connection pool nearly exhausted"
+        description: "Database connection pool usage is {{ $value | humanizePercentage }}"
+
+  # Infrastructure Alerts
+  - name: asset-service-infrastructure
+    rules:
+    - alert: PostgreSQLDown
+      expr: up{job="postgresql"} == 0
+      for: 1m
+      labels:
+        severity: critical
+        service: postgresql
+        team: infrastructure
+      annotations:
+        summary: "PostgreSQL is down"
+        description: "PostgreSQL database is not responding"
+
+    - alert: RedisDown
+      expr: up{job="redis"} == 0
+      for: 1m
+      labels:
+        severity: critical
+        service: redis
+        team: infrastructure
+      annotations:
+        summary: "Redis is down"
+        description: "Redis cache is not responding"
+
+    - alert: PostgreSQLHighConnections
+      expr: pg_stat_database_numbackends / pg_settings_max_connections > 0.8
+      for: 5m
+      labels:
+        severity: warning
+        service: postgresql
+        team: infrastructure
+      annotations:
+        summary: "PostgreSQL connection count is high"
+        description: "PostgreSQL has {{ $value | humanizePercentage }} of max connections in use"
+
+    - alert: RedisMemoryUsageHigh
+      expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+      for: 5m
+      labels:
+        severity: warning
+        service: redis
+        team: infrastructure
+      annotations:
+        summary: "Redis memory usage is high"
+        description: "Redis memory usage is {{ $value | humanizePercentage }}"
+
+  # Security Alerts
+  - name: asset-service-security
+    rules:
+    - alert: UnauthorizedAccessAttempts
+      expr: rate(http_requests_total{job="asset-service",status="401"}[5m]) > 10
+      for: 2m
+      labels:
+        severity: warning
+        service: asset-service
+        team: security
+      annotations:
+        summary: "High rate of unauthorized access attempts"
+        description: "{{ $value }} unauthorized requests per second in the last 5 minutes"
+
+    - alert: RateLimitingTriggered
+      expr: rate(http_requests_total{job="asset-service",status="429"}[5m]) > 5
+      for: 1m
+      labels:
+        severity: info
+        service: asset-service
+        team: security
+      annotations:
+        summary: "Rate limiting is being triggered frequently"
+        description: "{{ $value }} rate-limited requests per second"
+
+    - alert: SuspiciousRequestPattern
+      expr: rate(http_requests_total{job="asset-service",method="POST"}[1m]) > 100
+      for: 30s
+      labels:
+        severity: warning
+        service: asset-service
+        team: security
+      annotations:
+        summary: "Suspicious high rate of POST requests"
+        description: "{{ $value }} POST requests per second, which may indicate an attack"
+
+  # Kubernetes Alerts
+  - name: asset-service-kubernetes
+    rules:
+    - alert: PodCrashLooping
+      expr: rate(kube_pod_container_status_restarts_total{pod=~"asset-service-.*"}[15m]) > 0
+      for: 5m
+      labels:
+        severity: warning
+        service: asset-service
+        team: platform
+      annotations:
+        summary: "Pod is crash looping"
+        description: "Pod {{ $labels.pod }} is restarting frequently"
+
+    - alert: PodNotReady
+      expr: kube_pod_status_ready{pod=~"asset-service-.*",condition="false"} == 1
+      for: 5m
+      labels:
+        severity: warning
+        service: asset-service
+        team: platform
+      annotations:
+        summary: "Pod is not ready"
+        description: "Pod {{ $labels.pod }} has been not ready for more than 5 minutes"
+
+    - alert: DeploymentReplicasMismatch
+      expr: kube_deployment_spec_replicas{deployment="asset-service"} != kube_deployment_status_replicas_available{deployment="asset-service"}
+      for: 10m
+      labels:
+        severity: warning
+        service: asset-service
+        team: platform
+      annotations:
+        summary: "Deployment replicas mismatch"
+        description: "Deployment {{ $labels.deployment }} has {{ $labels.spec_replicas }} desired but {{ $labels.available_replicas }} available replicas"
+
+  # SLA Alerts
+  - name: asset-service-sla
+    rules:
+    - alert: SLAViolationAvailability
+      expr: (rate(http_requests_total{job="asset-service",status!~"5.."}[30m]) / rate(http_requests_total{job="asset-service"}[30m])) < 0.999
+      for: 1m
+      labels:
+        severity: critical
+        service: asset-service
+        team: sre
+        sla: availability
+      annotations:
+        summary: "SLA violation: Availability below 99.9%"
+        description: "Service availability is {{ $value | humanizePercentage }} over the last 30 minutes"
+
+    - alert: SLAViolationLatency
+      expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{job="asset-service"}[30m])) > 5
+      for: 5m
+      labels:
+        severity: critical
+        service: asset-service
+        team: sre
+        sla: latency
+      annotations:
+        summary: "SLA violation: 99th percentile latency above 5s"
+        description: "99th percentile latency is {{ $value }}s over the last 30 minutes"

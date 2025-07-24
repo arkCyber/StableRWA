@@ -4,7 +4,8 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use crate::error::{BlockchainError, BlockchainResult};
+use crate::error::BlockchainResult;
+use ethers::abi::Abi;
 use crate::types::{Address, TransactionHash};
 use async_trait::async_trait;
 use ethers::prelude::*;
@@ -229,7 +230,7 @@ impl EthereumERC20Contract {
         let total_supply = self.total_supply().await?;
         
         Ok(TokenInfo {
-            address: self.address,
+            address: self.address.clone(),
             name,
             symbol,
             decimals,
@@ -398,11 +399,11 @@ impl ERC20Manager {
         let mut balances = std::collections::HashMap::new();
         
         for token_address in &token_addresses {
-            let contract = self.create_contract(*token_address)?;
+            let contract = self.create_contract(token_address.clone())?;
             
             for wallet_address in &wallet_addresses {
-                let balance = contract.balance_of(*wallet_address).await?;
-                balances.insert((*token_address, *wallet_address), balance);
+                let balance = contract.balance_of(wallet_address.clone()).await?;
+                balances.insert((token_address.clone(), wallet_address.clone()), balance);
             }
         }
         

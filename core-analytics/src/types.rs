@@ -4,11 +4,12 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
-use uuid::Uuid;
+use chrono::{DateTime, Utc, Datelike};
 use rust_decimal::Decimal;
+use rust_decimal::prelude::ToPrimitive;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 /// Metric definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -238,6 +239,10 @@ pub enum ReportType {
     Annual,
     /// Ad-hoc custom report
     Custom,
+    /// Summary report
+    Summary,
+    /// Detailed report
+    Detailed,
     /// Real-time dashboard report
     RealTime,
     /// Compliance report
@@ -295,6 +300,8 @@ pub enum SectionType {
     Recommendations,
     /// Appendix with raw data
     Appendix,
+    /// Raw data section
+    Data,
 }
 
 /// Section content
@@ -310,6 +317,8 @@ pub enum SectionContent {
     Table(TableData),
     /// Mixed content
     Mixed(Vec<ContentItem>),
+    /// JSON data
+    Json(String),
 }
 
 /// Content item for mixed sections
@@ -559,7 +568,10 @@ impl TimeRange {
         let now = Utc::now();
         let days_since_monday = now.weekday().num_days_from_monday();
         let start = (now - chrono::Duration::days(days_since_monday as i64))
-            .date_naive().and_hms_opt(0, 0, 0).unwrap().and_utc();
+            .date_naive()
+            .and_hms_opt(0, 0, 0)
+            .unwrap()
+            .and_utc();
         let end = start + chrono::Duration::days(6);
         Self { start, end }
     }
@@ -567,12 +579,22 @@ impl TimeRange {
     /// Create a time range for this month
     pub fn this_month() -> Self {
         let now = Utc::now();
-        let start = now.date_naive().with_day(1).unwrap().and_hms_opt(0, 0, 0).unwrap().and_utc();
+        let start = now
+            .date_naive()
+            .with_day(1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap()
+            .and_utc();
         let end = if now.month() == 12 {
             chrono::NaiveDate::from_ymd_opt(now.year() + 1, 1, 1).unwrap()
         } else {
             chrono::NaiveDate::from_ymd_opt(now.year(), now.month() + 1, 1).unwrap()
-        }.and_hms_opt(0, 0, 0).unwrap().and_utc() - chrono::Duration::seconds(1);
+        }
+        .and_hms_opt(0, 0, 0)
+        .unwrap()
+        .and_utc()
+            - chrono::Duration::seconds(1);
         Self { start, end }
     }
 
@@ -611,7 +633,10 @@ mod tests {
         assert_eq!(metric.name, "transaction_count");
         assert_eq!(metric.metric_type, MetricType::Counter);
         assert_eq!(metric.unit, "count");
-        assert_eq!(metric.tags.get("environment"), Some(&"production".to_string()));
+        assert_eq!(
+            metric.tags.get("environment"),
+            Some(&"production".to_string())
+        );
     }
 
     #[test]

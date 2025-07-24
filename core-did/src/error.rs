@@ -1,12 +1,12 @@
 // =====================================================================================
 // DID Error Types
-// 
+//
 // Comprehensive error handling for DID operations
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use thiserror::Error;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 /// DID operation errors
 #[derive(Error, Debug, Clone, Serialize, Deserialize)]
@@ -158,10 +158,10 @@ impl DidError {
     pub fn is_retryable(&self) -> bool {
         matches!(
             self,
-            DidError::NetworkError(_) | 
-            DidError::TimeoutError(_) | 
-            DidError::RegistryError(_) |
-            DidError::RateLimitExceeded(_)
+            DidError::NetworkError(_)
+                | DidError::TimeoutError(_)
+                | DidError::RegistryError(_)
+                | DidError::RateLimitExceeded(_)
         )
     }
 
@@ -169,23 +169,23 @@ impl DidError {
     pub fn is_client_error(&self) -> bool {
         matches!(
             self,
-            DidError::InvalidDidFormat(_) |
-            DidError::InvalidDidMethod(_) |
-            DidError::DidNotFound(_) |
-            DidError::DidAlreadyExists(_) |
-            DidError::DidDeactivated(_) |
-            DidError::InvalidDidDocument(_) |
-            DidError::InvalidVerificationMethod(_) |
-            DidError::InvalidServiceEndpoint(_) |
-            DidError::KeyNotFound(_) |
-            DidError::InvalidKeyFormat(_) |
-            DidError::InvalidSignature(_) |
-            DidError::InvalidCredential(_) |
-            DidError::CredentialExpired(_) |
-            DidError::CredentialRevoked(_) |
-            DidError::InvalidPresentation(_) |
-            DidError::VerificationFailed(_) |
-            DidError::PermissionDenied(_)
+            DidError::InvalidDidFormat(_)
+                | DidError::InvalidDidMethod(_)
+                | DidError::DidNotFound(_)
+                | DidError::DidAlreadyExists(_)
+                | DidError::DidDeactivated(_)
+                | DidError::InvalidDidDocument(_)
+                | DidError::InvalidVerificationMethod(_)
+                | DidError::InvalidServiceEndpoint(_)
+                | DidError::KeyNotFound(_)
+                | DidError::InvalidKeyFormat(_)
+                | DidError::InvalidSignature(_)
+                | DidError::InvalidCredential(_)
+                | DidError::CredentialExpired(_)
+                | DidError::CredentialRevoked(_)
+                | DidError::InvalidPresentation(_)
+                | DidError::VerificationFailed(_)
+                | DidError::PermissionDenied(_)
         )
     }
 
@@ -193,16 +193,16 @@ impl DidError {
     pub fn is_server_error(&self) -> bool {
         matches!(
             self,
-            DidError::CryptographicError(_) |
-            DidError::ResolutionError(_) |
-            DidError::NetworkError(_) |
-            DidError::TimeoutError(_) |
-            DidError::RegistryError(_) |
-            DidError::StorageError(_) |
-            DidError::SerializationError(_) |
-            DidError::ConfigurationError(_) |
-            DidError::RateLimitExceeded(_) |
-            DidError::InternalError(_)
+            DidError::CryptographicError(_)
+                | DidError::ResolutionError(_)
+                | DidError::NetworkError(_)
+                | DidError::TimeoutError(_)
+                | DidError::RegistryError(_)
+                | DidError::StorageError(_)
+                | DidError::SerializationError(_)
+                | DidError::ConfigurationError(_)
+                | DidError::RateLimitExceeded(_)
+                | DidError::InternalError(_)
         )
     }
 }
@@ -238,9 +238,18 @@ mod tests {
 
     #[test]
     fn test_error_codes() {
-        assert_eq!(DidError::InvalidDidFormat("test".to_string()).error_code(), "INVALID_DID_FORMAT");
-        assert_eq!(DidError::DidNotFound("test".to_string()).error_code(), "DID_NOT_FOUND");
-        assert_eq!(DidError::NetworkError("test".to_string()).error_code(), "NETWORK_ERROR");
+        assert_eq!(
+            DidError::InvalidDidFormat("test".to_string()).error_code(),
+            "INVALID_DID_FORMAT"
+        );
+        assert_eq!(
+            DidError::DidNotFound("test".to_string()).error_code(),
+            "DID_NOT_FOUND"
+        );
+        assert_eq!(
+            DidError::NetworkError("test".to_string()).error_code(),
+            "NETWORK_ERROR"
+        );
     }
 
     #[test]

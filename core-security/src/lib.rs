@@ -46,13 +46,13 @@ pub enum SecurityError {
 /// User claims for JWT tokens
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserClaims {
-    pub sub: String,           // Subject (user ID)
-    pub email: String,         // User email
-    pub roles: Vec<String>,    // User roles
+    pub sub: String,              // Subject (user ID)
+    pub email: String,            // User email
+    pub roles: Vec<String>,       // User roles
     pub permissions: Vec<String>, // User permissions
-    pub exp: i64,              // Expiration time
-    pub iat: i64,              // Issued at
-    pub jti: String,           // JWT ID
+    pub exp: i64,                 // Expiration time
+    pub iat: i64,                 // Issued at
+    pub jti: String,              // JWT ID
 }
 
 impl UserClaims {
@@ -65,7 +65,7 @@ impl UserClaims {
     ) -> Self {
         let now = Utc::now();
         let exp = now + chrono::Duration::hours(expiration_hours);
-        
+
         Self {
             sub: user_id,
             email,
@@ -76,15 +76,15 @@ impl UserClaims {
             jti: Uuid::new_v4().to_string(),
         }
     }
-    
+
     pub fn has_role(&self, role: &str) -> bool {
         self.roles.contains(&role.to_string())
     }
-    
+
     pub fn has_permission(&self, permission: &str) -> bool {
         self.permissions.contains(&permission.to_string())
     }
-    
+
     pub fn is_expired(&self) -> bool {
         Utc::now().timestamp() > self.exp
     }
@@ -107,7 +107,7 @@ impl Session {
     pub fn new(user_id: String, duration_hours: i64) -> Self {
         let now = Utc::now();
         let expires_at = now + chrono::Duration::hours(duration_hours);
-        
+
         Self {
             id: Uuid::new_v4().to_string(),
             user_id,
@@ -119,19 +119,19 @@ impl Session {
             metadata: HashMap::new(),
         }
     }
-    
+
     pub fn is_expired(&self) -> bool {
         Utc::now() > self.expires_at
     }
-    
+
     pub fn is_valid(&self) -> bool {
         self.is_active && !self.is_expired()
     }
-    
+
     pub fn extend(&mut self, hours: i64) {
         self.expires_at = Utc::now() + chrono::Duration::hours(hours);
     }
-    
+
     pub fn invalidate(&mut self) {
         self.is_active = false;
     }
@@ -145,24 +145,24 @@ pub enum Permission {
     AssetWrite,
     AssetDelete,
     AssetManage,
-    
+
     // User permissions
     UserRead,
     UserWrite,
     UserDelete,
     UserManage,
-    
+
     // Payment permissions
     PaymentRead,
     PaymentWrite,
     PaymentProcess,
     PaymentManage,
-    
+
     // System permissions
     SystemAdmin,
     SystemMonitor,
     SystemConfig,
-    
+
     // Custom permission
     Custom(String),
 }
@@ -214,7 +214,7 @@ impl Role {
             Role::Custom(role) => role.clone(),
         }
     }
-    
+
     pub fn permissions(&self) -> Vec<Permission> {
         match self {
             Role::SuperAdmin => vec![
@@ -259,7 +259,7 @@ impl Role {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_user_claims() {
         let claims = UserClaims::new(
@@ -269,7 +269,7 @@ mod tests {
             vec!["asset:read".to_string()],
             24,
         );
-        
+
         assert_eq!(claims.sub, "user123");
         assert_eq!(claims.email, "user@example.com");
         assert!(claims.has_role("admin"));
@@ -277,32 +277,37 @@ mod tests {
         assert!(!claims.has_role("user"));
         assert!(!claims.is_expired());
     }
-    
+
     #[test]
     fn test_session() {
         let mut session = Session::new("user123".to_string(), 24);
-        
+
         assert_eq!(session.user_id, "user123");
         assert!(session.is_valid());
         assert!(!session.is_expired());
-        
+
         session.invalidate();
         assert!(!session.is_valid());
     }
-    
+
     #[test]
     fn test_permissions() {
         assert_eq!(Permission::AssetRead.as_string(), "asset:read");
-        assert_eq!(Permission::Custom("custom:perm".to_string()).as_string(), "custom:perm");
+        assert_eq!(
+            Permission::Custom("custom:perm".to_string()).as_string(),
+            "custom:perm"
+        );
     }
-    
+
     #[test]
     fn test_roles() {
         let admin_role = Role::Admin;
         assert_eq!(admin_role.as_string(), "admin");
-        
+
         let permissions = admin_role.permissions();
         assert!(permissions.len() > 0);
-        assert!(permissions.iter().any(|p| matches!(p, Permission::AssetManage)));
+        assert!(permissions
+            .iter()
+            .any(|p| matches!(p, Permission::AssetManage)));
     }
 }

@@ -4,7 +4,7 @@
 // Author: arkSong (arksong2018@gmail.com)
 // =====================================================================================
 
-use crate::ObservabilityError;
+// Removed unused import: crate::ObservabilityError
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info};
 
 /// Health check status
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -126,18 +126,24 @@ impl HealthCheck for DatabaseHealthCheck {
 
     async fn check(&self) -> HealthCheckResult {
         let start = Instant::now();
-        
+
         match sqlx::query("SELECT 1").execute(&self.pool).await {
             Ok(_) => {
                 let duration = start.elapsed();
                 HealthCheckResult::healthy()
                     .with_duration(duration)
-                    .with_detail("connection_pool_size", serde_json::Value::Number(
-                        serde_json::Number::from(self.pool.size() as u64)
-                    ))
-                    .with_detail("idle_connections", serde_json::Value::Number(
-                        serde_json::Number::from(self.pool.num_idle() as u64)
-                    ))
+                    .with_detail(
+                        "connection_pool_size",
+                        serde_json::Value::Number(
+                            serde_json::Number::from(self.pool.size() as u64),
+                        ),
+                    )
+                    .with_detail(
+                        "idle_connections",
+                        serde_json::Value::Number(serde_json::Number::from(
+                            self.pool.num_idle() as u64
+                        )),
+                    )
             }
             Err(e) => {
                 let duration = start.elapsed();
@@ -172,26 +178,24 @@ impl HealthCheck for RedisHealthCheck {
 
     async fn check(&self) -> HealthCheckResult {
         let start = Instant::now();
-        
+
         match self.client.get_async_connection().await {
-            Ok(mut conn) => {
-                match redis::cmd("PING").query_async::<_, String>(&mut conn).await {
-                    Ok(response) if response == "PONG" => {
-                        let duration = start.elapsed();
-                        HealthCheckResult::healthy().with_duration(duration)
-                    }
-                    Ok(response) => {
-                        let duration = start.elapsed();
-                        HealthCheckResult::degraded(format!("Unexpected Redis response: {}", response))
-                            .with_duration(duration)
-                    }
-                    Err(e) => {
-                        let duration = start.elapsed();
-                        HealthCheckResult::unhealthy(format!("Redis ping failed: {}", e))
-                            .with_duration(duration)
-                    }
+            Ok(mut conn) => match redis::cmd("PING").query_async::<_, String>(&mut conn).await {
+                Ok(response) if response == "PONG" => {
+                    let duration = start.elapsed();
+                    HealthCheckResult::healthy().with_duration(duration)
                 }
-            }
+                Ok(response) => {
+                    let duration = start.elapsed();
+                    HealthCheckResult::degraded(format!("Unexpected Redis response: {}", response))
+                        .with_duration(duration)
+                }
+                Err(e) => {
+                    let duration = start.elapsed();
+                    HealthCheckResult::unhealthy(format!("Redis ping failed: {}", e))
+                        .with_duration(duration)
+                }
+            },
             Err(e) => {
                 let duration = start.elapsed();
                 HealthCheckResult::unhealthy(format!("Redis connection failed: {}", e))
@@ -237,27 +241,29 @@ impl HealthCheck for ExternalServiceHealthCheck {
 
     async fn check(&self) -> HealthCheckResult {
         let start = Instant::now();
-        
+
         match self.client.get(&self.url).send().await {
             Ok(response) => {
                 let duration = start.elapsed();
                 let status_code = response.status().as_u16();
-                
+
                 if status_code == self.expected_status {
                     HealthCheckResult::healthy()
                         .with_duration(duration)
-                        .with_detail("status_code", serde_json::Value::Number(
-                            serde_json::Number::from(status_code as u64)
-                        ))
+                        .with_detail(
+                            "status_code",
+                            serde_json::Value::Number(serde_json::Number::from(status_code as u64)),
+                        )
                 } else {
                     HealthCheckResult::degraded(format!(
                         "Unexpected status code: {} (expected: {})",
                         status_code, self.expected_status
                     ))
                     .with_duration(duration)
-                    .with_detail("status_code", serde_json::Value::Number(
-                        serde_json::Number::from(status_code as u64)
-                    ))
+                    .with_detail(
+                        "status_code",
+                        serde_json::Value::Number(serde_json::Number::from(status_code as u64)),
+                    )
                 }
             }
             Err(e) => {
@@ -307,9 +313,9 @@ impl HealthCheckManager {
 
         for (name, check) in checks.iter() {
             debug!("Running health check: {}", name);
-            
+
             let result = tokio::time::timeout(check.timeout(), check.check()).await;
-            
+
             let check_result = match result {
                 Ok(result) => result,
                 Err(_) => HealthCheckResult::unhealthy(format!(
@@ -321,8 +327,12 @@ impl HealthCheckManager {
             // Update overall status based on individual check results
             match (&overall_status, &check_result.status, check.is_critical()) {
                 (_, HealthStatus::Unhealthy, true) => overall_status = HealthStatus::Unhealthy,
-                (HealthStatus::Healthy, HealthStatus::Degraded, _) => overall_status = HealthStatus::Degraded,
-                (HealthStatus::Healthy, HealthStatus::Unhealthy, false) => overall_status = HealthStatus::Degraded,
+                (HealthStatus::Healthy, HealthStatus::Degraded, _) => {
+                    overall_status = HealthStatus::Degraded
+                }
+                (HealthStatus::Healthy, HealthStatus::Unhealthy, false) => {
+                    overall_status = HealthStatus::Degraded
+                }
                 _ => {}
             }
 
@@ -343,7 +353,7 @@ impl HealthCheckManager {
         }
 
         let overall_duration = start.elapsed();
-        
+
         OverallHealthResult {
             status: overall_status,
             checks: results,
@@ -355,7 +365,7 @@ impl HealthCheckManager {
     /// Get last health check results without running checks
     pub async fn get_last_results(&self) -> Option<OverallHealthResult> {
         let results = self.last_results.read().await;
-        
+
         if results.is_empty() {
             return None;
         }
@@ -372,7 +382,9 @@ impl HealthCheckManager {
 
             match &overall_status {
                 HealthStatus::Healthy => {
-                    if result.status == HealthStatus::Unhealthy || result.status == HealthStatus::Degraded {
+                    if result.status == HealthStatus::Unhealthy
+                        || result.status == HealthStatus::Degraded
+                    {
                         overall_status = result.status.clone();
                     }
                 }
@@ -429,22 +441,33 @@ impl OverallHealthResult {
     /// Get summary information
     pub fn summary(&self) -> HashMap<String, serde_json::Value> {
         let mut summary = HashMap::new();
-        
-        summary.insert("status".to_string(), serde_json::Value::String(self.status.to_string()));
-        summary.insert("timestamp".to_string(), serde_json::Value::String(self.timestamp.to_rfc3339()));
-        summary.insert("duration_ms".to_string(), serde_json::Value::Number(
-            serde_json::Number::from(self.duration.as_millis() as u64)
-        ));
-        summary.insert("total_checks".to_string(), serde_json::Value::Number(
-            serde_json::Number::from(self.checks.len() as u64)
-        ));
 
-        let healthy_count = self.checks.values()
+        summary.insert(
+            "status".to_string(),
+            serde_json::Value::String(self.status.to_string()),
+        );
+        summary.insert(
+            "timestamp".to_string(),
+            serde_json::Value::String(self.timestamp.to_rfc3339()),
+        );
+        summary.insert(
+            "duration_ms".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(self.duration.as_millis() as u64)),
+        );
+        summary.insert(
+            "total_checks".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(self.checks.len() as u64)),
+        );
+
+        let healthy_count = self
+            .checks
+            .values()
             .filter(|r| r.status == HealthStatus::Healthy)
             .count();
-        summary.insert("healthy_checks".to_string(), serde_json::Value::Number(
-            serde_json::Number::from(healthy_count as u64)
-        ));
+        summary.insert(
+            "healthy_checks".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(healthy_count as u64)),
+        );
 
         summary
     }
@@ -464,7 +487,9 @@ mod tests {
         fn new(name: &str, status: HealthStatus, is_critical: bool) -> Self {
             let result = match status {
                 HealthStatus::Healthy => HealthCheckResult::healthy(),
-                HealthStatus::Unhealthy => HealthCheckResult::unhealthy("Mock unhealthy".to_string()),
+                HealthStatus::Unhealthy => {
+                    HealthCheckResult::unhealthy("Mock unhealthy".to_string())
+                }
                 HealthStatus::Degraded => HealthCheckResult::degraded("Mock degraded".to_string()),
                 HealthStatus::Unknown => HealthCheckResult::healthy(), // Default to healthy for unknown
             };
@@ -497,12 +522,24 @@ mod tests {
         let manager = HealthCheckManager::new();
 
         // Register health checks
-        manager.register(Box::new(MockHealthCheck::new("db", HealthStatus::Healthy, true))).await;
-        manager.register(Box::new(MockHealthCheck::new("cache", HealthStatus::Degraded, false))).await;
+        manager
+            .register(Box::new(MockHealthCheck::new(
+                "db",
+                HealthStatus::Healthy,
+                true,
+            )))
+            .await;
+        manager
+            .register(Box::new(MockHealthCheck::new(
+                "cache",
+                HealthStatus::Degraded,
+                false,
+            )))
+            .await;
 
         // Run health checks
         let result = manager.check_all().await;
-        
+
         assert_eq!(result.status, HealthStatus::Degraded); // Degraded because cache is degraded
         assert_eq!(result.checks.len(), 2);
         assert!(result.checks.contains_key("db"));
@@ -513,11 +550,23 @@ mod tests {
     async fn test_critical_unhealthy_check() {
         let manager = HealthCheckManager::new();
 
-        manager.register(Box::new(MockHealthCheck::new("db", HealthStatus::Unhealthy, true))).await;
-        manager.register(Box::new(MockHealthCheck::new("cache", HealthStatus::Healthy, false))).await;
+        manager
+            .register(Box::new(MockHealthCheck::new(
+                "db",
+                HealthStatus::Unhealthy,
+                true,
+            )))
+            .await;
+        manager
+            .register(Box::new(MockHealthCheck::new(
+                "cache",
+                HealthStatus::Healthy,
+                false,
+            )))
+            .await;
 
         let result = manager.check_all().await;
-        
+
         assert_eq!(result.status, HealthStatus::Unhealthy); // Unhealthy because critical check failed
     }
 
@@ -525,11 +574,23 @@ mod tests {
     async fn test_non_critical_unhealthy_check() {
         let manager = HealthCheckManager::new();
 
-        manager.register(Box::new(MockHealthCheck::new("db", HealthStatus::Healthy, true))).await;
-        manager.register(Box::new(MockHealthCheck::new("cache", HealthStatus::Unhealthy, false))).await;
+        manager
+            .register(Box::new(MockHealthCheck::new(
+                "db",
+                HealthStatus::Healthy,
+                true,
+            )))
+            .await;
+        manager
+            .register(Box::new(MockHealthCheck::new(
+                "cache",
+                HealthStatus::Unhealthy,
+                false,
+            )))
+            .await;
 
         let result = manager.check_all().await;
-        
+
         assert_eq!(result.status, HealthStatus::Degraded); // Degraded because non-critical check failed
     }
 

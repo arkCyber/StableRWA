@@ -5,12 +5,12 @@
 // Framework: StableRWA - AI-Powered Enterprise RWA Tokenization Technology Framework Platform
 // =====================================================================================
 
-use crate::{AIProvider, AIRequest, AIResponse, AIResult, AIError, TokenUsage};
+use crate::{AIError, AIProvider, AIRequest, AIResponse, AIResult, TokenUsage};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use tracing::{info, error, instrument};
+use tracing::{error, info, instrument};
 
 /// OpenAI provider implementation
 pub struct OpenAIProvider {
@@ -24,7 +24,9 @@ impl OpenAIProvider {
     /// Create a new OpenAI provider
     pub fn new(api_key: String) -> AIResult<Self> {
         if api_key.is_empty() {
-            return Err(AIError::AuthenticationFailed("API key is empty".to_string()));
+            return Err(AIError::AuthenticationFailed(
+                "API key is empty".to_string(),
+            ));
         }
 
         let client = Client::builder()
@@ -61,7 +63,10 @@ impl OpenAIProvider {
         if supported_models.contains(&model) {
             Ok(())
         } else {
-            Err(AIError::ModelNotFound(format!("Unsupported model: {}", model)))
+            Err(AIError::ModelNotFound(format!(
+                "Unsupported model: {}",
+                model
+            )))
         }
     }
 }
@@ -81,21 +86,31 @@ impl AIProvider for OpenAIProvider {
                 role: "user".to_string(),
                 content: request.prompt.clone(),
             }],
-            max_tokens: request.parameters.get("max_tokens")
+            max_tokens: request
+                .parameters
+                .get("max_tokens")
                 .and_then(|v| v.as_u64())
                 .map(|v| v as u32),
-            temperature: request.parameters.get("temperature")
+            temperature: request
+                .parameters
+                .get("temperature")
                 .and_then(|v| v.as_f64())
                 .map(|v| v as f32),
-            top_p: request.parameters.get("top_p")
+            top_p: request
+                .parameters
+                .get("top_p")
                 .and_then(|v| v.as_f64())
                 .map(|v| v as f32),
             n: Some(1),
             stop: None,
-            presence_penalty: request.parameters.get("presence_penalty")
+            presence_penalty: request
+                .parameters
+                .get("presence_penalty")
                 .and_then(|v| v.as_f64())
                 .map(|v| v as f32),
-            frequency_penalty: request.parameters.get("frequency_penalty")
+            frequency_penalty: request
+                .parameters
+                .get("frequency_penalty")
                 .and_then(|v| v.as_f64())
                 .map(|v| v as f32),
             user: request.user_id.map(|id| id.to_string()),
@@ -116,11 +131,14 @@ impl AIProvider for OpenAIProvider {
         if !status.is_success() {
             let error_text = response.text().await.unwrap_or_default();
             error!("OpenAI API error: {} - {}", status, error_text);
-            
+
             return match status.as_u16() {
                 401 => Err(AIError::AuthenticationFailed("Invalid API key".to_string())),
                 429 => Err(AIError::RateLimitExceeded),
-                _ => Err(AIError::ApiError(format!("HTTP {}: {}", status, error_text))),
+                _ => Err(AIError::ApiError(format!(
+                    "HTTP {}: {}",
+                    status, error_text
+                ))),
             };
         }
 
@@ -144,11 +162,15 @@ impl AIProvider for OpenAIProvider {
 
         info!("OpenAI request completed successfully");
 
-        Ok(AIResponse::new(request.id, content, model.to_string()).with_usage(usage.unwrap_or_else(|| TokenUsage {
-            prompt_tokens: 0,
-            completion_tokens: 0,
-            total_tokens: 0,
-        })))
+        Ok(
+            AIResponse::new(request.id, content, model.to_string()).with_usage(
+                usage.unwrap_or_else(|| TokenUsage {
+                    prompt_tokens: 0,
+                    completion_tokens: 0,
+                    total_tokens: 0,
+                }),
+            ),
+        )
     }
 
     async fn health_check(&self) -> AIResult<()> {
@@ -216,12 +238,14 @@ struct OpenAIChatResponse {
 #[derive(Debug, Deserialize)]
 struct OpenAIChatChoice {
     message: OpenAIChatResponseMessage,
+    #[allow(dead_code)]
     finish_reason: Option<String>,
 }
 
 /// OpenAI chat response message
 #[derive(Debug, Deserialize)]
 struct OpenAIChatResponseMessage {
+    #[allow(dead_code)]
     role: String,
     content: Option<String>,
 }
@@ -254,7 +278,7 @@ mod tests {
     #[test]
     fn test_model_validation() {
         let provider = OpenAIProvider::new("test-key".to_string()).unwrap();
-        
+
         assert!(provider.validate_model("gpt-3.5-turbo").is_ok());
         assert!(provider.validate_model("gpt-4").is_ok());
         assert!(provider.validate_model("invalid-model").is_err());
@@ -264,7 +288,7 @@ mod tests {
     fn test_supported_models() {
         let provider = OpenAIProvider::new("test-key".to_string()).unwrap();
         let models = provider.supported_models();
-        
+
         assert!(models.contains(&"gpt-3.5-turbo".to_string()));
         assert!(models.contains(&"gpt-4".to_string()));
         assert!(!models.is_empty());
@@ -279,10 +303,10 @@ mod tests {
     #[tokio::test]
     async fn test_request_validation() {
         let provider = OpenAIProvider::new("test-key".to_string()).unwrap();
-        
+
         let request = AIRequest::new("Test prompt".to_string());
         let validation_result = provider.validate_request(&request);
-        
+
         assert!(validation_result.is_ok());
     }
 }
